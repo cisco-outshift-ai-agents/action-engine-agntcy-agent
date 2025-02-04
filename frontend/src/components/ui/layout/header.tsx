@@ -8,9 +8,9 @@ export const NavBar = () => {
   return (
     <Header
       logo={
-        <div className="flex items-center gap-2">
+        <div className="flex">
           <CiscoLogo className="w-12 h-12 fill-white" />
-          <Divider direction="vertical" style={{ height: "20px" }} size="md" />
+          <Divider direction="vertical" style={{ height: "40px" }} size="md" />
 
           <div className="flex items-center gap-2">
             <img
@@ -36,13 +36,13 @@ export const NavBar = () => {
         profile: {
           heading: "User",
         },
-        content: (
-          <Header.UserProfile
-            profile={{
-              user: { email: "User", name: "User" },
-            }}
-          ></Header.UserProfile>
-        ),
+        // content: (
+        //   <Header.UserProfile
+        //     profile={{
+        //       user: { email: "User", name: "User" },
+        //     }}
+        //   ></Header.UserProfile>
+        // ),
       }}
       style={{ zIndex: 970 }}
     >
@@ -50,13 +50,13 @@ export const NavBar = () => {
         <Header.Button icon="hamburger" label="menu" onClick={() => {}} />
       </Link>
       <Link to={""} target="_blank">
-        <Header.Button icon="settings" label="menu" onClick={() => {}} />
+        <Header.Button icon="settings" label="settings" onClick={() => {}} />
       </Link>
       <Link to={""} target="_blank">
-        <Header.Button icon="info" label="menu" onClick={() => {}} />
+        <Header.Button icon="info" label="info" onClick={() => {}} />
       </Link>
       <Link to={""} target="_blank">
-        <Header.Button icon="organization" label="menu" onClick={() => {}} />
+        <Header.Button icon="organization" label="org" onClick={() => {}} />
       </Link>
     </Header>
   );
