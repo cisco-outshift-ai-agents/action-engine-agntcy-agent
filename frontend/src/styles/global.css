@@ -1,0 +1,43 @@
+@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "CiscoSans";
+  font-weight: lighter;
+  font-style: "normal";
+  src: url("../assets/fonts/CiscoSansTTLight.eot") format("embedded-opentype"),
+    url("../assets/fonts/CiscoSansTTLight.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "CiscoSans";
+  font-weight: normal;
+  font-style: "normal";
+  src: url("../assets/fonts/CiscoSansTTRegular.eot") format("embedded-opentype"),
+    url("../assets/fonts/CiscoSansTTRegular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "CiscoSans";
+  font-weight: 500;
+  font-style: "normal";
+  src: url("../assets/fonts/CiscoSansTTMedium.eot") format("embedded-opentype"),
+    url("../assets/fonts/CiscoSansTTMedium.woff") format("woff");
+}
+
+@font-face {
+  font-family: "CiscoSans";
+  font-weight: 700;
+  font-style: "normal";
+  src: url("../assets/fonts/CiscoSansTTBold.eot") format("embedded-opentype"),
+    url("../assets/fonts/CiscoSansTTBold.woff2") format("woff2");
+}
+
+@layer base {
+  body {
+    background: linear-gradient(to bottom, #373c42, #0f1214);
+    min-height: 100vh;
+  }
+}
