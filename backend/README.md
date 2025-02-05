@@ -14,7 +14,7 @@ venv
 
 ```bash
 uv venv --python 3.11
-source venv/bin/activate
+source .venv/bin/activate
 ```
 
 Set up vscode by hitting CTRL+P and typing `>Python: Select Interpreter` and selecting the venv python.
@@ -28,5 +28,11 @@ uv pip install -r requirements.txt
 Run the noVNC server and other services with docker-compose
 
 ```bash
-docker compose up -d
+CHROME_PERSISTENT_SESSION=True && docker compose up --build
+```
+
+In another tab, run the API server
+
+```bash
+CHROME_PERSISTENT_SESSION=True && uvicorn backend.main:app --host 127.0.0.1 --port 7788 --reload
 ```
