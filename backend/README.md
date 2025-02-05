@@ -8,9 +8,11 @@ This is originally built off of [browser-use/web-ui](https://github.com/browser-
 
 Pre-requisites:
 
-- uv
+```
+brew install uv
+```
 
-venv
+Set up venv
 
 ```bash
 uv venv --python 3.11
@@ -24,6 +26,14 @@ Install dependencies
 ```bash
 uv pip install -r requirements.txt
 ```
+
+Copy .env
+
+```bash
+cp .env.example .env
+```
+
+Add your AI credentials to the .env file
 
 Run the noVNC server and other services with docker-compose
 
