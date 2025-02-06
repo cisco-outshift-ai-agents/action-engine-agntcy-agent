@@ -38,7 +38,7 @@ Add your AI credentials to the .env file
 Run the noVNC server and other services with docker-compose
 
 ```bash
-CHROME_PERSISTENT_SESSION=True && docker compose up --build
+source .env && docker compose up --build
 ```
 
 In another tab, run the API server
