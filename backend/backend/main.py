@@ -52,7 +52,6 @@ async def chat_endpoint(websocket: WebSocket):
             try:
                 client_payload = json.loads(data)
                 task = client_payload.get("task", DEFAULT_CONFIG["task"])
-                # Extract additional info if provided, otherwise use empty string
                 add_infos = client_payload.get("add_infos", "")
                 logger.info(f"Extracted task: {task}")
                 logger.info(f"Extracted additional info: {add_infos}")
@@ -62,7 +61,6 @@ async def chat_endpoint(websocket: WebSocket):
                 await websocket.send_text(json.dumps({"error": error_msg}))
                 continue
 
-            # Prepare configuration with all required parameters
             config = DEFAULT_CONFIG.copy()
             config.update({
                 "task": task,
@@ -76,9 +74,8 @@ async def chat_endpoint(websocket: WebSocket):
                     logger.info(f"Update type: {type(update)}")
                     
                     try:
-                        # Handle the stream update list format
                         if isinstance(update, list):
-                            html_content = update[0] if len(update) > 0 else ""
+                            html_content = update[0] if update else ""
                             brain_states = []
                             actions = []
                             
@@ -94,8 +91,19 @@ async def chat_endpoint(websocket: WebSocket):
                             response_data = {
                                 "html_content": html_content,
                                 "current_state": brain_states[-1] if brain_states else {},
-                                "action": actions
+                                "action": []
                             }
+
+                            # Handle action serialization
+                            for action in actions:
+                                if hasattr(action, 'model_dump'):
+                                    response_data["action"].append(action.model_dump())
+                                elif hasattr(action, 'dict'):
+                                    response_data["action"].append(action.dict())
+                                elif isinstance(action, dict):
+                                    response_data["action"].append(action)
+                                else:
+                                    response_data["action"].append(str(action))
                             
                             json_string = json.dumps(response_data)
                             await websocket.send_text(json_string)

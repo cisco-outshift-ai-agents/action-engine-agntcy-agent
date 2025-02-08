@@ -10,22 +10,22 @@ class CustomAgentStepInfo:
     step_number: int
     max_steps: int
     task: str
-    add_infos: str
-    memory: str
-    task_progress: str
-    future_plans: str
+    add_infos: str = ""
+    memory: str = ""
+    task_progress: str = ""
+    future_plans: str = ""
 
 
 class CustomAgentBrain(BaseModel):
     """Current state of the agent"""
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    prev_action_evaluation: str
-    important_contents: str
-    task_progress: str
-    future_plans: str
-    thought: str
-    summary: str
+    prev_action_evaluation: str = ""
+    important_contents: str = ""
+    task_progress: str = ""
+    future_plans: str = ""
+    thought: str = ""
+    summary: str = ""
 
 
 class CustomAgentOutput(AgentOutput):
@@ -36,8 +36,8 @@ class CustomAgentOutput(AgentOutput):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    current_state: CustomAgentBrain
-    action: list[ActionModel]
+    current_state: CustomAgentBrain = Field(default_factory=CustomAgentBrain)  
+    action: list[ActionModel] = Field(default_factory=list)
 
     @staticmethod
     def type_with_custom_actions(
