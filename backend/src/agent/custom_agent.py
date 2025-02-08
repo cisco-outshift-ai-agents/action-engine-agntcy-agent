@@ -10,6 +10,8 @@ import io
 import platform
 from browser_use.agent.prompts import SystemPrompt, AgentMessagePrompt
 from browser_use.agent.service import Agent
+from pydantic import ValidationError
+
 from browser_use.agent.views import (
     ActionResult,
     ActionModel,
@@ -41,6 +43,28 @@ logger = logging.getLogger(__name__)
 
 
 class CustomAgent(Agent):
+
+    def _log_response(self, response: CustomAgentOutput) -> None:
+        logger.info("Complete Agent Response:")
+        logger.info(json.dumps(response.model_dump(), indent = 2))
+        if "Success" in response.current_state.prev_action_evaluation:
+            status = "[SUCCESS]"
+        elif "Falied" in response.current_state.prev_action_evaluation:
+            status = "[FAILED]"
+        else:
+            status = "[UNKNOWN]"
+        logger.info(f"{status} Evaluation: {response.current_state.prev_action_evaluation}")
+        logger.info(f"[MEMORY] New Information: {response.current_state.important_contents}")
+        logger.info(f"[PROGRESS] Current Status:\n{response.current_state.task_progress}")
+        logger.info(f"[PLANS] Next Steps:\n{response.current_state.future_plans}")
+        logger.info(f"[THOUGHT] Analysis: {response.current_state.thought}")
+        logger.info(f"[SUMMARY] Next Action: {response.current_state.summary}")
+
+        for i, action in enumerate(response.action):
+            logger.info(
+               f"[ACTION {i + 1}/{len(response.action)}] {action.model_dump_json(exclude_unset=True)}"
+            )
+
     def __init__(
         self,
         task: str,
@@ -189,15 +213,47 @@ class CustomAgent(Agent):
 
         ai_content = ai_content.replace("```json", "").replace("```", "")  # type: ignore
         ai_content = repair_json(ai_content)
-        parsed_json = json.loads(ai_content)  # type: ignore
+
+        logger.info("Raw AI Responses:")
+        logger.info(ai_content)
+
+        try: 
+            parsed_json = json.loads(ai_content)  # type: ignore
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parsing error: {e}")
+            logger.error(f"Problematic content: {ai_content}")
+            raise
 
         if not isinstance(parsed_json, dict):
             raise ValueError("Parsed JSON is not a dictionary.")
-        parsed: AgentOutput = self.AgentOutput(**parsed_json)
+        
+        if "current_state" not in parsed_json:
+            parsed_json["current_state"] = {}
 
-        if parsed is None:
-            logger.debug(ai_message.content)
-            raise ValueError("Could not parse response.")
+        current_state = parsed_json["current_state"]
+        default_fields = {
+           "prev_action_evaluation": "Unknown - No previous action",
+           "important_contents": "",
+           "task_progress": "Task started",
+           "future_plans": "Analyzing next steps",
+           "thought": "Initial analysis",
+           "summary": "Starting task execution"
+        }
+
+        for field, default_value in default_fields.items():
+            if field not in current_state:
+                current_state[field] = default_value
+
+        if "action" not in parsed_json:
+            parsed_json["action"] = []
+
+        logger.info("Structured response before parsing:")
+        logger.info(json.dumps(parsed_json, indent=2))
+
+        try:
+            parsed: AgentOutput = self.AgentOutput(**parsed_json)
+        except ValidationError as e:
+            logger.error(f"Validation error: {e}")
 
         # Limit actions to maximum allowed per step
         parsed.action = parsed.action[: self.max_actions_per_step]

@@ -5,7 +5,6 @@ from browser_use.agent.views import AgentOutput
 from browser_use.controller.registry.views import ActionModel
 from pydantic import BaseModel, ConfigDict, Field, create_model
 
-
 @dataclass
 class CustomAgentStepInfo:
     step_number: int
@@ -19,6 +18,7 @@ class CustomAgentStepInfo:
 
 class CustomAgentBrain(BaseModel):
     """Current state of the agent"""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     prev_action_evaluation: str
     important_contents: str
