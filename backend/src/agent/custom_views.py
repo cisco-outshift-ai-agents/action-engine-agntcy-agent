@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from typing import Type
-
 from browser_use.agent.views import AgentOutput
 from browser_use.controller.registry.views import ActionModel
 from pydantic import BaseModel, ConfigDict, Field, create_model
@@ -15,7 +14,6 @@ class CustomAgentStepInfo:
     task_progress: str = ""
     future_plans: str = ""
 
-
 class CustomAgentBrain(BaseModel):
     """Current state of the agent"""
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -27,16 +25,19 @@ class CustomAgentBrain(BaseModel):
     thought: str = ""
     summary: str = ""
 
+class DoneTextFormat(BaseModel):
+    """Format for the text field in done actions"""
+    type: str
+
+class DoneAction(BaseModel):
+    """Format for done actions"""
+    text: DoneTextFormat
 
 class CustomAgentOutput(AgentOutput):
-    """Output model for agent
-
-    @dev note: this model is extended with custom actions in AgentService. You can also use some fields that are not in this model as provided by the linter, as long as they are registered in the DynamicActions model.
-    """
-
+    """Output model for agent with support for the done action format"""
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    current_state: CustomAgentBrain = Field(default_factory=CustomAgentBrain)  
+    current_state: CustomAgentBrain = Field(default_factory=CustomAgentBrain)
     action: list[ActionModel] = Field(default_factory=list)
 
     @staticmethod
@@ -50,6 +51,6 @@ class CustomAgentOutput(AgentOutput):
             action=(
                 list[custom_actions],
                 Field(...),
-            ),  # Properly annotated field with no default
+            ),
             __module__=CustomAgentOutput.__module__,
         )

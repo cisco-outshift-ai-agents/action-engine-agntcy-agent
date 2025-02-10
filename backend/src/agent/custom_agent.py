@@ -247,14 +247,6 @@ class CustomAgent(Agent):
         if "action" not in parsed_json:
             parsed_json["action"] = []
 
-    # Fix done action format
-        for action in parsed_json["action"]:
-           if "done" in action:
-            if isinstance(action["done"], dict) and "text" in action["done"]:
-                if isinstance(action["done"]["text"], dict):
-                    # Convert the type definition to an actual string
-                    action["done"]["text"] = "Task completed"
-
         logger.info("Structured response before parsing:")
         logger.info(json.dumps(parsed_json, indent=2))
 
