@@ -43,27 +43,6 @@ logger = logging.getLogger(__name__)
 
 class CustomAgent(Agent):
 
-    def _log_response(self, response: CustomAgentOutput) -> None:
-        logger.info("Complete Agent Response:")
-        logger.info(json.dumps(response.model_dump(), indent = 2))
-        if "Success" in response.current_state.prev_action_evaluation:
-            status = "[SUCCESS]"
-        elif "Falied" in response.current_state.prev_action_evaluation:
-            status = "[FAILED]"
-        else:
-            status = "[UNKNOWN]"
-        logger.info(f"{status} Evaluation: {response.current_state.prev_action_evaluation}")
-        logger.info(f"[MEMORY] New Information: {response.current_state.important_contents}")
-        logger.info(f"[PROGRESS] Current Status:\n{response.current_state.task_progress}")
-        logger.info(f"[PLANS] Next Steps:\n{response.current_state.future_plans}")
-        logger.info(f"[THOUGHT] Analysis: {response.current_state.thought}")
-        logger.info(f"[SUMMARY] Next Action: {response.current_state.summary}")
-
-        for i, action in enumerate(response.action):
-            logger.info(
-               f"[ACTION {i + 1}/{len(response.action)}] {action.model_dump_json(exclude_unset=True)}"
-            )
-
     def __init__(
         self,
         task: str,
@@ -243,9 +222,6 @@ class CustomAgent(Agent):
         for field, default_value in default_fields.items():
            if field not in current_state:
               current_state[field] = default_value
-
-        if "action" not in parsed_json:
-            parsed_json["action"] = []
 
         logger.info("Structured response before parsing:")
         logger.info(json.dumps(parsed_json, indent=2))

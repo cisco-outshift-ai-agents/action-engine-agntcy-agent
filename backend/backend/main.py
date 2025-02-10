@@ -129,7 +129,7 @@ async def chat_endpoint(websocket: WebSocket):
                 }))
 
     except WebSocketDisconnect:
-        logger.info("WebSocket disconnected normally")
+        logger.info("WebSocket disconnected")
     except Exception as e:
         logger.error(f"Unexpected WebSocket error: {str(e)}", exc_info=True)
     finally:
