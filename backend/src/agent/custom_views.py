@@ -34,7 +34,10 @@ class DoneAction(BaseModel):
     text: DoneTextFormat
 
 class CustomAgentOutput(AgentOutput):
-    """Output model for agent with support for the done action format"""
+    """Output model for agent with support for the done action format
+
+    @dev note: this model is extended with custom actions in AgentService. You can also use some fields that are not in this model as provided by the linter, as long as they are registered in the DynamicActions model.
+    """
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     current_state: CustomAgentBrain = Field(default_factory=CustomAgentBrain)
@@ -51,6 +54,6 @@ class CustomAgentOutput(AgentOutput):
             action=(
                 list[custom_actions],
                 Field(...),
-            ),
+            ), # Properly annotated field with no default
             __module__=CustomAgentOutput.__module__,
         )
