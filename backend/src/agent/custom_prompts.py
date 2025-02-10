@@ -30,6 +30,12 @@ class CustomSystemPrompt(SystemPrompt):
          ]
        }
 
+       IMPORTANT:
+
+       - ALL fields must be present, even if empty
+       - Use empty string "" for no content
+       - Never omit any field from the response
+
     2. ACTIONS: You can specify multiple actions to be executed in sequence. 
 
        Common action sequences:
