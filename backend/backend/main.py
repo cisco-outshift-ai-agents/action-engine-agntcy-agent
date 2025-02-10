@@ -19,7 +19,6 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Initialize FastAPI application
 app = FastAPI(title="ActionEngine API")
 
 app.add_middleware(
@@ -30,13 +29,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load default configuration
+# Default configuration
 DEFAULT_CONFIG = default_config()
 
 @app.get("/status")
 async def status():
     return {"status": "ok"}
 
+# WebSocker endpoint for chat interactions
 @app.websocket("/ws/chat")
 async def chat_endpoint(websocket: WebSocket):
     logger.info("New WebSocket connection attempt")
@@ -46,7 +46,6 @@ async def chat_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_text()
-            logger.info("----------------------------------------")
             logger.info(f"Client message received: {data}")
 
             try:
@@ -60,20 +59,23 @@ async def chat_endpoint(websocket: WebSocket):
                 logger.error(error_msg)
                 await websocket.send_text(json.dumps({"error": error_msg}))
                 continue
-
+           #create configuration by merging defaults with whatever value the client provides
             config = DEFAULT_CONFIG.copy()
             config.update({
                 "task": task,
                 "add_infos": add_infos
             })
 
+            #process stream of updates from the agent
+
             try:
                 async for update in run_with_stream(**config):
-                    logger.info("----------------------------------------")
                     logger.info("Received update from agent")
                     logger.info(f"Update type: {type(update)}")
                     
                     try:
+                    #process updates if it's a list - this is the expected format
+
                         if isinstance(update, list):
                             html_content = update[0] if update else ""
                             brain_states = []
@@ -88,13 +90,14 @@ async def chat_endpoint(websocket: WebSocket):
                                     elif hasattr(item, 'dict'):
                                         brain_states.append(item.dict())
 
+                            #construct response data
                             response_data = {
                                 "html_content": html_content,
                                 "current_state": brain_states[-1] if brain_states else {},
                                 "action": []
                             }
 
-                            # Handle action serialization
+                            # Handle action serialization that could come in different formats (this fixes some serialization related errors in the logs)
                             for action in actions:
                                 if hasattr(action, 'model_dump'):
                                     response_data["action"].append(action.model_dump())
@@ -104,7 +107,8 @@ async def chat_endpoint(websocket: WebSocket):
                                     response_data["action"].append(action)
                                 else:
                                     response_data["action"].append(str(action))
-                            
+
+                            #send response to client
                             json_string = json.dumps(response_data)
                             await websocket.send_text(json_string)
                             logger.info("Successfully sent response to client")

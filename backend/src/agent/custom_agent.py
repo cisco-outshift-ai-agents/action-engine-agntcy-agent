@@ -213,7 +213,7 @@ class CustomAgent(Agent):
         ai_content = ai_content.replace("```json", "").replace("```", "")
         ai_content = repair_json(ai_content)
 
-        logger.info("Raw AI Responses:")
+        logger.info("Raw Model Responses:")
         logger.info(ai_content)
 
         try:
@@ -232,10 +232,10 @@ class CustomAgent(Agent):
 
         current_state = parsed_json["current_state"]
         default_fields = {
-           "prev_action_evaluation": "Unknown - No previous action",
+           "prev_action_evaluation": "",
            "important_contents": "",
-           "task_progress": "Task started",
-           "future_plans": "Analyzing next steps",
+           "task_progress": "",
+           "future_plans": "",
            "thought": "Initial analysis",
            "summary": "Starting task execution"
         }
