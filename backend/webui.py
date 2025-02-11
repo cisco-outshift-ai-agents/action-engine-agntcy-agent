@@ -39,6 +39,7 @@ _global_browser_context = None
 # Create the global agent state instance
 _global_agent_state = AgentState()
 
+
 async def stop_agent():
     """Request the agent to stop and update UI with enhanced feedback"""
     global _global_agent_state, _global_browser_context, _global_browser
@@ -52,38 +53,35 @@ async def stop_agent():
         logger.info(f"🛑 {message}")
 
         # Return UI updates
-        return (
-            message,                                        # errors_output
-        )
+        return (message,)  # errors_output
     except Exception as e:
         error_msg = f"Error during stop: {str(e)}"
         logger.error(error_msg)
-        return (
-            error_msg,
-        )
+        return (error_msg,)
+
 
 async def run_browser_agent(
-        llm_provider,
-        llm_model_name,
-        llm_temperature,
-        llm_base_url,
-        llm_api_key,
-        use_own_browser,
-        keep_browser_open,
-        headless,
-        disable_security,
-        window_w,
-        window_h,
-        save_recording_path,
-        save_agent_history_path,
-        save_trace_path,
-        enable_recording,
-        task,
-        add_infos,
-        max_steps,
-        use_vision,
-        max_actions_per_step,
-        tool_calling_method
+    llm_provider,
+    llm_model_name,
+    llm_temperature,
+    llm_base_url,
+    llm_api_key,
+    use_own_browser,
+    keep_browser_open,
+    headless,
+    disable_security,
+    window_w,
+    window_h,
+    save_recording_path,
+    save_agent_history_path,
+    save_trace_path,
+    enable_recording,
+    task,
+    add_infos,
+    max_steps,
+    use_vision,
+    max_actions_per_step,
+    tool_calling_method,
 ):
     global _global_agent_state
     _global_agent_state.clear_stop()  # Clear any previous stop requests
@@ -110,10 +108,17 @@ async def run_browser_agent(
             provider=llm_provider,
             model_name=llm_model_name,
             temperature=llm_temperature,
-            base_url=llm_base_url,
-            api_key=llm_api_key,
+            llm_base_url=llm_base_url,
+            llm_api_key=llm_api_key,
         )
-        final_result, errors, model_actions, model_thoughts, trace_file, history_file = await run_custom_agent(
+        (
+            final_result,
+            errors,
+            model_actions,
+            model_thoughts,
+            trace_file,
+            history_file,
+        ) = await run_custom_agent(
             llm=llm,
             use_own_browser=use_own_browser,
             keep_browser_open=keep_browser_open,
@@ -129,7 +134,7 @@ async def run_browser_agent(
             max_steps=max_steps,
             use_vision=use_vision,
             max_actions_per_step=max_actions_per_step,
-            tool_calling_method=tool_calling_method
+            tool_calling_method=tool_calling_method,
         )
 
         # Get the list of videos after the agent runs (if recording is enabled)
@@ -140,7 +145,9 @@ async def run_browser_agent(
                 + glob.glob(os.path.join(save_recording_path, "*.[wW][eE][bB][mM]"))
             )
             if new_videos - existing_videos:
-                latest_video = list(new_videos - existing_videos)[0]  # Get the first new video
+                latest_video = list(new_videos - existing_videos)[
+                    0
+                ]  # Get the first new video
 
         return (
             final_result,
@@ -154,35 +161,37 @@ async def run_browser_agent(
 
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         errors = str(e) + "\n" + traceback.format_exc()
         return (
-            '',                                         # final_result
-            errors,                                     # errors
-            '',                                         # model_actions
-            '',                                         # model_thoughts
-            None,                                       # latest_video
-            None,                                       # history_file
-            None,                                       # trace_file
+            "",  # final_result
+            errors,  # errors
+            "",  # model_actions
+            "",  # model_thoughts
+            None,  # latest_video
+            None,  # history_file
+            None,  # trace_file
         )
 
+
 async def run_custom_agent(
-        llm,
-        use_own_browser,
-        keep_browser_open,
-        headless,
-        disable_security,
-        window_w,
-        window_h,
-        save_recording_path,
-        save_agent_history_path,
-        save_trace_path,
-        task,
-        add_infos,
-        max_steps,
-        use_vision,
-        max_actions_per_step,
-        tool_calling_method
+    llm,
+    use_own_browser,
+    keep_browser_open,
+    headless,
+    disable_security,
+    window_w,
+    window_h,
+    save_recording_path,
+    save_agent_history_path,
+    save_trace_path,
+    task,
+    add_infos,
+    max_steps,
+    use_vision,
+    max_actions_per_step,
+    tool_calling_method,
 ):
     try:
         global _global_browser, _global_browser_context, _global_agent_state
@@ -204,12 +213,14 @@ async def run_custom_agent(
         controller = CustomController()
 
         # Connect to an existing browser instance if available
-        if _global_browser is None: 
-            if not use_own_browser: 
-                async with async_playwright() as p: 
-                    try: 
+        if _global_browser is None:
+            if not use_own_browser:
+                async with async_playwright() as p:
+                    try:
                         custom_browser_instance = CustomBrowser()
-                        await custom_browser_instance._setup_browser_with_instance(playwright=p)
+                        await custom_browser_instance._setup_browser_with_instance(
+                            playwright=p
+                        )
                         _global_browser = custom_browser_instance
                     except Exception as e:
                         _global_browser = CustomBrowser(
@@ -220,7 +231,7 @@ async def run_custom_agent(
                                 extra_chromium_args=extra_chromium_args,
                             )
                         )
-            else: 
+            else:
                 _global_browser = CustomBrowser(
                     config=BrowserConfig(
                         headless=headless,
@@ -234,14 +245,16 @@ async def run_custom_agent(
             _global_browser_context = await _global_browser.new_context(
                 config=BrowserContextConfig(
                     trace_path=save_trace_path if save_trace_path else None,
-                    save_recording_path=save_recording_path if save_recording_path else None,
+                    save_recording_path=(
+                        save_recording_path if save_recording_path else None
+                    ),
                     no_viewport=False,
                     browser_window_size=BrowserContextWindowSize(
                         width=window_w, height=window_h
                     ),
                 )
             )
-            
+
         # Create and run agent
         agent = CustomAgent(
             task=task,
@@ -255,7 +268,7 @@ async def run_custom_agent(
             agent_prompt_class=CustomAgentMessagePrompt,
             max_actions_per_step=max_actions_per_step,
             agent_state=_global_agent_state,
-            tool_calling_method=tool_calling_method
+            tool_calling_method=tool_calling_method,
         )
         history = await agent.run(max_steps=max_steps)
 
@@ -267,14 +280,22 @@ async def run_custom_agent(
         model_actions = history.model_actions()
         model_thoughts = history.model_thoughts()
 
-        trace_file = get_latest_files(save_trace_path)        
+        trace_file = get_latest_files(save_trace_path)
 
-        return final_result, errors, model_actions, model_thoughts, trace_file.get('.zip'), history_file
+        return (
+            final_result,
+            errors,
+            model_actions,
+            model_thoughts,
+            trace_file.get(".zip"),
+            history_file,
+        )
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         errors = str(e) + "\n" + traceback.format_exc()
-        return '', errors, '', '', None, None
+        return "", errors, "", "", None, None
     finally:
         # Handle cleanup based on persistence configuration
         if not keep_browser_open:
@@ -285,6 +306,7 @@ async def run_custom_agent(
             if _global_browser:
                 await _global_browser.close()
                 _global_browser = None
+
 
 async def run_with_stream(
     llm_provider,
@@ -307,7 +329,7 @@ async def run_with_stream(
     max_steps,
     use_vision,
     max_actions_per_step,
-    tool_calling_method
+    tool_calling_method,
 ):
     global _global_agent_state
     stream_vw = 80
@@ -334,7 +356,7 @@ async def run_with_stream(
             max_steps=max_steps,
             use_vision=use_vision,
             max_actions_per_step=max_actions_per_step,
-            tool_calling_method=tool_calling_method
+            tool_calling_method=tool_calling_method,
         )
         # Add HTML content at the start of the result array
         html_content = f"<h1 style='width:{stream_vw}vw; height:{stream_vh}vh'>Using browser...</h1>"
@@ -365,7 +387,7 @@ async def run_with_stream(
                     max_steps=max_steps,
                     use_vision=use_vision,
                     max_actions_per_step=max_actions_per_step,
-                    tool_calling_method=tool_calling_method
+                    tool_calling_method=tool_calling_method,
                 )
             )
 
@@ -374,11 +396,12 @@ async def run_with_stream(
             final_result = errors = model_actions = model_thoughts = ""
             latest_videos = trace = history_file = None
 
-
             # Periodically update the stream while the agent task is running
             while not agent_task.done():
                 try:
-                    encoded_screenshot = await capture_screenshot(_global_browser_context)
+                    encoded_screenshot = await capture_screenshot(
+                        _global_browser_context
+                    )
                     if encoded_screenshot is not None:
                         html_content = f'<img src="data:image/jpeg;base64,{encoded_screenshot}" style="width:{stream_vw}vw; height:{stream_vh}vh ; border:1px solid #ccc;">'
                     else:
@@ -414,7 +437,15 @@ async def run_with_stream(
             # Once the agent task completes, get the results
             try:
                 result = await agent_task
-                final_result, errors, model_actions, model_thoughts, latest_videos, trace, history_file = result
+                (
+                    final_result,
+                    errors,
+                    model_actions,
+                    model_thoughts,
+                    latest_videos,
+                    trace,
+                    history_file,
+                ) = result
 
             except Exception as e:
                 errors = f"Agent error: {str(e)}"
@@ -432,6 +463,7 @@ async def run_with_stream(
 
         except Exception as e:
             import traceback
+
             yield [
                 f"<h1 style='width:{stream_vw}vw; height:{stream_vh}vh'>Waiting for browser session...</h1>",
                 "",
@@ -442,6 +474,7 @@ async def run_with_stream(
                 None,
                 None,
             ]
+
 
 async def close_global_browser():
     global _global_browser, _global_browser_context
@@ -454,11 +487,15 @@ async def close_global_browser():
         await _global_browser.close()
         _global_browser = None
 
+
 def main():
     parser = argparse.ArgumentParser(description="ActionEngine backend")
-    parser.add_argument("--ip", type=str, default="127.0.0.1", help="IP address to bind to")
+    parser.add_argument(
+        "--ip", type=str, default="127.0.0.1", help="IP address to bind to"
+    )
     parser.add_argument("--port", type=int, default=7788, help="Port to listen on")
     parser.add_argument("--dark-mode", action="store_true", help="Enable dark mode")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

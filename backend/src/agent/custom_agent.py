@@ -32,7 +32,6 @@ from langchain_core.messages import (
     BaseMessage,
 )
 from json_repair import repair_json
-from pydantic import ValidationError
 from src.utils.agent_state import AgentState
 
 from .custom_massage_manager import CustomMassageManager
@@ -42,7 +41,6 @@ logger = logging.getLogger(__name__)
 
 
 class CustomAgent(Agent):
-
     def __init__(
         self,
         task: str,
@@ -189,56 +187,24 @@ class CustomAgent(Agent):
         else:
             ai_content = ai_message.content
 
-        ai_content = ai_content.replace("```json", "").replace("```", "")
+        ai_content = ai_content.replace("```json", "").replace("```", "")  # type: ignore
         ai_content = repair_json(ai_content)
-
-        logger.info("Raw Model Responses:")
-        logger.info(ai_content)
-
-        try:
-            parsed_json = json.loads(ai_content)
-        except json.JSONDecodeError as e:
-           logger.error(f"JSON parsing error: {e}")
-           logger.error(f"Problematic content: {ai_content}")
-           raise
+        parsed_json = json.loads(ai_content)  # type: ignore
 
         if not isinstance(parsed_json, dict):
-           raise ValueError("Parsed JSON is not a dictionary.")
-    
-    # Add default current_state if missing
-        if "current_state" not in parsed_json:
-            parsed_json["current_state"] = {}
+            raise ValueError("Parsed JSON is not a dictionary.")
+        parsed: AgentOutput = self.AgentOutput(**parsed_json)
 
-        current_state = parsed_json["current_state"]
-        default_fields = {
-           "prev_action_evaluation": "",
-           "important_contents": "",
-           "task_progress": "",
-           "future_plans": "",
-           "thought": "Initial analysis",
-           "summary": "Starting task execution"
-        }
+        if parsed is None:
+            logger.debug(ai_message.content)
+            raise ValueError("Could not parse response.")
 
-        for field, default_value in default_fields.items():
-           if field not in current_state:
-              current_state[field] = default_value
-
-        logger.info("Structured response before parsing:")
-        logger.info(json.dumps(parsed_json, indent=2))
-
-        try:
-           parsed: AgentOutput = self.AgentOutput(**parsed_json)
-        except ValidationError as e:
-           logger.error(f"Validation error: {e}")
-           raise
-
+        # Limit actions to maximum allowed per step
         parsed.action = parsed.action[: self.max_actions_per_step]
         self._log_response(parsed)
         self.n_steps += 1
 
         return parsed
-    
-
 
     @time_execution_async("--step")
     async def step(self, step_info: Optional[CustomAgentStepInfo] = None) -> None:

@@ -9,9 +9,10 @@ from typing import Dict, Optional
 
 from langchain_anthropic import ChatAnthropic
 from langchain_mistralai import ChatMistralAI
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama import ChatOllama
 from langchain_openai import AzureChatOpenAI, ChatOpenAI
+from src.utils.gemini import CustomChatGoogleGenerativeAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import SecretStr
 
 from dotenv import load_dotenv
@@ -24,8 +25,9 @@ PROVIDER_DISPLAY_NAMES = {
     "openai": "OpenAI",
     "azure_openai": "Azure OpenAI",
     "anthropic": "Anthropic",
-    "gemini": "Gemini"
+    "gemini": "Gemini",
 }
+
 
 def get_llm_model(provider: str, **kwargs):
     """
@@ -34,63 +36,52 @@ def get_llm_model(provider: str, **kwargs):
     :param kwargs: Additional parameters
     :return: LLM model instance
     """
-    if provider not in ["ollama"]:
-        env_var = "GOOGLE_API_KEY" if provider == "gemini" else f"{provider.upper()}_API_KEY"
-        api_key = kwargs.get("api_key", "") or os.getenv(env_var, "")
-        kwargs["api_key"] = api_key
+    llm_api_key = kwargs.get("llm_api_key", "")
+    logger.info("Provider: %s", provider)
+    logger.info("API Key: %s", llm_api_key)
 
     if provider == "anthropic":
-        if not kwargs.get("base_url", ""):
-            base_url = "https://api.anthropic.com"
-        else:
-            base_url = kwargs.get("base_url")
-
         return ChatAnthropic(
             model_name=kwargs.get("model_name", "claude-3-5-sonnet-20240620"),
             temperature=kwargs.get("temperature", 0.0),
-            base_url=base_url,
-            api_key=SecretStr(api_key),
+            base_url=kwargs.get("llm_base_url", "https://api.anthropic.com"),
+            api_key=SecretStr(llm_api_key),
             timeout=kwargs.get("timeout", 60),
             stop=kwargs.get("stop", None),
         )
-    elif provider == 'mistral':
-        if not kwargs.get("base_url", ""):
-            base_url = os.getenv("MISTRAL_ENDPOINT", "https://api.mistral.ai/v1")
-        else:
-            base_url = kwargs.get("base_url")
-        if not kwargs.get("api_key", ""):
-            api_key = os.getenv("MISTRAL_API_KEY", "")
-        else:
-            api_key = kwargs.get("api_key")
-
-        if not api_key:
-            raise ValueError("Mistral API key is required")
-
+    elif provider == "mistral":
         return ChatMistralAI(
             model_name=kwargs.get("model_name", "mistral-large-latest"),
             temperature=kwargs.get("temperature", 0.0),
-            base_url=base_url,
-            api_key=SecretStr(api_key),
+            base_url=kwargs.get("llm_base_url"),
+            api_key=SecretStr(llm_api_key),
         )
     elif provider == "openai":
-        if not kwargs.get("base_url", ""):
-            base_url = os.getenv("OPENAI_ENDPOINT", "https://api.openai.com/v1")
-        else:
-            base_url = kwargs.get("base_url")
-
-        logger.info(f"Using OpenAI endpoint: {base_url}")
-
         return ChatOpenAI(
             model=kwargs.get("model_name", "gpt-4o"),
             temperature=kwargs.get("temperature", 0.0),
-            base_url=base_url,
-            api_key=SecretStr(api_key),
+            base_url=kwargs.get("llm_base_url", "https://api.openai.com/v1"),
+            api_key=SecretStr(llm_api_key),
         )
     elif provider == "gemini":
+        llm_api_key = kwargs.get("llm_api_key")
+        if not llm_api_key:
+            raise ValueError("API key is missing")
+
+        client_options = {
+            "api_endpoint": kwargs.get("llm_base_url", "https://api.google.com/v1")
+        }
+
         return ChatGoogleGenerativeAI(
             model=kwargs.get("model_name", "gemini-2.0-flash-exp"),
             temperature=kwargs.get("temperature", 0.0),
-            api_key=SecretStr(api_key),
+            base_url=kwargs.get("llm_base_url", "https://api.google.com/v1"),
+            api_key=SecretStr(llm_api_key),
+            google_api_key=SecretStr(llm_api_key),
+            client_options={
+                "api_endpoint": kwargs.get("llm_base_url", "https://api.google.com/v1"),
+                "api_key": llm_api_key,
+            },
         )
     elif provider == "ollama":
         if not kwargs.get("base_url", ""):
@@ -105,29 +96,38 @@ def get_llm_model(provider: str, **kwargs):
                 base_url=kwargs.get("base_url", base_url),
             )
     elif provider == "azure_openai":
-        if not kwargs.get("base_url", ""):
-            base_url = os.getenv("AZURE_OPENAI_ENDPOINT", "")
-        else:
-            base_url = kwargs.get("base_url")
         return AzureChatOpenAI(
             model=kwargs.get("model_name", "gpt-4o"),
             temperature=kwargs.get("temperature", 0.0),
             api_version="2024-05-01-preview",
-            azure_endpoint=base_url,
-            api_key=SecretStr(api_key),
+            azure_endpoint=kwargs.get("llm_base_url", ""),
+            api_key=SecretStr(llm_api_key),
         )
     else:
         raise ValueError(f"Unsupported provider: {provider}")
-    
+
+
 # Predefined model names for common providers
 model_names = {
     "anthropic": ["claude-3-5-sonnet-20240620", "claude-3-opus-20240229"],
     "openai": ["gpt-4o", "gpt-4", "gpt-3.5-turbo", "o3-mini"],
-    "gemini": ["gemini-2.0-flash-exp", "gemini-2.0-flash-thinking-exp", "gemini-1.5-flash-latest", "gemini-1.5-flash-8b-latest", "gemini-2.0-flash-thinking-exp-1219" ],
+    "gemini": [
+        "gemini-2.0-flash-exp",
+        "gemini-2.0-flash-thinking-exp",
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-flash-8b-latest",
+        "gemini-2.0-flash-thinking-exp-1219",
+    ],
     "ollama": ["qwen2.5:7b", "llama2:7b"],
     "azure_openai": ["gpt-4o", "gpt-4", "gpt-3.5-turbo"],
-    "mistral": ["pixtral-large-latest", "mistral-large-latest", "mistral-small-latest", "ministral-8b-latest"]
+    "mistral": [
+        "pixtral-large-latest",
+        "mistral-large-latest",
+        "mistral-small-latest",
+        "ministral-8b-latest",
+    ],
 }
+
 
 def encode_image(img_path):
     if not img_path:
@@ -137,10 +137,12 @@ def encode_image(img_path):
     return image_data
 
 
-def get_latest_files(directory: str, file_types: list = ['.webm', '.zip']) -> Dict[str, Optional[str]]:
+def get_latest_files(
+    directory: str, file_types: list = [".webm", ".zip"]
+) -> Dict[str, Optional[str]]:
     """Get the latest recording and trace files"""
     latest_files: Dict[str, Optional[str]] = {ext: None for ext in file_types}
-    
+
     if not os.path.exists(directory):
         os.makedirs(directory, exist_ok=True)
         return latest_files
@@ -155,12 +157,16 @@ def get_latest_files(directory: str, file_types: list = ['.webm', '.zip']) -> Di
                     latest_files[file_type] = str(latest)
         except Exception as e:
             print(f"Error getting latest {file_type} file: {e}")
-            
+
     return latest_files
+
+
 async def capture_screenshot(browser_context):
     """Capture and encode a screenshot"""
     # Extract the Playwright browser instance
-    playwright_browser = browser_context.browser.playwright_browser  # Ensure this is correct.
+    playwright_browser = (
+        browser_context.browser.playwright_browser
+    )  # Ensure this is correct.
 
     # Check if the browser instance is valid and if an existing context can be reused
     if playwright_browser and playwright_browser.contexts:
@@ -184,12 +190,8 @@ async def capture_screenshot(browser_context):
 
     # Take screenshot
     try:
-        screenshot = await active_page.screenshot(
-            type='jpeg',
-            quality=75,
-            scale="css"
-        )
-        encoded = base64.b64encode(screenshot).decode('utf-8')
+        screenshot = await active_page.screenshot(type="jpeg", quality=75, scale="css")
+        encoded = base64.b64encode(screenshot).decode("utf-8")
         return encoded
     except Exception as e:
         return None
