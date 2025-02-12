@@ -12,27 +12,27 @@ def default_config():
 
     # TODO Turn these all into environment variables
     return {
-        "max_steps": 100,
-        "max_actions_per_step": 10,
-        "use_vision": False,
-        "tool_calling_method": "auto",
-        "llm_provider": "openai",
-        "llm_model_name": os.getenv("OPENAI_MODEL_NAME", "gpt-4o"),
-        "llm_temperature": 1.0,
-        "llm_base_url": os.getenv("OPENAI_ENDPOINT", "https://api.openai.com/v1"),
-        "llm_api_key": os.getenv("OPENAI_API_KEY", ""),
-        # "use_own_browser": os.getenv("CHROME_PERSISTENT_SESSION", "false").lower() == "true",
-        # "keep_browser_open": False,
-        "use_own_browser": False,
-        "keep_browser_open": True,    
-        "headless": False,
-        "disable_security": True,
-        "enable_recording": True,
-        "window_w": 1280,
-        "window_h": 1100,
-        "save_recording_path": "./tmp/record_videos",
-        "save_trace_path": "./tmp/traces",
-        "save_agent_history_path": "./tmp/agent_history",
+        "max_steps": int(os.getenv("MAX_STEPS", 100)),
+        "max_actions_per_step": int(os.getenv("MAX_ACTIONS_PER_STEP", 10)),
+        "use_vision": os.getenv("USE_VISION", "False").lower() == "true",
+        "tool_calling_method": os.getenv("TOOL_CALLING_METHOD", "auto"),
+        "llm_provider": os.getenv("LLM_PROVIDER", "openai"),
+        "llm_model_name": os.getenv("LLM_MODEL_NAME", "gpt-4o"),
+        "llm_temperature": float(os.getenv("LLM_TEMPERATURE", 1.0)),
+        "llm_base_url": os.getenv("LLM_BASE_URL", "https://api.openai.com/v1"),
+        "llm_api_key": os.getenv("LLM_API_KEY", ""),
+        "use_own_browser": os.getenv("USE_OWN_BROWSER", "False").lower() == "true",
+        "keep_browser_open": os.getenv("KEEP_BROWSER_OPEN", "False").lower() == "true",
+        "headless": os.getenv("HEADLESS", "False").lower() == "true",
+        "disable_security": os.getenv("DISABLE_SECURITY", "False").lower() == "true",
+        "enable_recording": os.getenv("ENABLE_RECORDING", "False").lower() == "true",
+        "window_w": int(os.getenv("RESOLUTION_WIDTH", 1920)),
+        "window_h": int(os.getenv("RESOLUTION_HEIGHT", 1080)),
+        "save_recording_path": os.getenv("SAVE_RECORDING_PATH", "./tmp/record_videos"),
+        "save_trace_path": os.getenv("SAVE_TRACE_PATH", "./tmp/traces"),
+        "save_agent_history_path": os.getenv(
+            "SAVE_AGENT_HISTORY_PATH", "./tmp/agent_history"
+        ),
         "task": "go to google.com and type 'OpenAI' click search and give me the first url",
     }
 
@@ -40,7 +40,7 @@ def default_config():
 def load_config_from_file(config_file):
     """Load settings from a UUID.pkl file."""
     try:
-        with open(config_file, 'rb') as f:
+        with open(config_file, "rb") as f:
             settings = pickle.load(f)
         return settings
     except Exception as e:
@@ -51,7 +51,7 @@ def save_config_to_file(settings, save_dir="./tmp/webui_settings"):
     """Save the current settings to a UUID.pkl file with a UUID name."""
     os.makedirs(save_dir, exist_ok=True)
     config_file = os.path.join(save_dir, f"{uuid.uuid4()}.pkl")
-    with open(config_file, 'wb') as f:
+    with open(config_file, "wb") as f:
         pickle.dump(settings, f)
     return f"Configuration saved to {config_file}"
 

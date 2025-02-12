@@ -1,4 +1,3 @@
-import pdb
 from typing import List, Optional
 
 from browser_use.agent.prompts import SystemPrompt, AgentMessagePrompt
@@ -144,50 +143,49 @@ class CustomSystemPrompt(SystemPrompt):
 
 class CustomAgentMessagePrompt(AgentMessagePrompt):
     def __init__(
-            self,
-            state: BrowserState,
-            actions: Optional[List[ActionModel]] = None,
-            result: Optional[List[ActionResult]] = None,
-            include_attributes: list[str] = [],
-            max_error_length: int = 400,
-            step_info: Optional[CustomAgentStepInfo] = None,
+        self,
+        state: BrowserState,
+        actions: Optional[List[ActionModel]] = None,
+        result: Optional[List[ActionResult]] = None,
+        include_attributes: list[str] = [],
+        max_error_length: int = 400,
+        step_info: Optional[CustomAgentStepInfo] = None,
     ):
-        super(CustomAgentMessagePrompt, self).__init__(state=state, 
-                                                       result=result, 
-                                                       include_attributes=include_attributes, 
-                                                       max_error_length=max_error_length, 
-                                                       step_info=step_info # type: ignore
-                                                       )
+        super(CustomAgentMessagePrompt, self).__init__(
+            state=state,
+            result=result,
+            include_attributes=include_attributes,
+            max_error_length=max_error_length,
+            step_info=step_info,  # type: ignore
+        )
         self.actions = actions
         self.step_info = step_info
 
     def get_user_message(self) -> HumanMessage:
         if self.step_info:
-            step_info_description = f'Current step: {self.step_info.step_number}/{self.step_info.max_steps}\n'
+            step_info_description = f"Current step: {self.step_info.step_number}/{self.step_info.max_steps}\n"
         else:
-            step_info_description = ''
+            step_info_description = ""
 
-        elements_text = self.state.element_tree.clickable_elements_to_string(include_attributes=self.include_attributes)
+        elements_text = self.state.element_tree.clickable_elements_to_string(
+            include_attributes=self.include_attributes
+        )
 
         has_content_above = (self.state.pixels_above or 0) > 0
         has_content_below = (self.state.pixels_below or 0) > 0
 
-        if elements_text != '':
+        if elements_text != "":
             if has_content_above:
-                elements_text = (
-                    f'... {self.state.pixels_above} pixels above - scroll or extract content to see more ...\n{elements_text}'
-                )
+                elements_text = f"... {self.state.pixels_above} pixels above - scroll or extract content to see more ...\n{elements_text}"
             else:
-                elements_text = f'[Start of page]\n{elements_text}'
+                elements_text = f"[Start of page]\n{elements_text}"
             if has_content_below:
-                elements_text = (
-                    f'{elements_text}\n... {self.state.pixels_below} pixels below - scroll or extract content to see more ...'
-                )
+                elements_text = f"{elements_text}\n... {self.state.pixels_below} pixels below - scroll or extract content to see more ..."
             else:
-                elements_text = f'{elements_text}\n[End of page]'
+                elements_text = f"{elements_text}\n[End of page]"
         else:
-            elements_text = 'empty page'
-   
+            elements_text = "empty page"
+
         state_description = f"""
 {step_info_description}
 1. Task: {self.step_info.task if self.step_info else 'N/A'}. 
@@ -204,7 +202,7 @@ class CustomAgentMessagePrompt(AgentMessagePrompt):
 
         if self.actions and self.result:
             state_description += "\n **Previous Actions** \n"
-            state_description += f'Previous step: {self.step_info.step_number-1}/{self.step_info.max_steps} \n' # type: ignore
+            state_description += f"Previous step: {self.step_info.step_number-1}/{self.step_info.max_steps} \n"  # type: ignore
             for i, result in enumerate(self.result):
                 action = self.actions[i]
                 state_description += f"Previous action {i + 1}/{len(self.result)}: {action.model_dump_json(exclude_unset=True)}\n"
@@ -213,10 +211,8 @@ class CustomAgentMessagePrompt(AgentMessagePrompt):
                         state_description += f"Result of previous action {i + 1}/{len(self.result)}: {result.extracted_content}\n"
                     if result.error:
                         # only use last 300 characters of error
-                        error = result.error[-self.max_error_length:]
-                        state_description += (
-                            f"Error of previous action {i + 1}/{len(self.result)}: ...{error}\n"
-                        )
+                        error = result.error[-self.max_error_length :]
+                        state_description += f"Error of previous action {i + 1}/{len(self.result)}: ...{error}\n"
 
         if self.state.screenshot:
             # Format message for vision model
