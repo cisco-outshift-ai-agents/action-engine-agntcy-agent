@@ -4,6 +4,7 @@ import pdb
 import traceback
 from typing import Optional, Type, List, Dict, Any, Callable
 from PIL import Image, ImageDraw, ImageFont
+from pydantic import ValidationError
 import os
 import base64
 import io
@@ -189,11 +190,46 @@ class CustomAgent(Agent):
 
         ai_content = ai_content.replace("```json", "").replace("```", "")  # type: ignore
         ai_content = repair_json(ai_content)
+
+        logger.info("Raw Model Responses:")
+        logger.info(ai_content)
+
+        try:
+            parsed_json = json.loads(ai_content)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parsing error: {e}")
+            logger.error(f"Problematic content: {ai_content}")
+            raise
+
         parsed_json = json.loads(ai_content)  # type: ignore
 
         if not isinstance(parsed_json, dict):
             raise ValueError("Parsed JSON is not a dictionary.")
-        parsed: AgentOutput = self.AgentOutput(**parsed_json)
+        # Add default current_state if missing
+        if "current_state" not in parsed_json:
+            parsed_json["current_state"] = {}
+
+        current_state = parsed_json["current_state"]
+        default_fields = {
+            "prev_action_evaluation": "",
+            "important_contents": "",
+            "task_progress": "",
+            "future_plans": "",
+            "thought": "Initial analysis",
+            "summary": "Starting task execution",
+        }
+
+        for field, default_value in default_fields.items():
+                current_state[field] = default_value
+
+        logger.info("Structured response before parsing:")
+        logger.info(json.dumps(parsed_json, indent=2))
+
+        try:
+            parsed: AgentOutput = self.AgentOutput(**parsed_json)
+        except ValidationError as e:
+            logger.error(f"Validation error: {e}")
+            raise
 
         if parsed is None:
             logger.debug(ai_message.content)
