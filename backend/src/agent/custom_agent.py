@@ -220,6 +220,7 @@ class CustomAgent(Agent):
         }
 
         for field, default_value in default_fields.items():
+            if field not in current_state:
                 current_state[field] = default_value
 
         logger.info("Structured response before parsing:")
