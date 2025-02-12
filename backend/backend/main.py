@@ -60,8 +60,6 @@ async def chat_endpoint(websocket: WebSocket):
             # create configuration by merging defaults with whatever value the client provides
             config = DEFAULT_CONFIG.copy()
             config.update({"task": task, "add_infos": add_infos})
-            # log the config
-            logger.info(f"Configuration: {config}")
 
             # process stream of updates from the agent
 
