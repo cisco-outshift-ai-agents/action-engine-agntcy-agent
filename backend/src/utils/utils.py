@@ -7,12 +7,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Optional
 
-from langchain_anthropic import ChatAnthropic
-from langchain_mistralai import ChatMistralAI
-from langchain_ollama import ChatOllama
-from langchain_openai import AzureChatOpenAI, ChatOpenAI
-from src.utils.gemini import CustomChatGoogleGenerativeAI
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
 from dotenv import load_dotenv
@@ -36,97 +31,12 @@ def get_llm_model(provider: str, **kwargs):
     :param kwargs: Additional parameters
     :return: LLM model instance
     """
-    llm_api_key = kwargs.get("llm_api_key", "")
-    logger.info("Provider: %s", provider)
-    logger.info("API Key: %s", llm_api_key)
-
-    if provider == "anthropic":
-        return ChatAnthropic(
-            model_name=kwargs.get("model_name", "claude-3-5-sonnet-20240620"),
-            temperature=kwargs.get("temperature", 0.0),
-            base_url=kwargs.get("llm_base_url", "https://api.anthropic.com"),
-            api_key=SecretStr(llm_api_key),
-            timeout=kwargs.get("timeout", 60),
-            stop=kwargs.get("stop", None),
-        )
-    elif provider == "mistral":
-        return ChatMistralAI(
-            model_name=kwargs.get("model_name", "mistral-large-latest"),
-            temperature=kwargs.get("temperature", 0.0),
-            base_url=kwargs.get("llm_base_url"),
-            api_key=SecretStr(llm_api_key),
-        )
-    elif provider == "openai":
-        return ChatOpenAI(
-            model=kwargs.get("model_name", "gpt-4o"),
-            temperature=kwargs.get("temperature", 0.0),
-            base_url=kwargs.get("llm_base_url", "https://api.openai.com/v1"),
-            api_key=SecretStr(llm_api_key),
-        )
-    elif provider == "gemini":
-        llm_api_key = kwargs.get("llm_api_key")
-        if not llm_api_key:
-            raise ValueError("API key is missing")
-
-        client_options = {
-            "api_endpoint": kwargs.get("llm_base_url", "https://api.google.com/v1")
-        }
-
-        return ChatGoogleGenerativeAI(
-            model=kwargs.get("model_name", "gemini-2.0-flash-exp"),
-            temperature=kwargs.get("temperature", 0.0),
-            base_url=kwargs.get("llm_base_url", "https://api.google.com/v1"),
-            api_key=SecretStr(llm_api_key),
-            google_api_key=SecretStr(llm_api_key),
-            client_options={
-                "api_endpoint": kwargs.get("llm_base_url", "https://api.google.com/v1"),
-                "api_key": llm_api_key,
-            },
-        )
-    elif provider == "ollama":
-        if not kwargs.get("base_url", ""):
-            base_url = os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434")
-        else:
-            base_url = kwargs.get("base_url")
-            return ChatOllama(
-                model=kwargs.get("model_name", "qwen2.5:7b"),
-                temperature=kwargs.get("temperature", 0.0),
-                num_ctx=kwargs.get("num_ctx", 32000),
-                num_predict=kwargs.get("num_predict", 1024),
-                base_url=kwargs.get("base_url", base_url),
-            )
-    elif provider == "azure_openai":
-        return AzureChatOpenAI(
-            model=kwargs.get("model_name", "gpt-4o"),
-            temperature=kwargs.get("temperature", 0.0),
-            api_version="2024-05-01-preview",
-            azure_endpoint=kwargs.get("llm_base_url", ""),
-            api_key=SecretStr(llm_api_key),
-        )
-    else:
-        raise ValueError(f"Unsupported provider: {provider}")
-
-
-# Predefined model names for common providers
-model_names = {
-    "anthropic": ["claude-3-5-sonnet-20240620", "claude-3-opus-20240229"],
-    "openai": ["gpt-4o", "gpt-4", "gpt-3.5-turbo", "o3-mini"],
-    "gemini": [
-        "gemini-2.0-flash-exp",
-        "gemini-2.0-flash-thinking-exp",
-        "gemini-1.5-flash-latest",
-        "gemini-1.5-flash-8b-latest",
-        "gemini-2.0-flash-thinking-exp-1219",
-    ],
-    "ollama": ["qwen2.5:7b", "llama2:7b"],
-    "azure_openai": ["gpt-4o", "gpt-4", "gpt-3.5-turbo"],
-    "mistral": [
-        "pixtral-large-latest",
-        "mistral-large-latest",
-        "mistral-small-latest",
-        "ministral-8b-latest",
-    ],
-}
+    return ChatOpenAI(
+        model=kwargs.get("model_name", "gpt-4o"),
+        temperature=kwargs.get("temperature", 0.0),
+        base_url=kwargs.get("llm_base_url", "https://api.openai.com/v1"),
+        api_key=SecretStr(kwargs.get("llm_api_key")),
+    )
 
 
 def encode_image(img_path):
