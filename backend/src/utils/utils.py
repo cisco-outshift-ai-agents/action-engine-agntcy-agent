@@ -1,8 +1,6 @@
 import base64
 import os
 import time
-import logging
-
 
 from pathlib import Path
 from typing import Dict, Optional
@@ -13,8 +11,6 @@ from pydantic import SecretStr
 from dotenv import load_dotenv
 
 load_dotenv()
-
-logger = logging.getLogger(__name__)
 
 PROVIDER_DISPLAY_NAMES = {
     "openai": "OpenAI",
