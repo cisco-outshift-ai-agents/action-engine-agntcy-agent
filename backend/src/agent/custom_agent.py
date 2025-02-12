@@ -1,14 +1,13 @@
 import json
 import logging
-import pdb
-import traceback
 from typing import Optional, Type, List, Dict, Any, Callable
-from PIL import Image, ImageDraw, ImageFont
-from pydantic import ValidationError
 import os
 import base64
 import io
 import platform
+
+from PIL import Image, ImageFont
+from pydantic import ValidationError
 from browser_use.agent.prompts import SystemPrompt, AgentMessagePrompt
 from browser_use.agent.service import Agent
 from browser_use.agent.views import (
@@ -24,7 +23,6 @@ from browser_use.browser.views import BrowserStateHistory
 from browser_use.controller.service import Controller
 from browser_use.telemetry.views import (
     AgentEndTelemetryEvent,
-    AgentRunTelemetryEvent,
     AgentStepTelemetryEvent,
 )
 from browser_use.utils import time_execution_async
@@ -33,8 +31,8 @@ from langchain_core.messages import (
     BaseMessage,
 )
 from json_repair import repair_json
-from src.utils.agent_state import AgentState
 
+from src.utils.agent_state import AgentState
 from .custom_massage_manager import CustomMassageManager
 from .custom_views import CustomAgentOutput, CustomAgentStepInfo
 

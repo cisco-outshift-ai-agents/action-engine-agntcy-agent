@@ -1,19 +1,13 @@
-import pdb
 import logging
-
-from dotenv import load_dotenv
-
-load_dotenv()
 import os
 import glob
 import asyncio
 import argparse
 import os
 
-logger = logging.getLogger(__name__)
+from dotenv import load_dotenv
 
-from browser_use.agent.service import Agent
-from browser_use.browser.browser import Browser, BrowserConfig
+from browser_use.browser.browser import BrowserConfig
 from browser_use.browser.context import (
     BrowserContextConfig,
     BrowserContextWindowSize,
@@ -31,6 +25,8 @@ from src.browser.custom_context import BrowserContextConfig
 from src.controller.custom_controller import CustomController
 from src.utils.utils import get_latest_files, capture_screenshot
 
+load_dotenv()
+logger = logging.getLogger(__name__)
 
 # Global variables for persistence
 _global_browser = None
