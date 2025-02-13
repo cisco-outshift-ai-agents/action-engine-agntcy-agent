@@ -17,6 +17,7 @@
     "@magnetic/heading": "^37.0.0",
     "@magnetic/nav": "^37.0.0",
     "@magnetic/spinner": "^37.0.0",
+    "@magnetic/tabs": "^37.1.0",
     "@magnetic/text": "^37.0.0",
     "@novnc/novnc": "^1.5.0",
     "clsx": "^2.1.1",
@@ -55,5 +56,9 @@
     "typescript-eslint": "^8.18.2",
     "vite": "^6.0.5",
     "vite-plugin-svgr": "^4.3.0"
+  },
+  "overrides": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }
