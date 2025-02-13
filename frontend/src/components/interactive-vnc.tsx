@@ -37,17 +37,11 @@ const InteractiveVNC: React.FC = () => {
   });
 
   return (
-    <div>
-      <div
-        ref={vncContainerRef}
-        style={{
-          width: "100%",
-          height: "600px",
-          background: "rgb(40,40,40)",
-        }}
-      >
-        {/* VNC will render here */}
-      </div>
+    <div
+      ref={vncContainerRef}
+      className="min-w-4xl bg-gray-900 h-[600px] px-2 py-1 w-full"
+    >
+      {/* VNC will render here */}
     </div>
   );
 };

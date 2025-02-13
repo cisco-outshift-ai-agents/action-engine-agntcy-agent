@@ -4,12 +4,15 @@ import { Paperclip, PaperPlaneRight } from "@magnetic/icons";
 import { Button } from "@magnetic/button";
 import { cn } from "@/utils";
 import { Flex } from "@magnetic/flex";
+import ChatMessage from "./newsroom/newsroom-components/chat-message";
+import { z } from "zod";
+import { TodoFixAny } from "@/types";
 
 const ChatSection: React.FC = () => {
   const [messages, setMessages] = useState<
     {
       sender: string;
-      text: string;
+      text: CleanerData;
     }[]
   >([]);
   const [input, setInput] = useState("");
@@ -25,12 +28,20 @@ const ChatSection: React.FC = () => {
       console.log("Connected to chat server");
     };
 
-    ws.onmessage = (event) => {
+    ws.onmessage = (event: unknown) => {
+      const d = JSON.parse((event as TodoFixAny).data) as Data;
+      const parse = DataZod.safeParse(d);
+      if (!parse.success) {
+        console.error(parse.error);
+        return;
+      }
+      const clean = cleanData(d);
+
       setMessages((messages) => [
         ...messages,
         {
           sender: "agent",
-          text: event.data,
+          text: clean,
         },
       ]);
     };
@@ -58,7 +69,11 @@ const ChatSection: React.FC = () => {
       ...messages,
       {
         sender: "user",
-        text: input,
+        text: cleanData({
+          action: [{ summary: input }],
+          current_state: {},
+          html_content: "",
+        }),
       },
     ]);
 
@@ -72,21 +87,33 @@ const ChatSection: React.FC = () => {
   };
 
   return (
-    <>
-      <div className="flex-1">
-        {/* Temp styling */}
-        <div className="bg-white">
-          {messages.map((message, index) => (
-            <div
+    <div className="h-full rounded-lg border border-white/10 bg-[#32363c] max-w-3xl px-4 py-6 flex flex-col">
+      <div className="flex-1 overflow-y-auto px-4 pt-2 pb-3">
+        <div className="flex gap-1 flex-col-reverse">
+          {messages.reverse().map((message, index) => (
+            <ChatMessage
               key={index}
-              className={cn(
-                "p-3",
-                message.sender === "agent" ? "bg-gray-100" : "bg-gray-200"
-              )}
-            >
-              <strong>{message.sender}:</strong>
-              {message.text}
-            </div>
+              content={message.text.action.map((a) => a.summary).join("\n")}
+              thoughts={
+                message.text.action
+                  .map((a) => a.thought)
+                  .filter((a) => !!a) as string[]
+              }
+              actions={
+                message.text.action
+                  .map((a) => {
+                    if (a.click_element) {
+                      return `Click element ${a.click_element.index}`;
+                    } else if (a.input_text) {
+                      return `Input text ${a.input_text.text} at index ${a.input_text.index}`;
+                    } else {
+                      return undefined;
+                    }
+                  })
+                  .filter((a) => !!a) as string[]
+              }
+              role={message.sender === "agent" ? "assistant" : "user"}
+            />
           ))}
         </div>
       </div>
@@ -136,8 +163,89 @@ const ChatSection: React.FC = () => {
           />
         </Flex>
       </div>
-    </>
+    </div>
   );
 };
+
+const DataZod = z.object({
+  action: z.array(
+    z.union([
+      z.string(),
+      z.object({
+        input_text: z
+          .object({ index: z.number(), text: z.string() })
+          .optional(),
+        click_element: z.object({ index: z.number() }).optional(),
+        prev_action_evaluation: z.string().optional(),
+        important_contents: z.string().optional(),
+        task_progress: z.string().optional(),
+        future_plans: z.string().optional(),
+        thought: z.string().optional(),
+        summary: z.string().optional(),
+      }),
+    ])
+  ),
+  current_state: z.object({}).optional(),
+  html_content: z.string(),
+});
+type Data = z.infer<typeof DataZod>;
+
+// Removes the union type
+const CleanerDataZod = z.object({
+  action: z.array(
+    z.object({
+      input_text: z.object({ index: z.number(), text: z.string() }).optional(),
+      click_element: z.object({ index: z.number() }).optional(),
+      prev_action_evaluation: z.string().optional(),
+      important_contents: z.string().optional(),
+      task_progress: z.string().optional(),
+      future_plans: z.string().optional(),
+      thought: z.string().optional(),
+      summary: z.string().optional(),
+    })
+  ),
+  current_state: z.object({}).optional(),
+  html_content: z.string(),
+});
+type CleanerData = z.infer<typeof CleanerDataZod>;
+
+const cleanData = (data: Data): CleanerData => {
+  console.log(data);
+
+  if (typeof data === "string") {
+    return {
+      action: [{ summary: data }],
+      current_state: {},
+      html_content: "",
+    };
+  }
+  return {
+    action: data.action.map((action) => {
+      if (typeof action === "string") {
+        return {
+          summary: action,
+        };
+      }
+
+      return {
+        input_text: action.input_text,
+        click_element: action.click_element,
+        prev_action_evaluation: action.prev_action_evaluation,
+        important_contents: action.important_contents,
+        task_progress: action.task_progress,
+        future_plans: action.future_plans,
+        thought: action.thought,
+        summary: action.summary,
+      };
+    }),
+    current_state: data.current_state,
+    html_content: data.html_content,
+  };
+};
+
+const WSMessage = z.object({
+  data: z.string(),
+});
+type WSMessage = z.infer<typeof WSMessage>;
 
 export default ChatSection;
