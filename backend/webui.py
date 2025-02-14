@@ -82,6 +82,8 @@ async def run_browser_agent(
     global _global_agent_state
     _global_agent_state.clear_stop()  # Clear any previous stop requests
 
+    logger.info(f"Received task: {task}")
+
     try:
         # Disable recording if the checkbox is unchecked
         if not enable_recording:
@@ -99,7 +101,7 @@ async def run_browser_agent(
                 + glob.glob(os.path.join(save_recording_path, "*.[wW][eE][bB][mM]"))
             )
 
-        # Run the agent
+        # Initialize LLM
         llm = utils.get_llm_model(
             provider=llm_provider,
             model_name=llm_model_name,
@@ -107,14 +109,8 @@ async def run_browser_agent(
             llm_base_url=llm_base_url,
             llm_api_key=llm_api_key,
         )
-        (
-            final_result,
-            errors,
-            model_actions,
-            model_thoughts,
-            trace_file,
-            history_file,
-        ) = await run_custom_agent(
+        # Run the agent and yield updates
+        async for update in run_custom_agent(
             llm=llm,
             use_own_browser=use_own_browser,
             keep_browser_open=keep_browser_open,
@@ -131,7 +127,14 @@ async def run_browser_agent(
             use_vision=use_vision,
             max_actions_per_step=max_actions_per_step,
             tool_calling_method=tool_calling_method,
-        )
+        ):
+            logger.info(f"Received update from custom_agent:")
+            logger.info(f"Update type: {type(update)}")
+            if hasattr(update, "result"):
+                logger.info(f"Update: {update.result}")
+     
+            yield update
+            logger.info("Update yielded to run_with_stream")
 
         # Get the list of videos after the agent runs (if recording is enabled)
         latest_video = None
@@ -145,30 +148,13 @@ async def run_browser_agent(
                     0
                 ]  # Get the first new video
 
-        return (
-            final_result,
-            errors,
-            model_actions,
-            model_thoughts,
-            latest_video,
-            trace_file,
-            history_file,
-        )
+       
 
     except Exception as e:
         import traceback
-
-        traceback.print_exc()
         errors = str(e) + "\n" + traceback.format_exc()
-        return (
-            "",  # final_result
-            errors,  # errors
-            "",  # model_actions
-            "",  # model_thoughts
-            None,  # latest_video
-            None,  # history_file
-            None,  # trace_file
-        )
+        yield {"error": errors}
+     
 
 
 async def run_custom_agent(
@@ -266,29 +252,13 @@ async def run_custom_agent(
             agent_state=_global_agent_state,
             tool_calling_method=tool_calling_method,
         )
-
-        history_file = os.path.join(save_agent_history_path, f"{agent.agent_id}.json")
-        trace_file = None if not save_trace_path else save_trace_path
-
         # history = await agent.run(max_steps=max_steps)
         async for history_item in agent.run(max_steps=max_steps):
-            yield(
-                history_item.result[0].extracted_content if history_item.result else "",
-                "\n".join([r.error for r in history_item.result if r.error]) if history_item.result else "",
-                history_item.model_output.action if history_item.model_output else "",
-                history_item.model_output.current_state if history_item.model_output else "",
-                trace_file,
-                history_file
-            )
-
-        agent.save_history(history_file)
-
+            yield history_item
+        
     except Exception as e:
-        import traceback
-
-        traceback.print_exc()
-        errors = str(e) + "\n" + traceback.format_exc()
-        return "", errors, "", "", None, None
+        logger.error(f"Error during agent run: {str(e)}", exc_info=True)
+        yield "", f"Error: {str(e)}", "", "", None, None
     finally:
         # Handle cleanup based on persistence configuration
         if not keep_browser_open:
@@ -328,7 +298,7 @@ async def run_with_stream(
     stream_vw = 80
     stream_vh = int(80 * window_h // window_w)
     if not headless:
-        result = await run_browser_agent(
+        async for update in run_browser_agent(
             llm_provider=llm_provider,
             llm_model_name=llm_model_name,
             llm_temperature=llm_temperature,
@@ -350,10 +320,14 @@ async def run_with_stream(
             use_vision=use_vision,
             max_actions_per_step=max_actions_per_step,
             tool_calling_method=tool_calling_method,
-        )
+        ):
+            logger.info("Direct Browser Update:")
+            logger.info(f"Update type: {type(update)}")
+            logger.info(f"Update: {update}")
+            yield update
         # Add HTML content at the start of the result array
         html_content = f"<h1 style='width:{stream_vw}vw; height:{stream_vh}vh'>Using browser...</h1>"
-        yield [html_content] + list(result)
+        yield [html_content] + list(result) if 'result' in locals() else []
     else:
         try:
             _global_agent_state.clear_stop()
