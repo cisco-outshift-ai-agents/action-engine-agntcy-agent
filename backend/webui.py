@@ -266,26 +266,23 @@ async def run_custom_agent(
             agent_state=_global_agent_state,
             tool_calling_method=tool_calling_method,
         )
-        history = await agent.run(max_steps=max_steps)
 
         history_file = os.path.join(save_agent_history_path, f"{agent.agent_id}.json")
+        trace_file = None if not save_trace_path else save_trace_path
+
+        # history = await agent.run(max_steps=max_steps)
+        async for history_item in agent.run(max_steps=max_steps):
+            yield(
+                history_item.result[0].extracted_content if history_item.result else "",
+                "\n".join([r.error for r in history_item.result if r.error]) if history_item.result else "",
+                history_item.model_output.action if history_item.model_output else "",
+                history_item.model_output.current_state if history_item.model_output else "",
+                trace_file,
+                history_file
+            )
+
         agent.save_history(history_file)
 
-        final_result = history.final_result()
-        errors = history.errors()
-        model_actions = history.model_actions()
-        model_thoughts = history.model_thoughts()
-
-        trace_file = get_latest_files(save_trace_path)
-
-        return (
-            final_result,
-            errors,
-            model_actions,
-            model_thoughts,
-            trace_file.get(".zip"),
-            history_file,
-        )
     except Exception as e:
         import traceback
 

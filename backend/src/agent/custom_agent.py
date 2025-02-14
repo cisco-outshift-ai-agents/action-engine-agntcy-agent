@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Optional, Type, List, Dict, Any, Callable
+from typing import AsyncIterator, Optional, Type, List, Dict, Any, Callable
 import os
 import base64
 import io
@@ -242,7 +242,7 @@ class CustomAgent(Agent):
         return parsed
 
     @time_execution_async("--step")
-    async def step(self, step_info: Optional[CustomAgentStepInfo] = None) -> None:
+    async def step(self, step_info: Optional[CustomAgentStepInfo] = None) -> AgentHistory:
         """Execute one step of the task"""
         logger.info(f"\n📍 Step {self.n_steps}")
         state = None
@@ -290,6 +290,13 @@ class CustomAgent(Agent):
                 logger.info(f"📄 Result: {result[-1].extracted_content}")
 
             self.consecutive_failures = 0
+            history_item = AgentHistory(
+                model_output=model_output,
+                state=state,
+                result=result,
+            )
+            self._make_history_item(model_output, state, result)
+            return history_item
 
         except Exception as e:
             result = await self._handle_step_error(e)
@@ -316,7 +323,7 @@ class CustomAgent(Agent):
             if state:
                 self._make_history_item(model_output, state, result)
 
-    async def run(self, max_steps: int = 100) -> AgentHistoryList:
+    async def run(self, max_steps: int = 100) -> AsyncIterator[AgentHistory]:
         """Execute the task with maximum number of steps"""
         try:
             self._log_agent_run()
@@ -356,9 +363,11 @@ class CustomAgent(Agent):
 
                 if self._too_many_failures():
                     break
+                history_item = await self.step(step_info)
+                yield history_item
 
-                # 3) Do the step
-                await self.step(step_info)
+                # # 3) Do the step
+                # await self.step(step_info)
 
                 if self.history.is_done():
                     if (
