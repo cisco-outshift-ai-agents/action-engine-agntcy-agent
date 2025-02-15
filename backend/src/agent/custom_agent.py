@@ -274,6 +274,8 @@ class CustomAgent(Agent):
                 # ✅ STREAM THOUGHT IMMEDIATELY
                 self._make_history_item(model_output, state, result)
                 # Yield the last item added to history
+                # for debugging
+                self.history.history[-1].state.screenshot = None
                 yield self.history.history[-1]
 
             except Exception as e:

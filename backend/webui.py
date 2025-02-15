@@ -4,7 +4,13 @@ import glob
 import asyncio
 import argparse
 import os
+from typing import Any, AsyncGenerator, Dict, List
 
+from browser_use import ActionModel
+from browser_use.agent.views import (
+    AgentOutput,
+    AgentHistory,
+)
 from dotenv import load_dotenv
 
 from browser_use.browser.browser import BrowserConfig
@@ -12,6 +18,7 @@ from browser_use.browser.context import (
     BrowserContextConfig,
     BrowserContextWindowSize,
 )
+from src.agent.custom_views import CustomAgentBrain, CustomAgentOutput
 from src.utils.agent_state import AgentState
 from playwright.async_api import (
     async_playwright,
@@ -294,7 +301,7 @@ async def run_with_stream(
     use_vision,
     max_actions_per_step,
     tool_calling_method,
-):
+) -> AsyncGenerator[Dict[str, Any], None]:
     global _global_agent_state
     stream_vw = 80
     stream_vh = int(80 * window_h // window_w)
@@ -329,27 +336,41 @@ async def run_with_stream(
             html_content = f"<h1 style='width:{stream_vw}vw; height:{stream_vh}vh'>Using browser...</h1>"
 
             # Handle AgentHistory object properly
-            formatted_update = {
+            formatted_update: Dict[str, Any] = {
                 "html_content": html_content,
                 "current_state": {},
                 "action": []
             }
+            if (isinstance(update, AgentHistory) and
+               update.model_output is not None and isinstance(update.model_output, (AgentOutput, CustomAgentOutput))):
 
-            if update.model_output:
-                brian = update.model_output.current_state
-                actions = []
+                brain = update.model_output.current_state
+                actions: List[Dict[str, Any]] = []
+
                 for action in update.model_output.action:
-                    formatted_action = action.model_dump(exclude_unset=True)
-                formatted_action.update({
-                    "prev_action_evaluation": brian.prev_action_evaluation,
-                    "important_contents": brian.important_contents,
-                    "task_progress": brian.task_progress,
-                    "future_plans": brian.future_plans,
-                    "thought": brian.thought,
-                    "summary": brian.summary,
-                })
-                actions.append(formatted_action)
-            formatted_update["action"] = actions
+                    if isinstance(action, ActionModel):
+                        formatted_action = action.model_dump(
+                            exclude_unset=True)
+                        formatted_action.update({
+                            "prev_action_evaluation": brain.prev_action_evaluation,
+                            "important_contents": brain.important_contents,
+                            "task_progress": brain.task_progress,
+                            "future_plans": brain.future_plans,
+                            "thought": brain.thought,
+                            "summary": brain.summary,
+                        })
+                        actions.append(formatted_action)
+
+                formatted_update["action"] = actions
+
+            elif isinstance(update, AgentHistory) and update.result:
+                formatted_update["action"] = [{
+                    "summary": update.result[0].extracted_content if update.result[0].extracted_content else "",
+                    "thought": update.result[0].error if update.result[0].error else "",
+                    "done": update.result[0].is_done,
+                }]
+
+            yield formatted_update
     else:
         try:
             _global_agent_state.clear_stop()
