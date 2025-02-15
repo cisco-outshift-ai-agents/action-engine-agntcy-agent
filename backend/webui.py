@@ -98,7 +98,8 @@ async def run_browser_agent(
         if save_recording_path:
             existing_videos = set(
                 glob.glob(os.path.join(save_recording_path, "*.[mM][pP]4"))
-                + glob.glob(os.path.join(save_recording_path, "*.[wW][eE][bB][mM]"))
+                + glob.glob(os.path.join(save_recording_path,
+                            "*.[wW][eE][bB][mM]"))
             )
 
         # Initialize LLM
@@ -130,31 +131,31 @@ async def run_browser_agent(
         ):
             logger.info(f"Received update from custom_agent:")
             logger.info(f"Update type: {type(update)}")
-            if hasattr(update, "result"):
-                logger.info(f"Update: {update.result}")
-     
+            logger.info("update: {str(update)[:500]}... [truncated]")
+
+            # if hasattr(update, "result"):
+            #     logger.info(f"Update: {update.result}")
+
             yield update
-            logger.info("Update yielded to run_with_stream")
+            # logger.info("Update yielded to run_with_stream")
 
         # Get the list of videos after the agent runs (if recording is enabled)
         latest_video = None
         if save_recording_path:
             new_videos = set(
                 glob.glob(os.path.join(save_recording_path, "*.[mM][pP]4"))
-                + glob.glob(os.path.join(save_recording_path, "*.[wW][eE][bB][mM]"))
+                + glob.glob(os.path.join(save_recording_path,
+                            "*.[wW][eE][bB][mM]"))
             )
             if new_videos - existing_videos:
                 latest_video = list(new_videos - existing_videos)[
                     0
                 ]  # Get the first new video
 
-       
-
     except Exception as e:
         import traceback
         errors = str(e) + "\n" + traceback.format_exc()
         yield {"error": errors}
-     
 
 
 async def run_custom_agent(
@@ -255,7 +256,7 @@ async def run_custom_agent(
         # history = await agent.run(max_steps=max_steps)
         async for history_item in agent.run(max_steps=max_steps):
             yield history_item
-        
+
     except Exception as e:
         logger.error(f"Error during agent run: {str(e)}", exc_info=True)
         yield "", f"Error: {str(e)}", "", "", None, None
@@ -324,10 +325,31 @@ async def run_with_stream(
             logger.info("Direct Browser Update:")
             logger.info(f"Update type: {type(update)}")
             logger.info(f"Update: {update}")
-            yield update
-        # Add HTML content at the start of the result array
-        html_content = f"<h1 style='width:{stream_vw}vw; height:{stream_vh}vh'>Using browser...</h1>"
-        yield [html_content] + list(result) if 'result' in locals() else []
+
+            html_content = f"<h1 style='width:{stream_vw}vw; height:{stream_vh}vh'>Using browser...</h1>"
+
+            # Handle AgentHistory object properly
+            formatted_update = {
+                "html_content": html_content,
+                "current_state": {},
+                "action": []
+            }
+
+            if update.model_output:
+                brian = update.model_output.current_state
+                actions = []
+                for action in update.model_output.action:
+                    formatted_action = action.model_dump(exclude_unset=True)
+                formatted_action.update({
+                    "prev_action_evaluation": brian.prev_action_evaluation,
+                    "important_contents": brian.important_contents,
+                    "task_progress": brian.task_progress,
+                    "future_plans": brian.future_plans,
+                    "thought": brian.thought,
+                    "summary": brian.summary,
+                })
+                actions.append(formatted_action)
+            formatted_update["action"] = actions
     else:
         try:
             _global_agent_state.clear_stop()
@@ -460,8 +482,10 @@ def main():
     parser.add_argument(
         "--ip", type=str, default="127.0.0.1", help="IP address to bind to"
     )
-    parser.add_argument("--port", type=int, default=7788, help="Port to listen on")
-    parser.add_argument("--dark-mode", action="store_true", help="Enable dark mode")
+    parser.add_argument("--port", type=int, default=7788,
+                        help="Port to listen on")
+    parser.add_argument("--dark-mode", action="store_true",
+                        help="Enable dark mode")
 
 
 if __name__ == "__main__":
