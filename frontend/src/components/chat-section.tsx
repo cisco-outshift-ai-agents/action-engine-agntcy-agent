@@ -28,7 +28,8 @@ const ChatSection: React.FC = () => {
       console.log("Connected to chat server");
     };
 
-    ws.onmessage = (event: unknown) => {
+    ws.onmessage = (event: MessageEvent) => {
+      console.log("received websocket message:", event.data);
       const d = JSON.parse((event as TodoFixAny).data) as Data;
       const parse = DataZod.safeParse(d);
       if (!parse.success) {
@@ -36,6 +37,7 @@ const ChatSection: React.FC = () => {
         return;
       }
       const clean = cleanData(d);
+      console.log("processed data:", clean);
 
       setMessages((messages) => [
         ...messages,
@@ -80,20 +82,21 @@ const ChatSection: React.FC = () => {
     setInput("");
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
-      sendMessage();
-    }
-  };
+  //   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  //     if (event.key === "Enter") {
+  //       sendMessage();
+  //     }
+  //   };
 
   return (
     <div className="h-full rounded-lg border border-white/10 bg-[#32363c] max-w-3xl px-4 py-6 flex flex-col">
       <div className="flex-1 overflow-y-auto px-4 pt-2 pb-3">
         <div className="flex gap-1 flex-col-reverse">
-          {messages.reverse().map((message, index) => (
+          {[...messages].reverse().map((message, index) => (
             <ChatMessage
               key={index}
               content={message.text.action.map((a) => a.summary).join("\n")}
+              isDone={message.text.action.some((a) => a.done === true)}
               thoughts={
                 message.text.action
                   .map((a) => a.thought)
@@ -182,6 +185,7 @@ const DataZod = z.object({
         future_plans: z.string().optional(),
         thought: z.string().optional(),
         summary: z.string().optional(),
+        done: z.union([z.boolean(), z.object({ text: z.string() })]).optional(),
       }),
     ])
   ),
@@ -202,6 +206,7 @@ const CleanerDataZod = z.object({
       future_plans: z.string().optional(),
       thought: z.string().optional(),
       summary: z.string().optional(),
+      done: z.boolean().optional(),
     })
   ),
   current_state: z.object({}).optional(),
@@ -236,6 +241,7 @@ const cleanData = (data: Data): CleanerData => {
         future_plans: action.future_plans,
         thought: action.thought,
         summary: action.summary,
+        done: typeof action.done === "boolean" ? action.done : false,
       };
     }),
     current_state: data.current_state,
@@ -243,9 +249,9 @@ const cleanData = (data: Data): CleanerData => {
   };
 };
 
-const WSMessage = z.object({
-  data: z.string(),
-});
-type WSMessage = z.infer<typeof WSMessage>;
+// const WSMessage = z.object({
+//   data: z.string(),
+// });
+// type WSMessage = z.infer<typeof WSMessage>;
 
 export default ChatSection;

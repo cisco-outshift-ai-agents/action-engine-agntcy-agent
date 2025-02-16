@@ -16,7 +16,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   isLoading,
   thoughts,
   actions,
+  isDone,
 }) => {
+  if (isDone) {
+    return null;
+  }
   return (
     <>
       <div
@@ -87,6 +91,7 @@ interface ChatMessageProps {
   role: "user" | "assistant";
   thoughts?: string[] | undefined | null;
   actions?: string[] | undefined | null;
+  isDone?: boolean;
 }
 
 export default ChatMessage;
