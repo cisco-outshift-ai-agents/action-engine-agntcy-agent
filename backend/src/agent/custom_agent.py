@@ -248,7 +248,6 @@ class CustomAgent(Agent):
 
         return parsed
 
-    @time_execution_async("--step")
     async def step(self, step_info: Optional[CustomAgentStepInfo] = None) -> AsyncIterator[AgentHistory]:
         """Execute one step of the task with streaming"""
         logger.info(f"\n📍 Step {self.n_steps}")
@@ -264,8 +263,8 @@ class CustomAgent(Agent):
 
             input_messages = self.message_manager.get_messages()
 
-        # 🛠 Generate thought BEFORE taking any action
             try:
+                # Get model output
                 model_output = await self.get_next_action(input_messages)
                 if model_output is None:
                     logger.error("Model output is None")
@@ -275,6 +274,27 @@ class CustomAgent(Agent):
                         state, model_output, self.n_steps)
                 self.update_step_info(model_output, step_info)
 
+                # Execute actions
+                actions: list[ActionModel] = model_output.action
+                result: list[ActionResult] = await self.controller.multi_act(actions, self.browser_context)
+
+                # Handle partial actions
+                if len(result) != len(actions):
+                    for ri in range(len(result), len(actions)):
+                        result.append(
+                            ActionResult(
+                                extracted_content=None,
+                                include_in_memory=True,
+                                error=f"{actions[ri].model_dump_json(exclude_unset=True)} is Failed to execute.",
+                                is_done=False,
+                            )
+                        )
+
+                # Update states
+                self._last_result = result
+                self._last_actions = actions
+
+                # yield model output with action results
                 self._make_history_item(model_output, state, result)
                 yield self.history.history[-1]
 
@@ -285,37 +305,13 @@ class CustomAgent(Agent):
                 yield self.history.history[-1]
                 return
 
-            # Execute actions
-            actions: list[ActionModel] = model_output.action
-            result: list[ActionResult] = await self.controller.multi_act(actions, self.browser_context)
-
-            # Handle partial action execution
-            if len(result) != len(actions):
-                for ri in range(len(result), len(actions)):
-                    result.append(
-                        ActionResult(
-                            extracted_content=None,
-                            include_in_memory=True,
-                            error=f"{actions[ri].model_dump_json(exclude_unset=True)} is Failed to execute.",
-                            is_done=False
-                        )
-                    )
-
-            # Update states
-            self._last_result = result
-            self._last_actions = actions
-
-        # Stream Action Result
-            self._make_history_item(model_output, state, result)
-            yield self.history.history[-1]
-
         except Exception as e:
             result = await self._handle_step_error(e)
             self._make_history_item(None, state, result)
             yield self.history.history[-1]
 
         finally:
-            # Telemetry capture
+            # Telemetry Capture
             actions = [a.model_dump(exclude_unset=True)
                        for a in model_output.action] if model_output else []
             self.telemetry.capture(
