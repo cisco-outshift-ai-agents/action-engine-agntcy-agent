@@ -178,7 +178,13 @@ class CustomAgent(Agent):
         """Get next action from LLM based on current state"""
         messages_to_process = input_messages
 
-        ai_message = self.llm.invoke(messages_to_process)
+        try:
+            print("trying to send messages to LLM")
+            print("The message is:", messages_to_process)
+            ai_message = self.llm.invoke(messages_to_process)
+        except Exception as e:
+            logger.error(f"LLM call failed: {e}")
+            raise
         self.message_manager._add_message_with_tokens(ai_message)
 
         if isinstance(ai_message.content, list):
