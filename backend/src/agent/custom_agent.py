@@ -177,7 +177,6 @@ class CustomAgent(Agent):
     async def get_next_action(self, input_messages: list[BaseMessage]) -> AgentOutput:
         """Get next action from LLM based on current state"""
         messages_to_process = input_messages
-
         ai_message = self.llm.invoke(messages_to_process)
         self.message_manager._add_message_with_tokens(ai_message)
 

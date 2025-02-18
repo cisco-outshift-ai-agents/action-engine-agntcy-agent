@@ -35,8 +35,9 @@ services:
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - /run/dbus:/run/dbus
+      - .:/app
     restart: unless-stopped
-    shm_size: "2gb"
+    shm_size: "16gb"
     cap_add:
       - SYS_ADMIN
     security_opt:
