@@ -61,7 +61,7 @@ LLM_BASE_URL="http://host.docker.internal:8000/v1"
 LLM_API_KEY="action_engine"
 ```
 
-### Launch the vLLM server with glm4 model backend
+### Launch the vLLM server with local model backend
 
 1. `ssh sreadmin@172.18.62.180` [Please contact julvalen@cisco.com or aditrame@cisco.com for access to the machine]
 2. Install the vllm library `pip install vllm`
