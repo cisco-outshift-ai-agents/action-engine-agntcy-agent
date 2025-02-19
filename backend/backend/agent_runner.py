@@ -226,26 +226,13 @@ class AgentRunner:
         async for history_item in self.execute_agent_core(llm, agent_config):
             yield history_item
 
-        latest_video = None
-        if recording_path:
-            new_videos = set(
-                glob.glob(os.path.join(recording_path, "*.[mM][pP]4"))
-                + glob.glob(os.path.join(recording_path, "*.[wW][eE][bB][mM]"))
-            )
-            diff_videos = new_videos - existing_videos
-            if diff_videos:
-                latest_video = list(diff_videos)[0]
-
-                logger.info("Execition completed, final update")
-                yield history_item
-
     async def stream_agent_updates(
         self, llm_config: LLMConfig, agent_config: AgentConfig
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
        Streams agent updates to the UI.
        Yields output as received from the agent.:
-      [html_content, final_result, errors, model_actions, model_thoughts, latest_video, trace_file, history_file]
+      [html_content, final_result, errors, model_actions, model_thoughts, trace_file, history_file]
       """
         stream_vw = 80
         stream_vh = int(80 * agent_config.window_h // agent_config.window_w)
@@ -303,7 +290,7 @@ class AgentRunner:
             )
             html_content = f"<h1 style='width:{stream_vw}vw; height:{stream_vh}vh'>Using browser...</h1>"
             final_result = errors = model_actions = model_thoughts = ""
-            latest_video = trace = history_file = None
+            trace = history_file = None
 
             while not agent_task.done():
                 try:
@@ -326,7 +313,6 @@ class AgentRunner:
                         errors,
                         model_actions,
                         model_thoughts,
-                        latest_video,
                         trace,
                         history_file,
                     ]
@@ -338,7 +324,6 @@ class AgentRunner:
                         errors,
                         model_actions,
                         model_thoughts,
-                        latest_video,
                         trace,
                         history_file,
                     ]
@@ -351,7 +336,6 @@ class AgentRunner:
                     errors,
                     model_actions,
                     model_thoughts,
-                    latest_video,
                     trace,
                     history_file,
                 ]
