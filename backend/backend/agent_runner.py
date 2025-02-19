@@ -5,27 +5,24 @@ import logging
 import os
 import traceback
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple, AsyncGenerator, List
+from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 
 from browser_use import ActionModel, ActionResult
-from browser_use.agent.views import (
-    AgentHistory,
-    AgentOutput,
-)
+from browser_use.agent.views import AgentHistory, AgentOutput
+from browser_use.browser.browser import BrowserConfig
+from browser_use.browser.context import BrowserContextWindowSize
 from dotenv import load_dotenv
 from playwright.async_api import async_playwright
 
-from browser_use.browser.browser import BrowserConfig
-from browser_use.browser.context import BrowserContextWindowSize
-from src.agent.custom_views import CustomAgentOutput
-from src.utils.agent_state import AgentState
 from src.agent.custom_agent import CustomAgent
+from src.agent.custom_prompts import CustomAgentMessagePrompt, CustomSystemPrompt
+from src.agent.custom_views import CustomAgentOutput
 from src.browser.custom_browser import CustomBrowser
-from src.agent.custom_prompts import CustomSystemPrompt, CustomAgentMessagePrompt
 from src.browser.custom_context import BrowserContextConfig as CustomContextConfig
 from src.controller.custom_controller import CustomController
 from src.utils import utils
-from src.utils.utils import get_latest_files, capture_screenshot
+from src.utils.agent_state import AgentState
+from src.utils.utils import capture_screenshot, get_latest_files
 
 load_dotenv()
 logger = logging.getLogger(__name__)

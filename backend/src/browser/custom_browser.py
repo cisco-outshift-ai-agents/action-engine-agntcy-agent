@@ -1,12 +1,10 @@
 import asyncio
+import logging
 
-from playwright.async_api import Browser as PlaywrightBrowser
-from playwright.async_api import (
-    Playwright,
-)
 from browser_use.browser.browser import Browser
 from browser_use.browser.context import BrowserContextConfig
-import logging
+from playwright.async_api import Browser as PlaywrightBrowser
+from playwright.async_api import Playwright
 
 from .custom_context import CustomBrowserContext
 
