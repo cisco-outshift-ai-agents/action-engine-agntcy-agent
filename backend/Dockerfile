@@ -66,8 +66,8 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN playwright install --with-deps chromium
 RUN playwright install-deps
 
-# Copy the application code
-COPY . .
+# # Copy the application code
+# COPY . .
 
 # Install D-Bus
 RUN apt-get update && apt-get install -y dbus
