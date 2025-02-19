@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 import json
 import logging
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -137,44 +138,23 @@ async def chat_endpoint(websocket: WebSocket):
                 ):
                     logger.info("Received update from agent")
                     logger.info(f"Update type: {type(update)}")
+                    logger.info(
+                        f"Update content: {json.dumps(update, indent=2)}")
 
                     try:
-                        if isinstance(update, list) and update:
-                            html_content = update[0]
-                            brain_states = []
-                            actions = []
 
-                            for item in update:
-                                if isinstance(item, list) and item:
-                                    actions.extend(item)
-                                elif hasattr(item, "prev_action_evaluation"):
-                                    if hasattr(item, "model_dump"):
-                                        brain_states.append(item.model_dump())
-                                    elif hasattr(item, "dict"):
-                                        brain_states.append(item.dict())
+                        response_data = {
+                            "html_content": update.get("html_content", ""),
+                            "current_state": update.get("current_state") or {},
+                            "action": update.get("action", []),
 
-                            response_data = {
-                                "html_content": html_content,
-                                "current_state": (
-                                    brain_states[-1] if brain_states else {}
-                                ),
-                                "action": [],
-                            }
+                        }
 
-                            for action in actions:
-                                if hasattr(action, "model_dump"):
-                                    response_data["action"].append(
-                                        action.model_dump())
-                                elif hasattr(action, "dict"):
-                                    response_data["action"].append(
-                                        action.dict())
-                                elif isinstance(action, dict):
-                                    response_data["action"].append(action)
-                                else:
-                                    response_data["action"].append(str(action))
+                        logger.info(
+                            f"Prepared response: {json.dumps(response_data, indent=2)}")
 
-                            await websocket.send_text(json.dumps(response_data))
-                            logger.info("Successfully sent response to client")
+                        await websocket.send_text(json.dumps(response_data))
+                        logger.info("Successfully sent response to client")
 
                     except Exception as serialize_error:
                         logger.error(

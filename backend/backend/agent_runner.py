@@ -238,6 +238,7 @@ class AgentRunner:
                 latest_video = list(diff_videos)[0]
 
                 logger.info("Execition completed, final update")
+                history_item.latest_video = latest_video
                 yield history_item
 
     async def stream_agent_updates(
