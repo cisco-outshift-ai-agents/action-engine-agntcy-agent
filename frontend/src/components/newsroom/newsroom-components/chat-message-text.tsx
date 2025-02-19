@@ -6,12 +6,7 @@ const ChatMessageText: React.FC<ChatMessageTextProps> = ({
   content,
   isThinking,
   role,
-  //   isDone,
 }) => {
-  //Don't return anything if content is empty and done is true
-  //   if (isDone) {
-  //     return null;
-  //   }
   return (
     <div className="flex gap-2 flex-col">
       {/* {errors?.map((error) => (
@@ -58,7 +53,6 @@ interface ChatMessageTextProps {
   warnings?: string[] | undefined | null;
   isThinking?: boolean | undefined | null;
   role: "user" | "assistant";
-  //   isDone?: boolean;
 }
 
 export default ChatMessageText;
