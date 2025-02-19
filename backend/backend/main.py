@@ -1,12 +1,12 @@
 import json
 import logging
-import os
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from src.utils.default_config_settings import default_config
-from webui import run_with_stream
+import uvicorn
 
-# Configure logging
+from src.utils.default_config_settings import default_config
+from backend.agent_runner import AgentRunner, LLMConfig, AgentConfig
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -25,8 +25,46 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Default configuration
 DEFAULT_CONFIG = default_config()
+
+# Create a global AgentRunner instance
+agent_runner = AgentRunner()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    config = DEFAULT_CONFIG.copy()
+    config["keep_browser_open"] = True  # Persist the browser instance on startup.
+
+    agent_config = AgentConfig(
+        use_own_browser=config.get("use_own_browser", False),
+        keep_browser_open=config.get("keep_browser_open", True),
+        headless=config.get("headless", True),
+        disable_security=config.get("disable_security", False),
+        window_w=config.get("window_w", 1280),
+        window_h=config.get("window_h", 720),
+        save_recording_path=config.get("save_recording_path"),
+        save_agent_history_path=config.get("save_agent_history_path", "./history"),
+        save_trace_path=config.get("save_trace_path", "./trace"),
+        enable_recording=config.get("enable_recording", False),
+        task=config.get("task", ""),
+        add_infos=config.get("add_infos", ""),
+        max_steps=config.get("max_steps", 10),
+        use_vision=config.get("use_vision", False),
+        max_actions_per_step=config.get("max_actions_per_step", 5),
+        tool_calling_method=config.get("tool_calling_method", "default_method"),
+    )
+    llm_config = LLMConfig(
+        provider=config.get("llm_provider", "openai"),
+        model_name=config.get("llm_model_name", "gpt-3.5-turbo"),
+        temperature=config.get("llm_temperature", 0.7),
+        base_url=config.get("llm_base_url", ""),
+        api_key=config.get("llm_api_key", ""),
+    )
+    await agent_runner.initialize_browser(agent_config)
+    logger.info("Browser pre-initialized at server startup.")
+
+    yield
 
 
 @app.get("/status")
@@ -34,7 +72,6 @@ async def status():
     return {"status": "ok"}
 
 
-# WebSocker endpoint for chat interactions
 @app.websocket("/ws/chat")
 async def chat_endpoint(websocket: WebSocket):
     logger.info("New WebSocket connection attempt")
@@ -48,7 +85,7 @@ async def chat_endpoint(websocket: WebSocket):
 
             try:
                 client_payload = json.loads(data)
-                task = client_payload.get("task", DEFAULT_CONFIG["task"])
+                task = client_payload.get("task", DEFAULT_CONFIG.get("task", ""))
                 add_infos = client_payload.get("add_infos", "")
                 logger.info(f"Extracted task: {task}")
                 logger.info(f"Extracted additional info: {add_infos}")
@@ -57,22 +94,48 @@ async def chat_endpoint(websocket: WebSocket):
                 logger.error(error_msg)
                 await websocket.send_text(json.dumps({"error": error_msg}))
                 continue
-            # create configuration by merging defaults with whatever value the client provides
+
             config = DEFAULT_CONFIG.copy()
             config.update({"task": task, "add_infos": add_infos})
 
-            # process stream of updates from the agent
+            agent_config = AgentConfig(
+                use_own_browser=config.get("use_own_browser", False),
+                keep_browser_open=config.get("keep_browser_open", True),
+                headless=config.get("headless", True),
+                disable_security=config.get("disable_security", False),
+                window_w=config.get("window_w", 1280),
+                window_h=config.get("window_h", 720),
+                save_recording_path=config.get("save_recording_path"),
+                save_agent_history_path=config.get(
+                    "save_agent_history_path", "./history"
+                ),
+                save_trace_path=config.get("save_trace_path", "./trace"),
+                enable_recording=config.get("enable_recording", False),
+                task=config.get("task", ""),
+                add_infos=config.get("add_infos", ""),
+                max_steps=config.get("max_steps", 10),
+                use_vision=config.get("use_vision", False),
+                max_actions_per_step=config.get("max_actions_per_step", 5),
+                tool_calling_method=config.get("tool_calling_method", "default_method"),
+            )
+            llm_config = LLMConfig(
+                provider=config.get("llm_provider", "openai"),
+                model_name=config.get("llm_model_name", "gpt-3.5-turbo"),
+                temperature=config.get("llm_temperature", 0.7),
+                base_url=config.get("llm_base_url", ""),
+                api_key=config.get("llm_api_key", ""),
+            )
 
             try:
-                async for update in run_with_stream(**config):
+                async for update in agent_runner.stream_agent_updates(
+                    llm_config, agent_config
+                ):
                     logger.info("Received update from agent")
                     logger.info(f"Update type: {type(update)}")
 
                     try:
-                        # process updates if it's a list - this is the expected format
-
-                        if isinstance(update, list):
-                            html_content = update[0] if update else ""
+                        if isinstance(update, list) and update:
+                            html_content = update[0]
                             brain_states = []
                             actions = []
 
@@ -85,7 +148,6 @@ async def chat_endpoint(websocket: WebSocket):
                                     elif hasattr(item, "dict"):
                                         brain_states.append(item.dict())
 
-                            # construct response data
                             response_data = {
                                 "html_content": html_content,
                                 "current_state": (
@@ -94,7 +156,6 @@ async def chat_endpoint(websocket: WebSocket):
                                 "action": [],
                             }
 
-                            # Handle action serialization that could come in different formats (this fixes some serialization related errors in the logs)
                             for action in actions:
                                 if hasattr(action, "model_dump"):
                                     response_data["action"].append(action.model_dump())
@@ -105,9 +166,7 @@ async def chat_endpoint(websocket: WebSocket):
                                 else:
                                     response_data["action"].append(str(action))
 
-                            # send response to client
-                            json_string = json.dumps(response_data)
-                            await websocket.send_text(json_string)
+                            await websocket.send_text(json.dumps(response_data))
                             logger.info("Successfully sent response to client")
 
                     except Exception as serialize_error:
@@ -147,6 +206,4 @@ async def chat_endpoint(websocket: WebSocket):
 
 
 if __name__ == "__main__":
-    import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=7788)
