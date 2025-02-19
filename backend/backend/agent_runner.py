@@ -1,16 +1,22 @@
 import asyncio
 import glob
+import json
 import logging
 import os
 import traceback
 from dataclasses import dataclass
-from typing import Optional, Tuple, AsyncGenerator, List
+from typing import Any, Dict, Optional, Tuple, AsyncGenerator, List
 
+from browser_use import ActionModel, ActionResult
+from browser_use.agent.views import (
+    AgentHistory, AgentOutput,
+)
 from dotenv import load_dotenv
 from playwright.async_api import async_playwright
 
 from browser_use.browser.browser import BrowserConfig
 from browser_use.browser.context import BrowserContextWindowSize
+from src.agent.custom_views import CustomAgentOutput
 from src.utils.agent_state import AgentState
 from src.agent.custom_agent import CustomAgent
 from src.browser.custom_browser import CustomBrowser
@@ -99,7 +105,8 @@ class AgentRunner:
             chrome_path = os.getenv("CHROME_PATH") or None
             chrome_user_data = os.getenv("CHROME_USER_DATA")
             if chrome_user_data:
-                extra_chromium_args.append(f"--user-data-dir={chrome_user_data}")
+                extra_chromium_args.append(
+                    f"--user-data-dir={chrome_user_data}")
 
         if not self.browser:
             if not agent_config.use_own_browser:
@@ -146,13 +153,14 @@ class AgentRunner:
         await self._setup_browser(agent_config)
         logger.info("Browser initialized on startup.")
 
+    # Change from returning a tuple of final results to an async generator tha streams AgentHistory in real-time.
     async def execute_agent_core(
         self, llm, agent_config: AgentConfig
-    ) -> Tuple[str, str, str, str, Optional[str], Optional[str]]:
+    ) -> AsyncGenerator[AgentHistory, None]:
         """
         Core execution: sets up and runs the agent,
-        returning (final_result, errors, model_actions, model_thoughts, trace_file, history_file).
-        """
+       returning (final_result, errors, model_actions, model_thoughts, trace_file, history_file).
+       """
         try:
             self.agent_state.clear_stop()
             await self._setup_browser(agent_config)
@@ -172,44 +180,25 @@ class AgentRunner:
                 agent_state=self.agent_state,
                 tool_calling_method=agent_config.tool_calling_method,
             )
-            history = await agent.run(max_steps=agent_config.max_steps)
 
-            history_file = os.path.join(
-                agent_config.save_agent_history_path, f"{agent.agent_id}.json"
-            )
-            agent.save_history(history_file)
+            # Stream updates from agent.run()
+            async for history_item in agent.run(max_steps=agent_config.max_steps):
+                yield history_item
 
-            final_result = history.final_result()
-            errors = history.errors()
-            model_actions = history.model_actions()
-            model_thoughts = history.model_thoughts()
-
-            trace_file_dict = get_latest_files(agent_config.save_trace_path)
-            trace_file = trace_file_dict.get(".zip") if trace_file_dict else None
-
-            return (
-                final_result,
-                errors,
-                model_actions,
-                model_thoughts,
-                trace_file,
-                history_file,
-            )
         except Exception as e:
-            traceback.print_exc()
-            err_str = f"{str(e)}\n{traceback.format_exc()}"
-            return "", err_str, "", "", None, None
+            logger.error(f"Error during agent run: {str(e)}", exc_info=True)
+            yield {"error": str(e)}
         finally:
             if not agent_config.keep_browser_open:
                 await self.close_browser()
 
     async def execute_agent_with_browser(
         self, llm_config: LLMConfig, agent_config: AgentConfig
-    ) -> AgentResult:
+    ) -> AsyncGenerator[AgentHistory, None]:
         """
-        Executes the agent with browser-related logic, handling recording and video capture.
-        Returns an AgentResult with final outputs.
-        """
+ Executes the agent with browser-related logic, handling recording and video capture.
+ Returns AgentResult in real-time.
+ """
         self.agent_state.clear_stop()
 
         recording_path = (
@@ -232,58 +221,68 @@ class AgentRunner:
             llm_api_key=llm_config.api_key,
         )
 
-        (
-            final_result,
-            errors,
-            model_actions,
-            model_thoughts,
-            trace_file,
-            history_file,
-        ) = await self.execute_agent_core(llm, agent_config)
-
-        latest_video = None
-        if recording_path:
-            new_videos = set(
-                glob.glob(os.path.join(recording_path, "*.[mM][pP]4"))
-                + glob.glob(os.path.join(recording_path, "*.[wW][eE][bB][mM]"))
-            )
-            diff_videos = new_videos - existing_videos
-            if diff_videos:
-                latest_video = list(diff_videos)[0]
-
-        return AgentResult(
-            final_result,
-            errors,
-            model_actions,
-            model_thoughts,
-            latest_video,
-            trace_file,
-            history_file,
-        )
+        logger.info("Starting agent execution: Streaming AgentHistory")
+        # stream updates using AgentHistory
+        async for history_item in self.execute_agent_core(llm, agent_config):
+            yield history_item
 
     async def stream_agent_updates(
         self, llm_config: LLMConfig, agent_config: AgentConfig
-    ) -> AsyncGenerator[List, None]:
+    ) -> AsyncGenerator[Dict[str, Any], None]:
         """
-        Streams agent updates to the UI.
-        Yields a list:
-        [html_content, final_result, errors, model_actions, model_thoughts, latest_video, trace_file, history_file]
-        """
+       Streams agent updates to the UI.
+       Yields output as received from the agent.:
+      [html_content, final_result, errors, model_actions, model_thoughts, trace_file, history_file]
+      """
         stream_vw = 80
         stream_vh = int(80 * agent_config.window_h // agent_config.window_w)
         if not agent_config.headless:
-            result = await self.execute_agent_with_browser(llm_config, agent_config)
             html_content = f"<h1 style='width:{stream_vw}vw; height:{stream_vh}vh'>Using browser...</h1>"
-            yield [
-                html_content,
-                result.final_result,
-                result.errors,
-                result.model_actions,
-                result.model_thoughts,
-                result.latest_video,
-                result.trace_file,
-                result.history_file,
-            ]
+            try:
+                # execute_agent_with_browser calls agent.run() and yield results as received
+                async for history_item in self.execute_agent_with_browser(llm_config, agent_config):
+                    if self.agent_state.is_stop_requested():
+                        break
+                    formatted_update = {
+                        "html_content": html_content,
+                        "current_state": {},
+                        "action": [],
+                    }
+
+                    if (isinstance(history_item, AgentHistory) and history_item.model_output is not None and isinstance(history_item.model_output, (AgentOutput, CustomAgentOutput))):
+                        brain = history_item.model_output.current_state
+                        actions: List[Dict[str, Any]] = []
+
+                        for action in history_item.model_output.action:
+                            if isinstance(action, ActionModel):
+                                formatted_action = action.model_dump(
+                                    exclude_unset=True)
+                                formatted_action.update({
+                                    "prev_action_evaluation": brain.prev_action_evaluation,
+                                    "important_contents": brain.important_contents,
+                                    "task_progress": brain.task_progress,
+                                    "future_plans": brain.future_plans,
+                                    "thought": brain.thought,
+                                    "summary": brain.summary,
+
+                                })
+
+                                actions.append(formatted_action)
+                        formatted_update["action"] = actions
+                    elif isinstance(history_item, AgentHistory) and history_item.result:
+                        formatted_update["action"] = [{
+                            "summary": history_item.result[0].extracted_content if history_item.result[0].extracted_content else "",
+                            "thought": history_item.result[0].error if history_item.result[0].error else "",
+                            "done": history_item.result[0].is_done,
+                        }]
+                        logger.info(
+                            f"Formatted update being sent to UI")
+                    yield formatted_update
+            except Exception as e:
+                err_msg = f"Agent error: {str(e)}"
+                yield {"html_content": html_content, "current_state": {}, "action": [{"summary": err_msg}]}
+
+                # Headless mode
         else:
             self.agent_state.clear_stop()
             agent_task = asyncio.create_task(
@@ -291,7 +290,7 @@ class AgentRunner:
             )
             html_content = f"<h1 style='width:{stream_vw}vw; height:{stream_vh}vh'>Using browser...</h1>"
             final_result = errors = model_actions = model_thoughts = ""
-            latest_video = trace = history_file = None
+            trace = history_file = None
 
             while not agent_task.done():
                 try:
@@ -314,7 +313,6 @@ class AgentRunner:
                         errors,
                         model_actions,
                         model_thoughts,
-                        latest_video,
                         trace,
                         history_file,
                     ]
@@ -326,23 +324,20 @@ class AgentRunner:
                         errors,
                         model_actions,
                         model_thoughts,
-                        latest_video,
                         trace,
                         history_file,
                     ]
                 await asyncio.sleep(0.05)
 
             try:
-                result = await agent_task
                 yield [
                     html_content,
-                    result.final_result,
-                    result.errors,
-                    result.model_actions,
-                    result.model_thoughts,
-                    result.latest_video,
-                    result.trace_file,
-                    result.history_file,
+                    final_result,
+                    errors,
+                    model_actions,
+                    model_thoughts,
+                    trace,
+                    history_file,
                 ]
             except Exception as e:
                 err_msg = f"Agent error: {str(e)}"
