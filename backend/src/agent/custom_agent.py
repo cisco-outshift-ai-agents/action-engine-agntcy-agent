@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Optional, Type, List, Dict, Any, Callable
+from typing import AsyncIterator, Optional, Type, List, Dict, Any, Callable
 import os
 import base64
 import io
@@ -74,8 +74,10 @@ class CustomAgent(Agent):
         agent_state: AgentState = None,  # type: ignore
         initial_actions: Optional[List[Dict[str, Dict[str, Any]]]] = None,
         # Cloud Callbacks
-        register_new_step_callback: Callable[["BrowserState", "AgentOutput", int], None] | None = None,  # type: ignore
-        register_done_callback: Callable[["AgentHistoryList"], None] | None = None,
+        register_new_step_callback: Callable[[
+            "BrowserState", "AgentOutput", int], None] | None = None,  # type: ignore
+        register_done_callback: Callable[[
+            "AgentHistoryList"], None] | None = None,
         tool_calling_method: Optional[str] = "auto",
     ):
         super().__init__(
@@ -125,7 +127,8 @@ class CustomAgent(Agent):
         # Get the dynamic action model from controller's registry
         self.ActionModel = self.controller.registry.create_action_model()
         # Create output model with the dynamic actions
-        self.AgentOutput = CustomAgentOutput.type_with_custom_actions(self.ActionModel)
+        self.AgentOutput = CustomAgentOutput.type_with_custom_actions(
+            self.ActionModel)
 
     def _log_response(self, response: CustomAgentOutput) -> None:
         """Log the model's response"""
@@ -136,9 +139,12 @@ class CustomAgent(Agent):
         else:
             emoji = "🤷"
 
-        logger.info(f"{emoji} Eval: {response.current_state.prev_action_evaluation}")
-        logger.info(f"🧠 New Memory: {response.current_state.important_contents}")
-        logger.info(f"⏳ Task Progress: \n{response.current_state.task_progress}")
+        logger.info(
+            f"{emoji} Eval: {response.current_state.prev_action_evaluation}")
+        logger.info(
+            f"🧠 New Memory: {response.current_state.important_contents}")
+        logger.info(
+            f"⏳ Task Progress: \n{response.current_state.task_progress}")
         logger.info(f"📋 Future Plans: \n{response.current_state.future_plans}")
         logger.info(f"🤔 Thought: {response.current_state.thought}")
         logger.info(f"🎯 Summary: {response.current_state.summary}")
@@ -151,8 +157,8 @@ class CustomAgent(Agent):
         self, model_output: CustomAgentOutput, step_info: CustomAgentStepInfo = None  # type: ignore
     ):
         """
-        update step info
-        """
+ update step info
+ """
         if step_info is None:
             return
 
@@ -185,7 +191,8 @@ class CustomAgent(Agent):
         else:
             ai_content = ai_message.content
 
-        ai_content = ai_content.replace("```json", "").replace("```", "")  # type: ignore
+        ai_content = ai_content.replace(
+            "```json", "").replace("```", "")  # type: ignore
         ai_content = repair_json(ai_content)
 
         logger.info("Raw Model Responses:")
@@ -240,67 +247,81 @@ class CustomAgent(Agent):
 
         return parsed
 
-    @time_execution_async("--step")
-    async def step(self, step_info: Optional[CustomAgentStepInfo] = None) -> None:
-        """Execute one step of the task"""
+    async def step(self, step_info: Optional[CustomAgentStepInfo] = None) -> AsyncIterator[AgentHistory]:
+        """Execute one step of the task with streaming"""
         logger.info(f"\n📍 Step {self.n_steps}")
         state = None
         model_output = None
         result: list[ActionResult] = []
 
         try:
+            # Get browser state
             state = await self.browser_context.get_state(use_vision=self.use_vision)
-            self.message_manager.add_state_message(state, self._last_actions, self._last_result, step_info)  # type: ignore
-            input_messages = self.message_manager.get_messages()
-            try:
-                model_output = await self.get_next_action(input_messages)
-                if self.register_new_step_callback:
-                    self.register_new_step_callback(state, model_output, self.n_steps)
-                self.update_step_info(model_output, step_info)  # type: ignore
-                logger.info(f"🧠 All Memory: \n{step_info.memory}")  # type: ignore
-                self._save_conversation(input_messages, model_output)
-            except Exception as e:
-                # model call failed, remove last state message from history
-                self.message_manager._remove_state_message_by_index(-1)
-                raise e
+            self.message_manager.add_state_message(
+                state, self._last_actions, self._last_result, step_info)
 
+            input_messages = self.message_manager.get_messages()
+
+            try:
+                # Get model output
+                model_output = await self.get_next_action(input_messages)
+                if model_output is None:
+                    logger.error("Model output is None")
+                    return
+
+                if hasattr(self, 'register_new_step_callback') and self.register_new_step_callback:
+                    self.register_new_step_callback(
+                        state, model_output, self.n_steps)
+                self.update_step_info(model_output, step_info)
+
+                # Stream output immediately
+                self._make_history_item(model_output, state, result)
+                yield self.history.history[-1]
+            except Exception as e:
+                logger.error(f"Error generating thought: {e}")
+                self._make_history_item(
+                    None, state, [ActionResult(error=str(e), is_done=False)])
+                yield self.history.history[-1]
+                return
+
+                # Execute actions
             actions: list[ActionModel] = model_output.action
-            result: list[ActionResult] = await self.controller.multi_act(
-                actions, self.browser_context
-            )
+            result: list[ActionResult] = await self.controller.multi_act(actions, self.browser_context)
+
+            # Handle partial actions
             if len(result) != len(actions):
-                # I think something changes, such information should let LLM know
                 for ri in range(len(result), len(actions)):
                     result.append(
                         ActionResult(
                             extracted_content=None,
                             include_in_memory=True,
-                            error=f"{actions[ri].model_dump_json(exclude_unset=True)} is Failed to execute. \
-                                                    Something new appeared after action {actions[len(result) - 1].model_dump_json(exclude_unset=True)}",
+                            error=f"{actions[ri].model_dump_json(exclude_unset=True)} is Failed to execute.",
                             is_done=False,
                         )
                     )
-            if len(actions) == 0:
-                # TODO: fix no action case
-                result = [ActionResult(is_done=True, extracted_content=step_info.memory, include_in_memory=True)]  # type: ignore
+
+                # Update states
             self._last_result = result
             self._last_actions = actions
-            if len(result) > 0 and result[-1].is_done:
-                logger.info(f"📄 Result: {result[-1].extracted_content}")
 
-            self.consecutive_failures = 0
+            # yield model output with action results
+            self._make_history_item(None, state, result)
+            yield self.history.history[-1]
 
         except Exception as e:
             result = await self._handle_step_error(e)
-            self._last_result = result
+            self._make_history_item(None, state, result)
+            yield self.history.history[-1]
 
         finally:
-            actions = [a.model_dump(exclude_unset=True) for a in model_output.action] if model_output else []  # type: ignore
+            # Telemetry Capture
+            actions_data = [a.model_dump(exclude_unset=True)
+                            for a in model_output.action] if model_output else []
             self.telemetry.capture(
                 AgentStepTelemetryEvent(
                     agent_id=self.agent_id,
                     step=self.n_steps,
-                    actions=actions,  # type: ignore
+                    actions=actions_data,
                     consecutive_failures=self.consecutive_failures,
                     step_error=(
                         [r.error for r in result if r.error]
@@ -309,13 +330,8 @@ class CustomAgent(Agent):
                     ),
                 )
             )
-            if not result:
-                return
 
-            if state:
-                self._make_history_item(model_output, state, result)
-
-    async def run(self, max_steps: int = 100) -> AgentHistoryList:
+    async def run(self, max_steps: int = 100) -> AsyncIterator[AgentHistory]:
         """Execute the task with maximum number of steps"""
         try:
             self._log_agent_run()
@@ -355,9 +371,11 @@ class CustomAgent(Agent):
 
                 if self._too_many_failures():
                     break
+                async for history_item in self.step(step_info):
+                    yield history_item
 
-                # 3) Do the step
-                await self.step(step_info)
+                # # 3) Do the step
+                # await self.step(step_info)
 
                 if self.history.is_done():
                     if (
@@ -371,7 +389,7 @@ class CustomAgent(Agent):
             else:
                 logger.info("❌ Failed to complete task in maximum steps")
 
-            return self.history
+            # return self.history
 
         finally:
             self.telemetry.capture(
@@ -396,6 +414,13 @@ class CustomAgent(Agent):
                     output_path = self.generate_gif
 
                 self.create_history_gif(output_path=output_path)
+
+            yield AgentHistory(
+                model_output=None,
+                state=self._create_empty_state(),
+                result=[ActionResult(extracted_content=None,
+                                     error=None, is_done=True)],
+            )
 
     def _create_stop_history_item(self):
         """Create a history item for when the agent is stopped."""
@@ -422,7 +447,8 @@ class CustomAgent(Agent):
             stop_history = AgentHistory(
                 model_output=None,
                 state=state,
-                result=[ActionResult(extracted_content=None, error=None, is_done=True)],
+                result=[ActionResult(extracted_content=None,
+                                     error=None, is_done=True)],
             )
             self.history.history.append(stop_history)
 
@@ -433,7 +459,8 @@ class CustomAgent(Agent):
             stop_history = AgentHistory(
                 model_output=None,
                 state=state,
-                result=[ActionResult(extracted_content=None, error=None, is_done=True)],
+                result=[ActionResult(extracted_content=None,
+                                     error=None, is_done=True)],
             )
             self.history.history.append(stop_history)
 
@@ -515,7 +542,8 @@ class CustomAgent(Agent):
                 logo_height = 150
                 aspect_ratio = logo.width / logo.height
                 logo_width = int(logo_height * aspect_ratio)
-                logo = logo.resize((logo_width, logo_height), Image.Resampling.LANCZOS)
+                logo = logo.resize((logo_width, logo_height),
+                                   Image.Resampling.LANCZOS)
             except Exception as e:
                 logger.warning(f"Could not load logo: {e}")
 

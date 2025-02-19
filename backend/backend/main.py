@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 import json
 import logging
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -35,7 +36,8 @@ agent_runner = AgentRunner()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     config = DEFAULT_CONFIG.copy()
-    config["keep_browser_open"] = True  # Persist the browser instance on startup.
+    # Persist the browser instance on startup.
+    config["keep_browser_open"] = True
 
     agent_config = AgentConfig(
         use_own_browser=config.get("use_own_browser", False),
@@ -45,7 +47,8 @@ async def lifespan(app: FastAPI):
         window_w=config.get("window_w", 1280),
         window_h=config.get("window_h", 720),
         save_recording_path=config.get("save_recording_path"),
-        save_agent_history_path=config.get("save_agent_history_path", "./history"),
+        save_agent_history_path=config.get(
+            "save_agent_history_path", "./history"),
         save_trace_path=config.get("save_trace_path", "./trace"),
         enable_recording=config.get("enable_recording", False),
         task=config.get("task", ""),
@@ -53,7 +56,8 @@ async def lifespan(app: FastAPI):
         max_steps=config.get("max_steps", 10),
         use_vision=config.get("use_vision", False),
         max_actions_per_step=config.get("max_actions_per_step", 5),
-        tool_calling_method=config.get("tool_calling_method", "default_method"),
+        tool_calling_method=config.get(
+            "tool_calling_method", "default_method"),
     )
     llm_config = LLMConfig(
         provider=config.get("llm_provider", "openai"),
@@ -86,7 +90,8 @@ async def chat_endpoint(websocket: WebSocket):
 
             try:
                 client_payload = json.loads(data)
-                task = client_payload.get("task", DEFAULT_CONFIG.get("task", ""))
+                task = client_payload.get(
+                    "task", DEFAULT_CONFIG.get("task", ""))
                 add_infos = client_payload.get("add_infos", "")
                 logger.info(f"Extracted task: {task}")
                 logger.info(f"Extracted additional info: {add_infos}")
@@ -117,7 +122,8 @@ async def chat_endpoint(websocket: WebSocket):
                 max_steps=config.get("max_steps", 10),
                 use_vision=config.get("use_vision", False),
                 max_actions_per_step=config.get("max_actions_per_step", 5),
-                tool_calling_method=config.get("tool_calling_method", "default_method"),
+                tool_calling_method=config.get(
+                    "tool_calling_method", "default_method"),
             )
             llm_config = LLMConfig(
                 provider=config.get("llm_provider", "openai"),
@@ -133,42 +139,23 @@ async def chat_endpoint(websocket: WebSocket):
                 ):
                     logger.info("Received update from agent")
                     logger.info(f"Update type: {type(update)}")
+                    logger.info(
+                        f"Update content: {json.dumps(update, indent=2)}")
 
                     try:
-                        if isinstance(update, list) and update:
-                            html_content = update[0]
-                            brain_states = []
-                            actions = []
 
-                            for item in update:
-                                if isinstance(item, list) and item:
-                                    actions.extend(item)
-                                elif hasattr(item, "prev_action_evaluation"):
-                                    if hasattr(item, "model_dump"):
-                                        brain_states.append(item.model_dump())
-                                    elif hasattr(item, "dict"):
-                                        brain_states.append(item.dict())
+                        response_data = {
+                            "html_content": update.get("html_content", ""),
+                            "current_state": update.get("current_state") or {},
+                            "action": update.get("action", []),
 
-                            response_data = {
-                                "html_content": html_content,
-                                "current_state": (
-                                    brain_states[-1] if brain_states else {}
-                                ),
-                                "action": [],
-                            }
+                        }
 
-                            for action in actions:
-                                if hasattr(action, "model_dump"):
-                                    response_data["action"].append(action.model_dump())
-                                elif hasattr(action, "dict"):
-                                    response_data["action"].append(action.dict())
-                                elif isinstance(action, dict):
-                                    response_data["action"].append(action)
-                                else:
-                                    response_data["action"].append(str(action))
+                        logger.info(
+                            f"Prepared response: {json.dumps(response_data, indent=2)}")
 
-                            await websocket.send_text(json.dumps(response_data))
-                            logger.info("Successfully sent response to client")
+                        await websocket.send_text(json.dumps(response_data))
+                        logger.info("Successfully sent response to client")
 
                     except Exception as serialize_error:
                         logger.error(
