@@ -9,7 +9,8 @@ from typing import Any, Dict, Optional, Tuple, AsyncGenerator, List
 
 from browser_use import ActionModel, ActionResult
 from browser_use.agent.views import (
-    AgentHistory, AgentOutput,
+    AgentHistory,
+    AgentOutput,
 )
 from dotenv import load_dotenv
 from playwright.async_api import async_playwright
@@ -105,8 +106,7 @@ class AgentRunner:
             chrome_path = os.getenv("CHROME_PATH") or None
             chrome_user_data = os.getenv("CHROME_USER_DATA")
             if chrome_user_data:
-                extra_chromium_args.append(
-                    f"--user-data-dir={chrome_user_data}")
+                extra_chromium_args.append(f"--user-data-dir={chrome_user_data}")
 
         if not self.browser:
             if not agent_config.use_own_browser:
@@ -158,9 +158,9 @@ class AgentRunner:
         self, llm, agent_config: AgentConfig
     ) -> AsyncGenerator[AgentHistory, None]:
         """
-        Core execution: sets up and runs the agent,
-       returning (final_result, errors, model_actions, model_thoughts, trace_file, history_file).
-       """
+         Core execution: sets up and runs the agent,
+        returning (final_result, errors, model_actions, model_thoughts, trace_file, history_file).
+        """
         try:
             self.agent_state.clear_stop()
             await self._setup_browser(agent_config)
@@ -196,9 +196,9 @@ class AgentRunner:
         self, llm_config: LLMConfig, agent_config: AgentConfig
     ) -> AsyncGenerator[AgentHistory, None]:
         """
- Executes the agent with browser-related logic, handling recording and video capture.
- Returns AgentResult in real-time.
- """
+        Executes the agent with browser-related logic, handling recording and video capture.
+        Returns AgentResult in real-time.
+        """
         self.agent_state.clear_stop()
 
         recording_path = (
@@ -230,17 +230,19 @@ class AgentRunner:
         self, llm_config: LLMConfig, agent_config: AgentConfig
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
-       Streams agent updates to the UI.
-       Yields output as received from the agent.:
-      [html_content, final_result, errors, model_actions, model_thoughts, trace_file, history_file]
-      """
+         Streams agent updates to the UI.
+         Yields output as received from the agent.:
+        [html_content, final_result, errors, model_actions, model_thoughts, trace_file, history_file]
+        """
         stream_vw = 80
         stream_vh = int(80 * agent_config.window_h // agent_config.window_w)
         if not agent_config.headless:
             html_content = f"<h1 style='width:{stream_vw}vw; height:{stream_vh}vh'>Using browser...</h1>"
             try:
                 # execute_agent_with_browser calls agent.run() and yield results as received
-                async for history_item in self.execute_agent_with_browser(llm_config, agent_config):
+                async for history_item in self.execute_agent_with_browser(
+                    llm_config, agent_config
+                ):
                     if self.agent_state.is_stop_requested():
                         break
                     formatted_update = {
@@ -249,38 +251,57 @@ class AgentRunner:
                         "action": [],
                     }
 
-                    if (isinstance(history_item, AgentHistory) and history_item.model_output is not None and isinstance(history_item.model_output, (AgentOutput, CustomAgentOutput))):
+                    if (
+                        isinstance(history_item, AgentHistory)
+                        and history_item.model_output is not None
+                        and isinstance(
+                            history_item.model_output, (AgentOutput, CustomAgentOutput)
+                        )
+                    ):
                         brain = history_item.model_output.current_state
                         actions: List[Dict[str, Any]] = []
 
                         for action in history_item.model_output.action:
                             if isinstance(action, ActionModel):
-                                formatted_action = action.model_dump(
-                                    exclude_unset=True)
-                                formatted_action.update({
-                                    "prev_action_evaluation": brain.prev_action_evaluation,
-                                    "important_contents": brain.important_contents,
-                                    "task_progress": brain.task_progress,
-                                    "future_plans": brain.future_plans,
-                                    "thought": brain.thought,
-                                    "summary": brain.summary,
-
-                                })
+                                formatted_action = action.model_dump(exclude_unset=True)
+                                formatted_action.update(
+                                    {
+                                        "prev_action_evaluation": brain.prev_action_evaluation,
+                                        "important_contents": brain.important_contents,
+                                        "task_progress": brain.task_progress,
+                                        "future_plans": brain.future_plans,
+                                        "thought": brain.thought,
+                                        "summary": brain.summary,
+                                    }
+                                )
 
                                 actions.append(formatted_action)
                         formatted_update["action"] = actions
                     elif isinstance(history_item, AgentHistory) and history_item.result:
-                        formatted_update["action"] = [{
-                            "summary": history_item.result[0].extracted_content if history_item.result[0].extracted_content else "",
-                            "thought": history_item.result[0].error if history_item.result[0].error else "",
-                            "done": history_item.result[0].is_done,
-                        }]
-                        logger.info(
-                            f"Formatted update being sent to UI")
+                        formatted_update["action"] = [
+                            {
+                                "summary": (
+                                    history_item.result[0].extracted_content
+                                    if history_item.result[0].extracted_content
+                                    else ""
+                                ),
+                                "thought": (
+                                    history_item.result[0].error
+                                    if history_item.result[0].error
+                                    else ""
+                                ),
+                                "done": history_item.result[0].is_done,
+                            }
+                        ]
+                        logger.info(f"Formatted update being sent to UI")
                     yield formatted_update
             except Exception as e:
                 err_msg = f"Agent error: {str(e)}"
-                yield {"html_content": html_content, "current_state": {}, "action": [{"summary": err_msg}]}
+                yield {
+                    "html_content": html_content,
+                    "current_state": {},
+                    "action": [{"summary": err_msg}],
+                }
 
                 # Headless mode
         else:
