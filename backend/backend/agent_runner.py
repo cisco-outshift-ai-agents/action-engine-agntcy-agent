@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from playwright.async_api import async_playwright
 
 from browser_use.browser.browser import BrowserConfig
-from browser_use.browser.context import BrowserContextConfig, BrowserContextWindowSize
+from browser_use.browser.context import BrowserContextWindowSize
 from src.utils.agent_state import AgentState
 from src.agent.custom_agent import CustomAgent
 from src.browser.custom_browser import CustomBrowser

@@ -1,13 +1,11 @@
 import json
 import logging
-import os
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from src.utils.default_config_settings import default_config
 from backend.agent_runner import AgentRunner, LLMConfig, AgentConfig
-from contextlib import asynccontextmanager
 
 logging.basicConfig(
     level=logging.INFO,
