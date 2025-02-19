@@ -2,9 +2,11 @@
 # kill any existing google-chrome processes
 pkill -f /usr/bin/google-chrome
 
+rm -rf /app/data/chrome_data
 mkdir -p /app/data/chrome_data 
 sleep 8
 
+echo "Starting google-chrome"
 # start google-chrome
 google-chrome \
   --user-data-dir=/app/data/chrome_data \
