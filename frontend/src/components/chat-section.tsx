@@ -82,12 +82,6 @@ const ChatSection: React.FC = () => {
     setInput("");
   };
 
-  //   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-  //     if (event.key === "Enter") {
-  //       sendMessage();
-  //     }
-  //   };
-
   return (
     <div className="h-full rounded-lg border border-white/10 bg-[#32363c] max-w-3xl px-4 py-6 flex flex-col">
       <div className="flex-1 overflow-y-auto px-4 pt-2 pb-3">
@@ -248,10 +242,5 @@ const cleanData = (data: Data): CleanerData => {
     html_content: data.html_content,
   };
 };
-
-// const WSMessage = z.object({
-//   data: z.string(),
-// });
-// type WSMessage = z.infer<typeof WSMessage>;
 
 export default ChatSection;
