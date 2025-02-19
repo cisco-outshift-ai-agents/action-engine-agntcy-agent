@@ -1,38 +1,34 @@
-import json
-import logging
-from typing import AsyncIterator, Optional, Type, List, Dict, Any, Callable
-import os
 import base64
 import io
+import json
+import logging
+import os
 import platform
+from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Type
 
-from PIL import Image, ImageFont
-from pydantic import ValidationError
-from browser_use.agent.prompts import SystemPrompt, AgentMessagePrompt
+from browser_use.agent.prompts import AgentMessagePrompt, SystemPrompt
 from browser_use.agent.service import Agent
 from browser_use.agent.views import (
-    ActionResult,
     ActionModel,
+    ActionResult,
+    AgentHistory,
     AgentHistoryList,
     AgentOutput,
-    AgentHistory,
 )
 from browser_use.browser.browser import Browser
 from browser_use.browser.context import BrowserContext
 from browser_use.browser.views import BrowserStateHistory
 from browser_use.controller.service import Controller
-from browser_use.telemetry.views import (
-    AgentEndTelemetryEvent,
-    AgentStepTelemetryEvent,
-)
+from browser_use.telemetry.views import AgentEndTelemetryEvent, AgentStepTelemetryEvent
 from browser_use.utils import time_execution_async
-from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import (
-    BaseMessage,
-)
 from json_repair import repair_json
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import BaseMessage
+from PIL import Image, ImageFont
+from pydantic import ValidationError
 
 from src.utils.agent_state import AgentState
+
 from .custom_massage_manager import CustomMassageManager
 from .custom_views import CustomAgentOutput, CustomAgentStepInfo
 
@@ -74,10 +70,10 @@ class CustomAgent(Agent):
         agent_state: AgentState = None,  # type: ignore
         initial_actions: Optional[List[Dict[str, Dict[str, Any]]]] = None,
         # Cloud Callbacks
-        register_new_step_callback: Callable[[
-            "BrowserState", "AgentOutput", int], None] | None = None,  # type: ignore
-        register_done_callback: Callable[[
-            "AgentHistoryList"], None] | None = None,
+        register_new_step_callback: (
+            Callable[["BrowserState", "AgentOutput", int], None] | None
+        ) = None,  # type: ignore
+        register_done_callback: Callable[["AgentHistoryList"], None] | None = None,
         tool_calling_method: Optional[str] = "auto",
     ):
         super().__init__(
@@ -127,8 +123,7 @@ class CustomAgent(Agent):
         # Get the dynamic action model from controller's registry
         self.ActionModel = self.controller.registry.create_action_model()
         # Create output model with the dynamic actions
-        self.AgentOutput = CustomAgentOutput.type_with_custom_actions(
-            self.ActionModel)
+        self.AgentOutput = CustomAgentOutput.type_with_custom_actions(self.ActionModel)
 
     def _log_response(self, response: CustomAgentOutput) -> None:
         """Log the model's response"""
@@ -139,12 +134,9 @@ class CustomAgent(Agent):
         else:
             emoji = "🤷"
 
-        logger.info(
-            f"{emoji} Eval: {response.current_state.prev_action_evaluation}")
-        logger.info(
-            f"🧠 New Memory: {response.current_state.important_contents}")
-        logger.info(
-            f"⏳ Task Progress: \n{response.current_state.task_progress}")
+        logger.info(f"{emoji} Eval: {response.current_state.prev_action_evaluation}")
+        logger.info(f"🧠 New Memory: {response.current_state.important_contents}")
+        logger.info(f"⏳ Task Progress: \n{response.current_state.task_progress}")
         logger.info(f"📋 Future Plans: \n{response.current_state.future_plans}")
         logger.info(f"🤔 Thought: {response.current_state.thought}")
         logger.info(f"🎯 Summary: {response.current_state.summary}")
@@ -157,8 +149,8 @@ class CustomAgent(Agent):
         self, model_output: CustomAgentOutput, step_info: CustomAgentStepInfo = None  # type: ignore
     ):
         """
- update step info
- """
+        update step info
+        """
         if step_info is None:
             return
 
@@ -191,8 +183,9 @@ class CustomAgent(Agent):
         else:
             ai_content = ai_message.content
 
-        ai_content = ai_content.replace(
-            "```json", "").replace("```", "")  # type: ignore
+        ai_content = ai_content.replace("```json", "").replace(
+            "```", ""
+        )  # type: ignore
         ai_content = repair_json(ai_content)
 
         logger.info("Raw Model Responses:")
@@ -247,7 +240,9 @@ class CustomAgent(Agent):
 
         return parsed
 
-    async def step(self, step_info: Optional[CustomAgentStepInfo] = None) -> AsyncIterator[AgentHistory]:
+    async def step(
+        self, step_info: Optional[CustomAgentStepInfo] = None
+    ) -> AsyncIterator[AgentHistory]:
         """Execute one step of the task with streaming"""
         logger.info(f"\n📍 Step {self.n_steps}")
         state = None
@@ -258,7 +253,8 @@ class CustomAgent(Agent):
             # Get browser state
             state = await self.browser_context.get_state(use_vision=self.use_vision)
             self.message_manager.add_state_message(
-                state, self._last_actions, self._last_result, step_info)
+                state, self._last_actions, self._last_result, step_info
+            )
 
             input_messages = self.message_manager.get_messages()
 
@@ -269,9 +265,11 @@ class CustomAgent(Agent):
                     logger.error("Model output is None")
                     return
 
-                if hasattr(self, 'register_new_step_callback') and self.register_new_step_callback:
-                    self.register_new_step_callback(
-                        state, model_output, self.n_steps)
+                if (
+                    hasattr(self, "register_new_step_callback")
+                    and self.register_new_step_callback
+                ):
+                    self.register_new_step_callback(state, model_output, self.n_steps)
                 self.update_step_info(model_output, step_info)
 
                 # Stream output immediately
@@ -280,13 +278,16 @@ class CustomAgent(Agent):
             except Exception as e:
                 logger.error(f"Error generating thought: {e}")
                 self._make_history_item(
-                    None, state, [ActionResult(error=str(e), is_done=False)])
+                    None, state, [ActionResult(error=str(e), is_done=False)]
+                )
                 yield self.history.history[-1]
                 return
 
                 # Execute actions
             actions: list[ActionModel] = model_output.action
-            result: list[ActionResult] = await self.controller.multi_act(actions, self.browser_context)
+            result: list[ActionResult] = await self.controller.multi_act(
+                actions, self.browser_context
+            )
 
             # Handle partial actions
             if len(result) != len(actions):
@@ -315,8 +316,11 @@ class CustomAgent(Agent):
 
         finally:
             # Telemetry Capture
-            actions_data = [a.model_dump(exclude_unset=True)
-                            for a in model_output.action] if model_output else []
+            actions_data = (
+                [a.model_dump(exclude_unset=True) for a in model_output.action]
+                if model_output
+                else []
+            )
             self.telemetry.capture(
                 AgentStepTelemetryEvent(
                     agent_id=self.agent_id,
@@ -418,8 +422,7 @@ class CustomAgent(Agent):
             yield AgentHistory(
                 model_output=None,
                 state=self._create_empty_state(),
-                result=[ActionResult(extracted_content=None,
-                                     error=None, is_done=True)],
+                result=[ActionResult(extracted_content=None, error=None, is_done=True)],
             )
 
     def _create_stop_history_item(self):
@@ -447,8 +450,7 @@ class CustomAgent(Agent):
             stop_history = AgentHistory(
                 model_output=None,
                 state=state,
-                result=[ActionResult(extracted_content=None,
-                                     error=None, is_done=True)],
+                result=[ActionResult(extracted_content=None, error=None, is_done=True)],
             )
             self.history.history.append(stop_history)
 
@@ -459,8 +461,7 @@ class CustomAgent(Agent):
             stop_history = AgentHistory(
                 model_output=None,
                 state=state,
-                result=[ActionResult(extracted_content=None,
-                                     error=None, is_done=True)],
+                result=[ActionResult(extracted_content=None, error=None, is_done=True)],
             )
             self.history.history.append(stop_history)
 
@@ -542,8 +543,7 @@ class CustomAgent(Agent):
                 logo_height = 150
                 aspect_ratio = logo.width / logo.height
                 logo_width = int(logo_height * aspect_ratio)
-                logo = logo.resize((logo_width, logo_height),
-                                   Image.Resampling.LANCZOS)
+                logo = logo.resize((logo_width, logo_height), Image.Resampling.LANCZOS)
             except Exception as e:
                 logger.warning(f"Could not load logo: {e}")
 
