@@ -224,7 +224,6 @@ class AgentRunner:
         logger.info("Starting agent execution: Streaming AgentHistory")
         # stream updates using AgentHistory
         async for history_item in self.execute_agent_core(llm, agent_config):
-            logger.info(f"Received history item: {history_item.model_dump()}")
             yield history_item
 
         latest_video = None
@@ -238,7 +237,6 @@ class AgentRunner:
                 latest_video = list(diff_videos)[0]
 
                 logger.info("Execition completed, final update")
-                history_item.latest_video = latest_video
                 yield history_item
 
     async def stream_agent_updates(
@@ -291,11 +289,12 @@ class AgentRunner:
                             "done": history_item.result[0].is_done,
                         }]
                         logger.info(
-                            f"Formatted update being sent to UI: {json.dumps(formatted_update, indent=2)}")
+                            f"Formatted update being sent to UI")
                     yield formatted_update
             except Exception as e:
                 err_msg = f"Agent error: {str(e)}"
                 yield {"html_content": html_content, "current_state": {}, "action": [{"summary": err_msg}]}
+
                 # Headless mode
         else:
             self.agent_state.clear_stop()
