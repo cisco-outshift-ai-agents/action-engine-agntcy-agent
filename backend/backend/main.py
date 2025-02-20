@@ -46,10 +46,6 @@ async def lifespan(app: FastAPI):
         disable_security=config.get("disable_security", False),
         window_w=config.get("window_w", 1280),
         window_h=config.get("window_h", 720),
-        save_recording_path=config.get("save_recording_path"),
-        save_agent_history_path=config.get("save_agent_history_path", "./history"),
-        save_trace_path=config.get("save_trace_path", "./trace"),
-        enable_recording=config.get("enable_recording", False),
         task=config.get("task", ""),
         add_infos=config.get("add_infos", ""),
         max_steps=config.get("max_steps", 10),
@@ -108,12 +104,6 @@ async def chat_endpoint(websocket: WebSocket):
                 disable_security=config.get("disable_security", False),
                 window_w=config.get("window_w", 1280),
                 window_h=config.get("window_h", 720),
-                save_recording_path=config.get("save_recording_path"),
-                save_agent_history_path=config.get(
-                    "save_agent_history_path", "./history"
-                ),
-                save_trace_path=config.get("save_trace_path", "./trace"),
-                enable_recording=config.get("enable_recording", False),
                 task=config.get("task", ""),
                 add_infos=config.get("add_infos", ""),
                 max_steps=config.get("max_steps", 10),

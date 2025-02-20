@@ -1,13 +1,10 @@
 import asyncio
-import glob
-import json
 import logging
 import os
-import traceback
 from dataclasses import dataclass
-from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
-from browser_use import ActionModel, ActionResult
+from browser_use import ActionModel
 from browser_use.agent.views import AgentHistory, AgentOutput
 from browser_use.browser.browser import BrowserConfig
 from browser_use.browser.context import BrowserContextWindowSize
@@ -22,7 +19,7 @@ from src.browser.custom_context import BrowserContextConfig as CustomContextConf
 from src.controller.custom_controller import CustomController
 from src.utils import utils
 from src.utils.agent_state import AgentState
-from src.utils.utils import capture_screenshot, get_latest_files
+from src.utils.utils import capture_screenshot
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -48,10 +45,6 @@ class AgentConfig:
     disable_security: bool
     window_w: int
     window_h: int
-    save_recording_path: Optional[str]
-    save_agent_history_path: str
-    save_trace_path: str
-    enable_recording: bool
     task: str
     add_infos: str
     max_steps: int
@@ -67,8 +60,6 @@ class AgentResult:
     model_actions: str
     model_thoughts: str
     latest_video: Optional[str]
-    trace_file: Optional[str]
-    history_file: Optional[str]
 
 
 # --- Agent Runner Class --- #
@@ -136,8 +127,6 @@ class AgentRunner:
         if not self.browser_context:
             self.browser_context = await self.browser.new_context(
                 config=CustomContextConfig(
-                    trace_path=agent_config.save_trace_path or None,
-                    save_recording_path=agent_config.save_recording_path or None,
                     no_viewport=False,
                     browser_window_size=BrowserContextWindowSize(
                         width=agent_config.window_w, height=agent_config.window_h
@@ -156,7 +145,7 @@ class AgentRunner:
     ) -> AsyncGenerator[AgentHistory, None]:
         """
          Core execution: sets up and runs the agent,
-        returning (final_result, errors, model_actions, model_thoughts, trace_file, history_file).
+        returning (final_result, errors, model_actions, model_thoughts).
         """
         try:
             self.agent_state.clear_stop()
@@ -193,22 +182,10 @@ class AgentRunner:
         self, llm_config: LLMConfig, agent_config: AgentConfig
     ) -> AsyncGenerator[AgentHistory, None]:
         """
-        Executes the agent with browser-related logic, handling recording and video capture.
+        Executes the agent with browser-related logic.
         Returns AgentResult in real-time.
         """
         self.agent_state.clear_stop()
-
-        recording_path = (
-            agent_config.save_recording_path if agent_config.enable_recording else None
-        )
-        if recording_path:
-            os.makedirs(recording_path, exist_ok=True)
-            existing_videos = set(
-                glob.glob(os.path.join(recording_path, "*.[mM][pP]4"))
-                + glob.glob(os.path.join(recording_path, "*.[wW][eE][bB][mM]"))
-            )
-        else:
-            existing_videos = set()
 
         llm = utils.get_llm_model(
             provider=llm_config.provider,
@@ -229,7 +206,7 @@ class AgentRunner:
         """
          Streams agent updates to the UI.
          Yields output as received from the agent.:
-        [html_content, final_result, errors, model_actions, model_thoughts, trace_file, history_file]
+        [html_content, final_result, errors, model_actions, model_thoughts]
         """
         stream_vw = 80
         stream_vh = int(80 * agent_config.window_h // agent_config.window_w)
@@ -308,7 +285,6 @@ class AgentRunner:
             )
             html_content = f"<h1 style='width:{stream_vw}vw; height:{stream_vh}vh'>Using browser...</h1>"
             final_result = errors = model_actions = model_thoughts = ""
-            trace = history_file = None
 
             while not agent_task.done():
                 try:
@@ -331,8 +307,6 @@ class AgentRunner:
                         errors,
                         model_actions,
                         model_thoughts,
-                        trace,
-                        history_file,
                     ]
                     break
                 else:
@@ -342,8 +316,6 @@ class AgentRunner:
                         errors,
                         model_actions,
                         model_thoughts,
-                        trace,
-                        history_file,
                     ]
                 await asyncio.sleep(0.05)
 
@@ -354,8 +326,6 @@ class AgentRunner:
                     errors,
                     model_actions,
                     model_thoughts,
-                    trace,
-                    history_file,
                 ]
             except Exception as e:
                 err_msg = f"Agent error: {str(e)}"
