@@ -140,7 +140,6 @@ const ChatSection: React.FC = () => {
             value={input}
             onChange={(event) => setInput(event.target.value)}
             placeholder="What do you want ActionEngine to do?"
-            disabled={isProcessing}
             className={cn(
               "w-full bg-transparent text-white",
               "font-normal text-base leading-[22px]",
@@ -163,6 +162,7 @@ const ChatSection: React.FC = () => {
             type="button"
             kind="tertiary"
             onClick={sendMessage}
+            disabled={isProcessing}
             icon={<PaperPlaneRight />}
             className="hover:opacity-80 px-2"
           />
