@@ -24,9 +24,10 @@ services:
       - RESOLUTION_WIDTH=${RESOLUTION_WIDTH}
       - RESOLUTION_HEIGHT=${RESOLUTION_HEIGHT}
       - VNC_PASSWORD=${VNC_PASSWORD}
+      - VNC_PORT=5900
+      - X11VNC_OPTS="-noxdamage -nodpms -repeat -ncache 10 -ncache_cr"
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
-      - /run/dbus:/run/dbus
       - .:/app
     restart: unless-stopped
     shm_size: "16gb"

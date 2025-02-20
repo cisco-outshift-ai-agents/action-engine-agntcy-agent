@@ -50,6 +50,9 @@ Dockerfile
 .docker
 docker-compose*.yml
 
+# Ensure /run/dbus is not ignored
+!/run/dbus
+
 # Testing
 .coverage
 htmlcov/
