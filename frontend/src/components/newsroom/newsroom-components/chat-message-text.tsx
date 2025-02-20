@@ -9,22 +9,6 @@ const ChatMessageText: React.FC<ChatMessageTextProps> = ({
 }) => {
   return (
     <div className="flex gap-2 flex-col">
-      {/* {errors?.map((error) => (
-        <Alert className="my-2" variant="destructive">
-          <AlertOctagonIcon className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{parseError(error)}</AlertDescription>
-        </Alert>
-      ))} */}
-
-      {/* {warnings?.map((warning) => (
-        <Alert className="my-2">
-          <ExclamationTriangleIcon className="h-4 w-4" />
-          <AlertTitle>Warning</AlertTitle>
-          <AlertDescription>{warning}</AlertDescription>
-        </Alert>
-      ))} */}
-
       <div className="flex items-center">
         <div className="overflow-hidden font-light">
           {content && role === "user" && (
