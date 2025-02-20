@@ -1,9 +1,10 @@
-import pyperclip
 from typing import Optional, Type
-from pydantic import BaseModel
+
+import pyperclip
 from browser_use.agent.views import ActionResult
 from browser_use.browser.context import BrowserContext
 from browser_use.controller.service import Controller
+from pydantic import BaseModel
 
 
 class CustomController(Controller):
