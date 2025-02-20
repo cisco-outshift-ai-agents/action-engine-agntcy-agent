@@ -90,7 +90,6 @@ ENV CHROME_PERSISTENT_SESSION=true
 ENV RESOLUTION_WIDTH=1920
 ENV RESOLUTION_HEIGHT=1080
 ENV VNC_PORT=5900
-ENV X11VNC_OPTS="-noxdamage -nodpms -repeat -ncache 10 -ncache_cr"
 
 # Set up supervisor configuration
 RUN mkdir -p /var/log/supervisor
@@ -98,5 +97,4 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 EXPOSE 7788 6080 5900 9222
 
-# Directly start supervisord
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
