@@ -7,6 +7,7 @@ import { Flex } from "@magnetic/flex";
 import ChatMessage from "./newsroom/newsroom-components/chat-message";
 import { z } from "zod";
 import { TodoFixAny } from "@/types";
+import { useChatStore } from "@/stores/chat";
 
 const ChatSection: React.FC = () => {
   const [messages, setMessages] = useState<
@@ -17,6 +18,8 @@ const ChatSection: React.FC = () => {
   >([]);
   const [input, setInput] = useState("");
   const wsRef = useRef<WebSocket | null>(null);
+  const isProcessing = useChatStore((state) => state.isProcessing);
+  const setIsProcessing = useChatStore((state) => state.setIsProcessing);
 
   useEffect(() => {
     const useLocal = true;
@@ -46,6 +49,9 @@ const ChatSection: React.FC = () => {
           text: clean,
         },
       ]);
+      if (clean.action.some((a) => a.done === true)) {
+        setIsProcessing(false);
+      }
     };
 
     ws.onclose = () => {
@@ -80,6 +86,7 @@ const ChatSection: React.FC = () => {
     ]);
 
     setInput("");
+    setIsProcessing(true);
   };
 
   return (
@@ -133,6 +140,7 @@ const ChatSection: React.FC = () => {
             value={input}
             onChange={(event) => setInput(event.target.value)}
             placeholder="What do you want ActionEngine to do?"
+            disabled={isProcessing}
             className={cn(
               "w-full bg-transparent text-white",
               "font-normal text-base leading-[22px]",

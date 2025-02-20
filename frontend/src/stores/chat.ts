@@ -1,11 +1,11 @@
 import { create } from "zustand";
 
-interface ChatState {
+interface ChatStoreState {
   isProcessing: boolean;
   setIsProcessing: (value: boolean) => void;
 }
 
-export const useChatStore = create<ChatState>((set) => ({
+export const useChatStore = create<ChatStoreState>((set) => ({
   isProcessing: false,
   setIsProcessing: (value) => set({ isProcessing: value }),
 }));
