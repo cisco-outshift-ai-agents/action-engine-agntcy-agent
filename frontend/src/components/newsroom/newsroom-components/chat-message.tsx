@@ -1,11 +1,7 @@
 import ChatMessageText from "./chat-message-text";
 import CiscoAIAssistantLogo from "@/components/newsroom/newsroom-assets/cisco-ai-assistant.png";
 import { cn } from "@/utils";
-import {
-  MessageCircleMore,
-  MousePointerClick,
-  TextCursorIcon,
-} from "lucide-react";
+import { MousePointerClick, TextCursorIcon } from "lucide-react";
 import { ReactNode } from "react";
 
 const ChatMessage: React.FC<ChatMessageProps> = ({
@@ -38,16 +34,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
               {role === "assistant" ? "" : "You"}
             </p>
           </div>
-          {thoughts && (
-            <div className="flex flex-col gap-1 text-xs text-gray-400 mb-4">
-              {thoughts.map((thought, index) => (
-                <span key={index}>
-                  <MessageCircleMore className="inline w-4 h-4 mr-2" />
-                  {thought}
-                </span>
-              ))}
-            </div>
-          )}
+
           {isLoading ? (
             <span className="text-sm">Assistant is thinking...</span>
           ) : (
@@ -56,6 +43,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
               errors={error ? [error] : undefined}
               warnings={warnings}
               role="assistant"
+              thoughts={thoughts}
             />
           )}
           {actions && (
