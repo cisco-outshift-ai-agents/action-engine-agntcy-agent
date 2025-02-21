@@ -1,6 +1,10 @@
 import Markdown from "@/components/newsroom/markdown";
 import { TodoFixAny } from "@/types";
-import { MessageCircleMore } from "lucide-react";
+import {
+  MessageCircleMore,
+  MousePointerClick,
+  TextCursorIcon,
+} from "lucide-react";
 import { ReactNode } from "react";
 
 const ChatMessageText: React.FC<ChatMessageTextProps> = ({
@@ -8,6 +12,7 @@ const ChatMessageText: React.FC<ChatMessageTextProps> = ({
   isThinking,
   role,
   thoughts,
+  actions,
 }) => {
   return (
     <div className="flex gap-2 flex-col">
@@ -39,6 +44,21 @@ const ChatMessageText: React.FC<ChatMessageTextProps> = ({
         </div>
         {isThinking && <span>...</span>}
       </div>
+      {actions && actions.length > 0 && (
+        <div className="flex flex-col gap-1 text-xs text-gray-400 mt-4">
+          {actions.map((action, index) => (
+            <span key={index}>
+              {action.toLowerCase().includes("click") && (
+                <MousePointerClick className="inline w-4 h-4 mr-2" />
+              )}
+              {action.toLowerCase().includes("input text") && (
+                <TextCursorIcon className="inline w-4 h-4 mr-2" />
+              )}
+              {action}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -49,6 +69,8 @@ interface ChatMessageTextProps {
   warnings?: string[] | undefined | null;
   isThinking?: boolean | undefined | null;
   thoughts?: string[] | undefined | null;
+  actions?: string[] | undefined | null;
+
   role: "user" | "assistant";
 }
 

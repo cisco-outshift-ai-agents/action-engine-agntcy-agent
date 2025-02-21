@@ -1,7 +1,6 @@
 import ChatMessageText from "./chat-message-text";
 import CiscoAIAssistantLogo from "@/components/newsroom/newsroom-assets/cisco-ai-assistant.png";
 import { cn } from "@/utils";
-import { MousePointerClick, TextCursorIcon } from "lucide-react";
 import { ReactNode } from "react";
 
 const ChatMessage: React.FC<ChatMessageProps> = ({
@@ -9,7 +8,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   role,
   error,
   warnings,
-  isLoading,
   thoughts,
   actions,
   isDone,
@@ -17,53 +15,39 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   if (isDone) {
     return null;
   }
-  return (
-    <>
-      <div className={cn("bg-transparent rounded-md text-l text-[#f7f7f7]")}>
-        <div
-          className={cn(" ml-1 py-4 rounded-r-md", {
-            "rounded-bl-md px-6 bg-[#373C42]": role === "assistant",
-            "rounded-br-md": role === "user",
-          })}
-        >
-          <div className="flex gap-3 items-center mb-2">
-            {role === "assistant" && (
-              <img src={CiscoAIAssistantLogo} alt="outshift-logo" width={24} />
-            )}
-            <p className="font-medium text-sm">
-              {role === "assistant" ? "" : "You"}
-            </p>
-          </div>
 
-          {isLoading ? (
-            <span className="text-sm">Assistant is thinking...</span>
-          ) : (
+  return (
+    <div className={cn("bg-transparent rounded-md text-l text-[#f7f7f7]")}>
+      <div
+        className={cn("ml-1 py-4 rounded-r-md", {
+          "rounded-bl-md px-6 bg-[#373C42]": role === "assistant",
+          "rounded-br-md": role === "user",
+        })}
+      >
+        <div
+          className={cn("flex", { "items-start gap-3": role === "assistant" })}
+        >
+          {role === "assistant" && (
+            <img src={CiscoAIAssistantLogo} alt="outshift-logo" width={24} />
+          )}
+
+          <div className="flex flex-col">
+            {role === "user" && (
+              <p className="text-sm font-medium mb-1 text-white">You</p>
+            )}
+
             <ChatMessageText
               content={content}
+              thoughts={thoughts}
               errors={error ? [error] : undefined}
               warnings={warnings}
-              role="assistant"
-              thoughts={thoughts}
+              role={role}
+              actions={actions}
             />
-          )}
-          {actions && (
-            <div className="flex flex-col gap-1 text-xs text-gray-400 mt-4">
-              {actions.map((action, index) => (
-                <span key={index}>
-                  {action.toLowerCase().includes("click") && (
-                    <MousePointerClick className="inline w-4 h-4 mr-2" />
-                  )}
-                  {action.toLowerCase().includes("input text") && (
-                    <TextCursorIcon className="inline w-4 h-4 mr-2" />
-                  )}
-                  {action}
-                </span>
-              ))}
-            </div>
-          )}
+          </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
