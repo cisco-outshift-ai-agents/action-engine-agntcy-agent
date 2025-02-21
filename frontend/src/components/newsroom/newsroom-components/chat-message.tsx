@@ -23,11 +23,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   }
   return (
     <>
-      <div
-        className={cn("bg-transparent rounded-md text-l text-[#f7f7f7]", {
-          "bg-gradient-to-b to-[#3B76EA] from-[#00BCEB]": role === "assistant",
-        })}
-      >
+      <div className={cn("bg-transparent rounded-md text-l text-[#f7f7f7]")}>
         <div
           className={cn(" ml-1 py-4 rounded-r-md", {
             "rounded-bl-md px-6 bg-[#373C42]": role === "assistant",
@@ -39,7 +35,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
               <img src={CiscoAIAssistantLogo} alt="outshift-logo" width={24} />
             )}
             <p className="font-medium text-sm">
-              {role === "assistant" ? "AI Assistant" : "You"}
+              {role === "assistant" ? "" : "You"}
             </p>
           </div>
           {thoughts && (
@@ -47,7 +43,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
               {thoughts.map((thought, index) => (
                 <span key={index}>
                   <MessageCircleMore className="inline w-4 h-4 mr-2" />
-                  <strong>Thought:</strong> {thought}
+                  {thought}
                 </span>
               ))}
             </div>
