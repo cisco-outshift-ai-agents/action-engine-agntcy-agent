@@ -11,14 +11,6 @@ services:
       - "9222:9222" # Chrome remote debugging port
       - "7788:7788" # FastAPI port
     environment:
-      - OPENAI_ENDPOINT=${OPENAI_ENDPOINT}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OPENAI_MODEL_NAME=${OPENAI_MODEL_NAME}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
-      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
-      - DEEPSEEK_ENDPOINT=${DEEPSEEK_ENDPOINT}
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - BROWSER_USE_LOGGING_LEVEL=${BROWSER_USE_LOGGING_LEVEL}
       - ANONYMIZED_TELEMETRY=false
       - CHROME_PATH=/usr/bin/google-chrome
@@ -32,9 +24,9 @@ services:
       - RESOLUTION_WIDTH=${RESOLUTION_WIDTH}
       - RESOLUTION_HEIGHT=${RESOLUTION_HEIGHT}
       - VNC_PASSWORD=${VNC_PASSWORD}
+      - VNC_PORT=5900
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
-      - /run/dbus:/run/dbus
       - .:/app
     restart: unless-stopped
     shm_size: "16gb"

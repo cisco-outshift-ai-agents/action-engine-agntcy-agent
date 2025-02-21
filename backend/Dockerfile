@@ -53,7 +53,7 @@ RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor
     && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update \
     && apt-get install -y google-chrome-stable
-    
+
 # Set up working directory
 WORKDIR /app
 
@@ -71,6 +71,8 @@ RUN playwright install-deps
 
 # Install D-Bus
 RUN apt-get update && apt-get install -y dbus
+# Ensure /run/dbus directory exists and set permissions
+RUN mkdir -p /run/dbus && chmod 755 /run/dbus
 # Set environment variables for D-Bus
 ENV DBUS_SESSION_BUS_ADDRESS=unix:path=/run/dbus/system_bus_socket
 # Start D-Bus service
@@ -87,10 +89,12 @@ ENV VNC_PASSWORD=youvncpassword
 ENV CHROME_PERSISTENT_SESSION=true
 ENV RESOLUTION_WIDTH=1920
 ENV RESOLUTION_HEIGHT=1080
+ENV VNC_PORT=5900
 
 # Set up supervisor configuration
 RUN mkdir -p /var/log/supervisor
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 EXPOSE 7788 6080 5900 9222
+
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
