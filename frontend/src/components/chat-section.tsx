@@ -9,7 +9,11 @@ import { z } from "zod";
 import { TodoFixAny } from "@/types";
 import { useChatStore } from "@/stores/chat";
 
-const ChatSection: React.FC = () => {
+interface ChatSectionProps {
+  className?: string;
+}
+
+const ChatSection: React.FC<ChatSectionProps> = () => {
   const [messages, setMessages] = useState<
     {
       sender: string;
@@ -90,7 +94,7 @@ const ChatSection: React.FC = () => {
   };
 
   return (
-    <div className="h-full rounded-lg border border-white/10 bg-[#32363c] max-w-3xl px-4 py-6 flex flex-col">
+    <div className="h-full rounded-lg border border-white/10 bg-[#32363c] w-full  px-4 py-6 flex flex-col">
       <div className="flex-1 overflow-y-auto px-4 pt-2 pb-3">
         <div className="flex gap-1 flex-col-reverse">
           {[...messages].reverse().map((message, index) => (

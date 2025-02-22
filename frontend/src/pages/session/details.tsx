@@ -8,11 +8,13 @@ const SessionPage = () => {
   return (
     <Layout>
       <Container className="h-full">
-        <div className="flex h-full gap-8">
-          <div className="flex-grow rounded-lg border border-white/10 bg-[#32363c]">
+        <div className="flex h-full gap-6">
+          <div className="flex-1 rounded-lg border border-white/10 bg-[#32363c]">
             <InteractiveVNC />
           </div>
-          <ChatSection />
+          <div className="flex-grow basis-1/4 flex-shrink-0">
+            <ChatSection />
+          </div>
         </div>
       </Container>
     </Layout>
