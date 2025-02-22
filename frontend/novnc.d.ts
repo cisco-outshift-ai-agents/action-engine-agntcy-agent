@@ -14,7 +14,7 @@ declare module "@novnc/novnc" {
     focusOnClick: boolean;
     viewOnly: boolean;
     addEventListener(
-      event: "connect" | "disconnect" | "resize",
+      event: "connect" | "disconnect",
       handler: () => void
     ): void;
     disconnect(): void;
