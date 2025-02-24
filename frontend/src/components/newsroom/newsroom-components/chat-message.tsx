@@ -1,6 +1,7 @@
 import ChatMessageText from "./chat-message-text";
 import CiscoAIAssistantLogo from "@/components/newsroom/newsroom-assets/cisco-ai-assistant.png";
 import { cn } from "@/utils";
+import { Circle } from "lucide-react";
 import { ReactNode } from "react";
 
 const ChatMessage: React.FC<ChatMessageProps> = ({
@@ -17,23 +18,35 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   }
 
   return (
-    <div className={cn("bg-transparent rounded-md text-l text-[#f7f7f7]")}>
+    <div className={cn("text-l text-[#f7f7f7]")}>
       <div
-        className={cn("ml-1 py-4 rounded-r-md", {
-          "rounded-bl-md px-6 bg-[#373C42]": role === "assistant",
-          "rounded-br-md": role === "user",
+        className={cn("py-4", {
+          "rounded-md bg-[#373C42]": role === "assistant",
         })}
       >
         <div
-          className={cn("flex", { "items-start gap-3": role === "assistant" })}
+          className={cn("flex", {
+            "items-start": role === "assistant",
+            "px-4": role === "assistant",
+          })}
         >
           {role === "assistant" && (
-            <img src={CiscoAIAssistantLogo} alt="outshift-logo" width={24} />
+            <img
+              src={CiscoAIAssistantLogo}
+              alt="outshift-logo"
+              width={24}
+              className="mr-3 mt-0.5"
+            />
           )}
 
           <div className="flex flex-col">
             {role === "user" && (
-              <p className="text-sm font-medium mb-1 text-white">You</p>
+              <div className="flex items-center mb-1">
+                <Circle className="w-5 h-5 text-[#ACACAC] fill-[#ACACAC] mr-2 flex-shrink-0" />
+                <p className="text-base font-semibold leading-[22px] tracking-normal text-[#f7f7f7]">
+                  You
+                </p>
+              </div>
             )}
 
             <ChatMessageText

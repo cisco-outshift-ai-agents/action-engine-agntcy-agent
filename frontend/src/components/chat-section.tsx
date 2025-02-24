@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import TextareaAutosize from "react-textarea-autosize";
-import { Paperclip, PaperPlaneRight } from "@magnetic/icons";
+import { PaperPlaneRight } from "@magnetic/icons";
 import { Button } from "@magnetic/button";
 import { cn } from "@/utils";
 import { Flex } from "@magnetic/flex";
@@ -94,34 +94,35 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
   };
 
   return (
-    <div className="h-full rounded-lg border border-white/10 bg-[#32363c] w-full  px-4 py-6 flex flex-col">
-      <div className="flex-1 overflow-y-auto px-4 pt-2 pb-3">
-        <div className="flex gap-1 flex-col-reverse">
+    <div className="h-full rounded-lg  bg-[#32363c] w-full px-2 py-6 flex flex-col">
+      <div className="flex-1 overflow-y-auto px-2 pt-2 pb-3">
+        <div className="flex flex-col-reverse gap-2 space-y-reverse">
           {[...messages].reverse().map((message, index) => (
-            <ChatMessage
-              key={index}
-              content={message.text.action.map((a) => a.summary).join("\n")}
-              isDone={message.text.action.some((a) => a.done === true)}
-              thoughts={
-                message.text.action
-                  .map((a) => a.thought)
-                  .filter((a) => !!a) as string[]
-              }
-              actions={
-                message.text.action
-                  .map((a) => {
-                    if (a.click_element) {
-                      return `Click element ${a.click_element.index}`;
-                    } else if (a.input_text) {
-                      return `Input text ${a.input_text.text} at index ${a.input_text.index}`;
-                    } else {
-                      return undefined;
-                    }
-                  })
-                  .filter((a) => !!a) as string[]
-              }
-              role={message.sender === "agent" ? "assistant" : "user"}
-            />
+            <div key={index}>
+              <ChatMessage
+                content={message.text.action.map((a) => a.summary).join("\n")}
+                isDone={message.text.action.some((a) => a.done === true)}
+                thoughts={
+                  message.text.action
+                    .map((a) => a.thought)
+                    .filter((a) => !!a) as string[]
+                }
+                actions={
+                  message.text.action
+                    .map((a) => {
+                      if (a.click_element) {
+                        return `Click element ${a.click_element.index}`;
+                      } else if (a.input_text) {
+                        return `Input text ${a.input_text.text} at index ${a.input_text.index}`;
+                      } else {
+                        return undefined;
+                      }
+                    })
+                    .filter((a) => !!a) as string[]
+                }
+                role={message.sender === "agent" ? "assistant" : "user"}
+              />
+            </div>
           ))}
         </div>
       </div>
@@ -129,15 +130,8 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
         <Flex
           as="form"
           align="center"
-          className="max-w-3xl mx-auto bg-[#373c42] border border-[#666666] p-3 rounded-lg"
+          className="max-w-3xl mx-auto bg-[#373c42] border-2 border-white/50 p-3 rounded-lg"
         >
-          <Button
-            type="button"
-            kind="tertiary"
-            icon={<Paperclip />}
-            className="hover:opacity-80 px-2"
-          />
-
           <TextareaAutosize
             minRows={1}
             maxRows={8}
@@ -147,7 +141,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
             className={cn(
               "w-full bg-transparent text-white",
               "font-normal text-base leading-[22px]",
-              "placeholder:text-grey-400 placeholder:text-sm",
+              "placeholder:text-[889099] placeholder:text-sm",
               "focus:outline-none resize-none"
             )}
             wrap="hard"
@@ -167,10 +161,13 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
             kind="tertiary"
             onClick={sendMessage}
             disabled={isProcessing}
-            icon={<PaperPlaneRight />}
+            icon={<PaperPlaneRight className="text-blue-500 fill-blue-500" />}
             className="hover:opacity-80 px-2"
           />
         </Flex>
+        <div className="text-center mt-2 text-xs text-[#D0D4D9]">
+          Assistant can make mistakes. Verify responses.
+        </div>
       </div>
     </div>
   );

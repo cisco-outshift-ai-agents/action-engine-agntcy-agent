@@ -17,7 +17,7 @@ const ChatMessageText: React.FC<ChatMessageTextProps> = ({
   return (
     <div className="flex gap-2 flex-col">
       {thoughts && thoughts.length > 0 && (
-        <div className="flex flex-col gap-1 text-xs text-gray-400 mb-4">
+        <div className="flex flex-col gap-1 text-xs text-gray-400 mb-2">
           {thoughts.map((thought, index) => (
             <span key={index}>
               <MessageCircleMore className="inline w-4 h-4 mr-2" />
@@ -29,9 +29,9 @@ const ChatMessageText: React.FC<ChatMessageTextProps> = ({
       <div className="flex items-center">
         <div className="overflow-hidden font-light">
           {content && role === "user" && (
-            <pre className="markdown-body font-cisco whitespace-pre-wrap break-words text-sm">
+            <p className="font-normal text-base tracking-normal text-[#F7F7F7] whitespace-pre-wrap break-words text-base leading-[22px]">
               {content}
-            </pre>
+            </p>
           )}
           {content && role === "assistant" && (
             <Markdown>{content as TodoFixAny}</Markdown>
@@ -45,14 +45,14 @@ const ChatMessageText: React.FC<ChatMessageTextProps> = ({
         {isThinking && <span>...</span>}
       </div>
       {actions && actions.length > 0 && (
-        <div className="flex flex-col gap-1 text-xs text-gray-400 mt-4">
+        <div className="flex flex-col gap-1 text-xs text-gray-400 mt-2">
           {actions.map((action, index) => (
             <span key={index}>
               {action.toLowerCase().includes("click") && (
-                <MousePointerClick className="inline w-4 h-4 mr-2" />
+                <MousePointerClick className="inline w-4 h-4 mr-2 flex-shrink-0" />
               )}
               {action.toLowerCase().includes("input text") && (
-                <TextCursorIcon className="inline w-4 h-4 mr-2" />
+                <TextCursorIcon className="inline w-4 h-4 mr-2 flex-shrink-0" />
               )}
               {action}
             </span>
