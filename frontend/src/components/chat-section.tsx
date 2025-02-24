@@ -6,6 +6,8 @@ import { cn } from "@/utils";
 import { Flex } from "@magnetic/flex";
 import ChatMessage from "./newsroom/newsroom-components/chat-message";
 import { z } from "zod";
+import CiscoAIAssistantLoader from "@/components/newsroom/newsroom-assets/loader.gif";
+
 import { TodoFixAny } from "@/types";
 import { useChatStore } from "@/stores/chat";
 
@@ -22,8 +24,8 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
   >([]);
   const [input, setInput] = useState("");
   const wsRef = useRef<WebSocket | null>(null);
-  const isProcessing = useChatStore((state) => state.isProcessing);
-  const setIsProcessing = useChatStore((state) => state.setIsProcessing);
+  const isThinking = useChatStore((state) => state.isThinking);
+  const setisThinking = useChatStore((state) => state.setisThinking);
 
   useEffect(() => {
     const useLocal = true;
@@ -54,7 +56,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
         },
       ]);
       if (clean.action.some((a) => a.done === true)) {
-        setIsProcessing(false);
+        setisThinking(false);
       }
     };
 
@@ -90,13 +92,23 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
     ]);
 
     setInput("");
-    setIsProcessing(true);
+    setisThinking(true);
   };
 
   return (
     <div className="h-full rounded-lg  bg-[#32363c] w-full px-2 py-6 flex flex-col">
       <div className="flex-1 overflow-y-auto px-2 pt-2 pb-3">
-        <div className="flex flex-col-reverse gap-2 space-y-reverse">
+        <div className="flex flex-col-reverse gap-4 space-y-reverse">
+          {isThinking && (
+            <div className="flex items-start px-3 py-4">
+              <img
+                src={CiscoAIAssistantLoader}
+                alt="outshift-logo"
+                width={24}
+                className="mr-3 mt-0.5"
+              />
+            </div>
+          )}
           {[...messages].reverse().map((message, index) => (
             <div key={index}>
               <ChatMessage
@@ -160,7 +172,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
             type="button"
             kind="tertiary"
             onClick={sendMessage}
-            disabled={isProcessing}
+            disabled={isThinking}
             icon={<PaperPlaneRight className="text-blue-500 fill-blue-500" />}
             className="hover:opacity-80 px-2"
           />

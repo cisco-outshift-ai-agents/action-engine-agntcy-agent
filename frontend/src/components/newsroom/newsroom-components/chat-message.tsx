@@ -18,9 +18,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   }
 
   return (
-    <div className={cn("text-l text-[#f7f7f7]")}>
+    <div className={cn("text-l  text-[#f7f7f7]")}>
       <div
-        className={cn("py-4", {
+        className={cn("py-2", {
           "rounded-md bg-[#373C42]": role === "assistant",
         })}
       >
@@ -41,7 +41,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 
           <div className="flex flex-col">
             {role === "user" && (
-              <div className="flex items-center mb-1">
+              <div className="flex items-center mb-2">
                 <Circle className="w-5 h-5 text-[#ACACAC] fill-[#ACACAC] mr-2 flex-shrink-0" />
                 <p className="text-base font-semibold leading-[22px] tracking-normal text-[#f7f7f7]">
                   You
