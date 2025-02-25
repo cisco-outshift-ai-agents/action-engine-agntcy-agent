@@ -15,7 +15,7 @@ export const Layout = ({ children }: LayoutProps) => {
           style={{
             borderRadius: "0",
             height: "calc(100vh - 56px)",
-            padding: "16px 24px",
+            padding: "8px 12px",
           }}
         >
           {children}
