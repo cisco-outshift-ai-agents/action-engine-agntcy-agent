@@ -96,16 +96,16 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
   };
 
   return (
-    <div className="h-full rounded-lg  bg-[#32363c] w-full px-2 py-6 flex flex-col">
+    <div className="h-full rounded-lg  bg-[#32363c] w-full px-2 py-4 flex flex-col">
       <div className="flex-1 overflow-y-auto px-2 pt-2 pb-3">
         <div className="flex flex-col-reverse gap-4 space-y-reverse">
           {isThinking && (
-            <div className="flex items-start px-4 py-4">
+            <div className="flex items-start px-2 py-2">
               <img
                 src={CiscoAIAssistantLoader}
                 alt="outshift-logo"
                 width={36}
-                className="mr-3 mt-0.5"
+                className="mr-3 "
               />
             </div>
           )}
