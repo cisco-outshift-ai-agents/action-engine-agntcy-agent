@@ -177,13 +177,14 @@ class CustomAgent(Agent):
 
         # Iterate over images in reverse
         for msg in reversed(messages_to_process):
-            content = msg.get("content")
+            content = msg.content
+            # The content can be either a string, or a list of dicts or strings
             if isinstance(content, list):
                 # Iterate over content in reverse
                 for i in range(len(content) - 1, -1, -1):
                     item = content[i]
                     # if it's got an image
-                    if isinstance(content[i], dict) and item.get("type") == "image_url":
+                    if isinstance(item, dict) and "image_url" in item:
                         # and we haven't reached the limit
                         if images_found <= NUM_IMAGES_TO_KEEP:
                             # keep the image and increment the count
