@@ -21,7 +21,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     <div className={cn("text-l  text-[#f7f7f7]")}>
       <div
         className={cn("py-2", {
-          "rounded-md bg-[#373C42]": role === "assistant",
+          "rounded-xl bg-[#373C42] ": role === "assistant",
         })}
       >
         <div

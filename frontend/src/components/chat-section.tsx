@@ -6,7 +6,7 @@ import { cn } from "@/utils";
 import { Flex } from "@magnetic/flex";
 import ChatMessage from "./newsroom/newsroom-components/chat-message";
 import { z } from "zod";
-import CiscoAIAssistantLoader from "@/components/newsroom/newsroom-assets/loader.gif";
+import CiscoAIAssistantLoader from "@/components/newsroom/newsroom-assets/thinking.gif";
 
 import { TodoFixAny } from "@/types";
 import { useChatStore } from "@/stores/chat";
@@ -100,11 +100,11 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
       <div className="flex-1 overflow-y-auto px-2 pt-2 pb-3">
         <div className="flex flex-col-reverse gap-4 space-y-reverse">
           {isThinking && (
-            <div className="flex items-start px-3 py-4">
+            <div className="flex items-start px-4 py-4">
               <img
                 src={CiscoAIAssistantLoader}
                 alt="outshift-logo"
-                width={24}
+                width={36}
                 className="mr-3 mt-0.5"
               />
             </div>
@@ -142,7 +142,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
         <Flex
           as="form"
           align="center"
-          className="max-w-3xl mx-auto bg-[#373c42] border-2 border-white/50 p-3 rounded-lg"
+          className="max-w-3xl mx-auto bg-[#373c42] border-2 border-[#7E868F] pr-3 pt-2 pr-3 pl-5 pb-2 rounded-lg"
         >
           <TextareaAutosize
             minRows={1}
@@ -173,7 +173,19 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
             kind="tertiary"
             onClick={sendMessage}
             disabled={isThinking}
-            icon={<PaperPlaneRight className="text-blue-500 fill-blue-500" />}
+            icon={
+              <div className="relative top-[1.64px] left-[2.87px]">
+                {" "}
+                <PaperPlaneRight
+                  className={cn(
+                    isThinking
+                      ? "text-[#446392] fill-[#446392]"
+                      : "text-[#649EF5] fill-[#649EF5]",
+                    "w-[18.83px] h-[20.73px]"
+                  )}
+                />{" "}
+              </div>
+            }
             className="hover:opacity-80 px-2"
           />
         </Flex>
