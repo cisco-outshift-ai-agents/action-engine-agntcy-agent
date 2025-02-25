@@ -37,7 +37,6 @@
 
 @layer base {
   body {
-    /* background: linear-gradient(to bottom, #373c42, #0f1214); */
     min-height: 100vh;
   }
 }
