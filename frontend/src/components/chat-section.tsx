@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import TextareaAutosize from "react-textarea-autosize";
-import { PaperPlaneRight } from "@magnetic/icons";
+import { PaperPlaneRight, StopCircle } from "@magnetic/icons";
 import { Button } from "@magnetic/button";
 import { cn } from "@/utils";
 import { Flex } from "@magnetic/flex";
@@ -10,6 +10,7 @@ import CiscoAIAssistantLoader from "@/components/newsroom/newsroom-assets/thinki
 
 import { TodoFixAny } from "@/types";
 import { useChatStore } from "@/stores/chat";
+import { StopDataZod } from "@/chat/types";
 
 interface ChatSectionProps {
   className?: string;
@@ -23,18 +24,28 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
     }[]
   >([]);
   const [input, setInput] = useState("");
-  const wsRef = useRef<WebSocket | null>(null);
+  const wsRef = useRef<WebSocket | null>(null); //Main websocket for tasks
+  const wsStopRef = useRef<WebSocket | null>(null); //Websocket for stop requests
   const isThinking = useChatStore((state) => state.isThinking);
   const setisThinking = useChatStore((state) => state.setisThinking);
+  const isStopped = useChatStore((state) => state.isStopped);
+  const setIsStopped = useChatStore((state) => state.setIsStopped);
 
   useEffect(() => {
     const useLocal = true;
     const url = useLocal ? "localhost:7788" : window.location.host;
     const ws = new WebSocket(`ws://${url}/ws/chat`);
     wsRef.current = ws;
+    //Websocket for stop requests
+    const wsStop = new WebSocket(`ws://${url}/ws/stop`);
+    wsStopRef.current = wsStop;
 
     ws.onopen = () => {
       console.log("Connected to chat server");
+    };
+
+    wsStop.onopen = () => {
+      console.log("Connected to stop websocket");
     };
 
     ws.onmessage = (event: MessageEvent) => {
@@ -60,12 +71,45 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
       }
     };
 
+    wsStop.onmessage = (event: MessageEvent) => {
+      console.log("received stop response:", event.data);
+      const d = JSON.parse((event as TodoFixAny).data) as Data;
+      const parse = StopDataZod.safeParse(d);
+      if (!parse.success) {
+        console.error(parse.error);
+        return;
+      }
+
+      const stopResponse = parse.data;
+
+      if (stopResponse.stopped) {
+        setisThinking(false);
+        setIsStopped(false);
+      }
+
+      setMessages((messages) => [
+        ...messages,
+        {
+          sender: "agent",
+          text: {
+            action: [{ summary: stopResponse.summary }],
+            current_state: {},
+            html_content: "",
+          },
+        },
+      ]);
+    };
+
     ws.onclose = () => {
       console.log("Disconnected from chat server");
+    };
+    wsStop.onclose = () => {
+      console.log("Disconnected from stop server");
     };
 
     return () => {
       ws.close();
+      wsStop.close();
     };
   }, []);
 
@@ -93,6 +137,36 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
 
     setInput("");
     setisThinking(true);
+  };
+
+  const stopTask = () => {
+    if (!wsStopRef.current) {
+      return;
+    }
+
+    if (isStopped) {
+      return;
+    }
+
+    setIsStopped(true);
+
+    const stopPayload = {
+      task: "stop",
+    };
+
+    wsStopRef.current?.send(JSON.stringify(stopPayload));
+
+    setMessages((messages) => [
+      ...messages,
+      {
+        sender: "user",
+        text: cleanData({
+          action: [{ summary: "Request to stop the agent" }],
+          current_state: {},
+          html_content: "",
+        }),
+      },
+    ]);
   };
 
   return (
@@ -161,33 +235,53 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
               if (e.key === "Enter" && e.shiftKey) {
                 return;
               }
-              if (e.key === "Enter") {
+              if (e.key === "Enter" && !isThinking) {
                 e.preventDefault();
                 sendMessage();
+              } else if (e.key === "Enter" && isThinking) {
+                e.preventDefault();
               }
             }}
           />
-
-          <Button
-            type="button"
-            kind="tertiary"
-            onClick={sendMessage}
-            disabled={isThinking}
-            icon={
-              <div className="relative top-[1.64px] left-[2.87px]">
-                {" "}
-                <PaperPlaneRight
-                  className={cn(
-                    isThinking
-                      ? "text-[#446392] fill-[#446392]"
-                      : "text-[#649EF5] fill-[#649EF5]",
-                    "w-[18.83px] h-[20.73px]"
-                  )}
-                />{" "}
-              </div>
-            }
-            className="hover:opacity-80 px-2"
-          />
+          {isThinking ? (
+            <Button
+              type="button"
+              kind="tertiary"
+              onClick={stopTask}
+              icon={
+                <div className="relative top-[1.64px] left-[2.87px]">
+                  <StopCircle
+                    className={cn(
+                      "text-[#446392] fill-[#446392]",
+                      "w-[18.83px] h-[20.73px]"
+                    )}
+                  />
+                </div>
+              }
+              className="hover:opacity-80 px-2"
+            />
+          ) : (
+            <Button
+              type="button"
+              kind="tertiary"
+              onClick={sendMessage}
+              disabled={isThinking}
+              icon={
+                <div className="relative top-[1.64px] left-[2.87px]">
+                  {" "}
+                  <PaperPlaneRight
+                    className={cn(
+                      isThinking
+                        ? "text-[#446392] fill-[#446392]"
+                        : "text-[#649EF5] fill-[#649EF5]",
+                      "w-[18.83px] h-[20.73px]"
+                    )}
+                  />{" "}
+                </div>
+              }
+              className="hover:opacity-80 px-2"
+            />
+          )}
         </Flex>
         <div className="text-center mt-2 text-xs text-[#D0D4D9]">
           Assistant can make mistakes. Verify responses.
