@@ -51,6 +51,7 @@ class AgentConfig:
     use_vision: bool
     max_actions_per_step: int
     tool_calling_method: str
+    limit_messages: Optional[int]
 
 
 @dataclass
@@ -165,6 +166,7 @@ class AgentRunner:
                 max_actions_per_step=agent_config.max_actions_per_step,
                 agent_state=self.agent_state,
                 tool_calling_method=agent_config.tool_calling_method,
+                limit_messages=agent_config.limit_messages,
             )
 
             # Stream updates from agent.run()
