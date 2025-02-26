@@ -78,7 +78,12 @@ class AgentRunner:
             self.agent_state.request_stop()
             message = "Stop requested - the agent will halt at the next safe point"
             logger.info(f"🛑 {message}")
-            return message
+
+            stop_response ={
+                "summary": "Agent stopped",
+                "stopped": True,
+            }
+            return stop_response
         except Exception as e:
             error_msg = f"Error during stop: {str(e)}"
             logger.error(error_msg)
