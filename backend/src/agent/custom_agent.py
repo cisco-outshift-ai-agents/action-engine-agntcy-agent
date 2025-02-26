@@ -69,6 +69,7 @@ class CustomAgent(Agent):
         ) = None,  # type: ignore
         register_done_callback: Callable[["AgentHistoryList"], None] | None = None,
         tool_calling_method: Optional[str] = "auto",
+        limit_num_image_per_llm_call=None,
     ):
         super().__init__(
             task=task,
@@ -110,6 +111,7 @@ class CustomAgent(Agent):
             max_error_length=self.max_error_length,
             max_actions_per_step=self.max_actions_per_step,
         )
+        self.limit_num_image_per_llm_call = limit_num_image_per_llm_call
 
     def _setup_action_models(self) -> None:
         """Setup dynamic action models from controller's registry"""
@@ -165,9 +167,36 @@ class CustomAgent(Agent):
             step_info.future_plans = future_plans
 
     @time_execution_async("--get_next_action")
-    async def get_next_action(self, input_messages: list[BaseMessage]) -> AgentOutput:
+    async def get_next_action(
+        self,
+        input_messages: list[BaseMessage],
+    ) -> AgentOutput:
         """Get next action from LLM based on current state"""
         messages_to_process = input_messages
+
+        if self.limit_num_image_per_llm_call is not None:
+            NUM_IMAGES_TO_KEEP = self.limit_num_image_per_llm_call
+            images_found = 0
+
+            # Iterate over images in reverse
+            for msg in reversed(messages_to_process):
+                content = msg.content
+                # The content can be either a string, or a list of dicts or strings
+                if isinstance(content, list):
+                    # Iterate over content in reverse
+                    for i in range(len(content) - 1, -1, -1):
+                        item = content[i]
+                        # if it's got an image
+                        if isinstance(item, dict) and "image_url" in item:
+                            # and we haven't reached the limit
+                            if images_found <= NUM_IMAGES_TO_KEEP:
+                                # keep the image and increment the count
+                                images_found += 1
+                            else:
+                                # otherwise remove the image from the content
+                                del content[i]
+
+        # Call the LLM with the messages
         ai_message = self.llm.invoke(messages_to_process)
         self.message_manager._add_message_with_tokens(ai_message)
 

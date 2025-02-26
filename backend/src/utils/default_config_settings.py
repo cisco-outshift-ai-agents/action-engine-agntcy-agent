@@ -28,4 +28,9 @@ def default_config():
         "window_w": int(os.getenv("RESOLUTION_WIDTH", 1920)),
         "window_h": int(os.getenv("RESOLUTION_HEIGHT", 1080)),
         "task": "go to google.com and type 'OpenAI' click search and give me the first url",
+        "limit_num_image_per_llm_call": (
+            int(os.getenv("LIMIT_NUM_IMAGE_PER_LLM_CALL"))
+            if os.getenv("LIMIT_NUM_IMAGE_PER_LLM_CALL") not in [None, "", "None"]
+            else None
+        ),
     }

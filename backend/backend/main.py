@@ -52,6 +52,7 @@ async def lifespan(app: FastAPI):
         use_vision=config.get("use_vision", False),
         max_actions_per_step=config.get("max_actions_per_step", 5),
         tool_calling_method=config.get("tool_calling_method", "default_method"),
+        limit_num_image_per_llm_call=config.get("limit_num_image_per_llm_call", None),
     )
     llm_config = LLMConfig(
         provider=config.get("llm_provider", "openai"),
@@ -110,6 +111,9 @@ async def chat_endpoint(websocket: WebSocket):
                 use_vision=config.get("use_vision", False),
                 max_actions_per_step=config.get("max_actions_per_step", 5),
                 tool_calling_method=config.get("tool_calling_method", "default_method"),
+                limit_num_image_per_llm_call=config.get(
+                    "limit_num_image_per_llm_call", None
+                ),
             )
             llm_config = LLMConfig(
                 provider=config.get("llm_provider", "openai"),
