@@ -69,7 +69,7 @@ class CustomAgent(Agent):
         ) = None,  # type: ignore
         register_done_callback: Callable[["AgentHistoryList"], None] | None = None,
         tool_calling_method: Optional[str] = "auto",
-        limit_messages=None,
+        limit_num_image_per_llm_call=None,
     ):
         super().__init__(
             task=task,
@@ -111,7 +111,7 @@ class CustomAgent(Agent):
             max_error_length=self.max_error_length,
             max_actions_per_step=self.max_actions_per_step,
         )
-        self.limit_messages = limit_messages
+        self.limit_num_image_per_llm_call = limit_num_image_per_llm_call
 
     def _setup_action_models(self) -> None:
         """Setup dynamic action models from controller's registry"""
@@ -174,8 +174,8 @@ class CustomAgent(Agent):
         """Get next action from LLM based on current state"""
         messages_to_process = input_messages
 
-        if self.limit_messages is not None:
-            NUM_IMAGES_TO_KEEP = self.limit_messages
+        if self.limit_num_image_per_llm_call is not None:
+            NUM_IMAGES_TO_KEEP = self.limit_num_image_per_llm_call
             images_found = 0
 
             # Iterate over images in reverse
