@@ -31,6 +31,6 @@ def default_config():
         "limit_num_image_per_llm_call": (
             int(os.getenv("LIMIT_NUM_IMAGE_PER_LLM_CALL"))
             if os.getenv("LIMIT_NUM_IMAGE_PER_LLM_CALL") not in [None, "", "None"]
-            else 3
+            else None
         ),
     }
