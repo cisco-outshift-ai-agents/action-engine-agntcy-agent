@@ -80,7 +80,7 @@ class AgentRunner:
             logger.info(f"🛑 {message}")
 
             stop_response ={
-                "summary": "Agent stopped",
+                "summary": "Stopped",
                 "stopped": True,
             }
             return stop_response
