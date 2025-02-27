@@ -89,14 +89,6 @@ async def chat_endpoint(websocket: WebSocket):
                 add_infos = client_payload.get("add_infos", "")
                 logger.info(f"Extracted task: {task}")
                 logger.info(f"Extracted additional info: {add_infos}")
-
-                #handle stop request
-                # if task == "stop":
-                #     logger.info("Received stop request")
-                #     response =  await agent_runner.stop_agent()
-                #     await websocket.send_text(json.dumps(response))
-                #     logger.info("Stop request sent to agent")
-                #     return
                 
             except json.JSONDecodeError as e:
                 error_msg = f"Failed to parse client message: {str(e)}"
