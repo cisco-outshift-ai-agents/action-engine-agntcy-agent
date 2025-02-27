@@ -89,6 +89,7 @@ async def chat_endpoint(websocket: WebSocket):
                 add_infos = client_payload.get("add_infos", "")
                 logger.info(f"Extracted task: {task}")
                 logger.info(f"Extracted additional info: {add_infos}")
+                
             except json.JSONDecodeError as e:
                 error_msg = f"Failed to parse client message: {str(e)}"
                 logger.error(error_msg)
@@ -180,6 +181,55 @@ async def chat_endpoint(websocket: WebSocket):
             await websocket.close()
         except Exception as e:
             logger.error(f"Error closing WebSocket: {str(e)}")
+
+
+
+@app.websocket("/ws/stop")
+async def stop_endpoint(websocket: WebSocket):
+    logger.info("New WebSocket connection for stop requests")
+    await websocket.accept()
+    logger.info("WebSocket connection accepted")
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+            logger.info(f"Stop request received: {data}")
+
+            try:
+                client_payload = json.loads(data)
+                task = client_payload.get("task",  "")
+               
+
+                #handle stop request
+                if task == "stop":
+                    logger.info("Received stop request")
+                    response =  await agent_runner.stop_agent()
+                    await websocket.send_text(json.dumps(response))
+                    logger.info("Stop Response sent to UI")
+                    return
+                
+            except json.JSONDecodeError as e:
+                error_msg = f"Failed to parse client message: {str(e)}"
+                logger.error(error_msg)
+                await websocket.send_text(json.dumps({"error": error_msg}))
+
+
+    except WebSocketDisconnect:
+        logger.info("WebSocket disconnected")
+    except Exception as e:
+        logger.error(f"Unexpected WebSocket error: {str(e)}", exc_info=True)
+    finally:
+        logger.info("Closing WebSocket connection")
+        try:
+            await websocket.close()
+        except Exception as e:
+            logger.error(f"Error closing WebSocket: {str(e)}")
+
+
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=7788)
 
 
 if __name__ == "__main__":
