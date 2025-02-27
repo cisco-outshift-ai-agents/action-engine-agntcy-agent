@@ -5,12 +5,11 @@ import { Button } from "@magnetic/button";
 import { cn } from "@/utils";
 import { Flex } from "@magnetic/flex";
 import ChatMessage from "./newsroom/newsroom-components/chat-message";
-import { z } from "zod";
 import CiscoAIAssistantLoader from "@/components/newsroom/newsroom-assets/thinking.gif";
 
 import { TodoFixAny } from "@/types";
 import { useChatStore } from "@/stores/chat";
-import { StopDataZod } from "@/chat/types";
+import { CleanerData, Data, DataZod, StopDataZod } from "@/pages/session/types";
 
 interface ChatSectionProps {
   className?: string;
@@ -290,50 +289,6 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
     </div>
   );
 };
-
-const DataZod = z.object({
-  action: z.array(
-    z.union([
-      z.string(),
-      z.object({
-        input_text: z
-          .object({ index: z.number(), text: z.string() })
-          .optional(),
-        click_element: z.object({ index: z.number() }).optional(),
-        prev_action_evaluation: z.string().optional(),
-        important_contents: z.string().optional(),
-        task_progress: z.string().optional(),
-        future_plans: z.string().optional(),
-        thought: z.string().optional(),
-        summary: z.string().optional(),
-        done: z.union([z.boolean(), z.object({ text: z.string() })]).optional(),
-      }),
-    ])
-  ),
-  current_state: z.object({}).optional(),
-  html_content: z.string(),
-});
-type Data = z.infer<typeof DataZod>;
-
-// Removes the union type
-const CleanerDataZod = z.object({
-  action: z.array(
-    z.object({
-      input_text: z.object({ index: z.number(), text: z.string() }).optional(),
-      click_element: z.object({ index: z.number() }).optional(),
-      prev_action_evaluation: z.string().optional(),
-      important_contents: z.string().optional(),
-      task_progress: z.string().optional(),
-      future_plans: z.string().optional(),
-      thought: z.string().optional(),
-      summary: z.string().optional(),
-      done: z.boolean().optional(),
-    })
-  ),
-  current_state: z.object({}).optional(),
-  html_content: z.string(),
-});
-type CleanerData = z.infer<typeof CleanerDataZod>;
 
 const cleanData = (data: Data): CleanerData => {
   console.log(data);
