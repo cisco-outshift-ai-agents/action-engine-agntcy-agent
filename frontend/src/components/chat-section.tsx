@@ -154,18 +154,6 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
     };
 
     wsStopRef.current?.send(JSON.stringify(stopPayload));
-
-    setMessages((messages) => [
-      ...messages,
-      {
-        sender: "user",
-        text: cleanData({
-          action: [{ summary: "Request to stop the agent" }],
-          current_state: {},
-          html_content: "",
-        }),
-      },
-    ]);
   };
 
   return (
@@ -251,7 +239,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
                 <div className="relative top-[1.64px] left-[2.87px]">
                   <StopCircle
                     className={cn(
-                      "text-[#446392] fill-[#446392]",
+                      "text-[#649EF5] fill-[#649EF5]",
                       "w-[18.83px] h-[20.73px]"
                     )}
                   />
@@ -270,9 +258,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
                   {" "}
                   <PaperPlaneRight
                     className={cn(
-                      isThinking
-                        ? "text-[#446392] fill-[#446392]"
-                        : "text-[#649EF5] fill-[#649EF5]",
+                      "text-[#649EF5] fill-[#649EF5]",
                       "w-[18.83px] h-[20.73px]"
                     )}
                   />{" "}
