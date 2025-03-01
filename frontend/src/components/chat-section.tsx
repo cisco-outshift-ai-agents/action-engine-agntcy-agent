@@ -187,6 +187,8 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
                         return `Click element ${a.click_element.index}`;
                       } else if (a.input_text) {
                         return `Input text ${a.input_text.text} at index ${a.input_text.index}`;
+                      } else if (a.execute_terminal_command) {
+                        return `Execute terminal command ${a.execute_terminal_command.command}`;
                       } else {
                         return undefined;
                       }
@@ -297,6 +299,7 @@ const cleanData = (data: Data): CleanerData => {
       return {
         input_text: action.input_text,
         click_element: action.click_element,
+        execute_terminal_command: action.execute_terminal_command,
         prev_action_evaluation: action.prev_action_evaluation,
         important_contents: action.important_contents,
         task_progress: action.task_progress,

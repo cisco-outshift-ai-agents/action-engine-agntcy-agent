@@ -4,6 +4,7 @@ import {
   MessageCircleMore,
   MousePointerClick,
   TextCursorIcon,
+  Terminal,
 } from "lucide-react";
 import { ReactNode } from "react";
 
@@ -53,6 +54,9 @@ const ChatMessageText: React.FC<ChatMessageTextProps> = ({
               )}
               {action.toLowerCase().includes("input text") && (
                 <TextCursorIcon className="inline w-4 h-4 mr-2 flex-shrink-0" />
+              )}
+              {action.toLowerCase().includes("execute terminal") && (
+                <Terminal className="inline w-4 h-4 mr-2 flex-shrink-0" />
               )}
               {action}
             </span>

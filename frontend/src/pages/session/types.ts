@@ -14,6 +14,7 @@ export const DataZod = z.object({
         input_text: z
           .object({ index: z.number(), text: z.string() })
           .optional(),
+        execute_terminal_command: z.object({ command: z.string() }).optional(),
         click_element: z.object({ index: z.number() }).optional(),
         prev_action_evaluation: z.string().optional(),
         important_contents: z.string().optional(),
@@ -36,6 +37,7 @@ export const CleanerDataZod = z.object({
     z.object({
       input_text: z.object({ index: z.number(), text: z.string() }).optional(),
       click_element: z.object({ index: z.number() }).optional(),
+      execute_terminal_command: z.object({ command: z.string() }).optional(),
       prev_action_evaluation: z.string().optional(),
       important_contents: z.string().optional(),
       task_progress: z.string().optional(),
