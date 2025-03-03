@@ -13,7 +13,7 @@ from browser_use.agent.views import (
 )
 from browser_use.browser.browser import Browser
 from browser_use.browser.context import BrowserContext
-from browser_use.browser.views import BrowserStateHistory
+from browser_use.browser.views import BrowserState, BrowserStateHistory
 from browser_use.controller.service import Controller
 from browser_use.telemetry.views import AgentEndTelemetryEvent, AgentStepTelemetryEvent
 from browser_use.utils import time_execution_async
@@ -22,6 +22,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage
 from pydantic import ValidationError
 
+from src.terminal.Terminal_message_manager import TerminalMessageManager
 from src.utils.agent_state import AgentState
 
 from .custom_massage_manager import CustomMassageManager
@@ -112,6 +113,7 @@ class CustomAgent(Agent):
             max_actions_per_step=self.max_actions_per_step,
         )
         self.limit_num_image_per_llm_call = limit_num_image_per_llm_call
+        self.terminal_message_manager = TerminalMessageManager()
 
     def _setup_action_models(self) -> None:
         """Setup dynamic action models from controller's registry"""
@@ -273,10 +275,13 @@ class CustomAgent(Agent):
 
         try:
             # Get browser state
-            state = await self.browser_context.get_state(use_vision=self.use_vision)
-            self.message_manager.add_state_message(
-                state, self._last_actions, self._last_result, step_info
-            )
+            if self.browser_context:
+               state = await self.browser_context.get_state(use_vision=self.use_vision)
+               self.message_manager.add_state_message(
+                state, self._last_actions, self._last_result, step_info)
+               
+            # Get terminal state if available
+            terminal_state = self.terminal_message_manager.get_last_state() if hasattr(self, "terminal_message_manager") else None
 
             input_messages = self.message_manager.get_messages()
 
@@ -286,16 +291,29 @@ class CustomAgent(Agent):
                 if model_output is None:
                     logger.error("Model output is None")
                     return
+                #check of there are terminal actions
 
-                if (
-                    hasattr(self, "register_new_step_callback")
-                    and self.register_new_step_callback
-                ):
-                    self.register_new_step_callback(state, model_output, self.n_steps)
+                actions: list[ActionModel] = model_output.action
+                has_terminal_actions = any("execute_terminal_command" in action.model_dump_json(exclude_unset=True) for action in actions)
+
+                if hasattr(self, "register_new_step_callback") and self.register_new_step_callback:
+                    if has_terminal_actions and terminal_state:
+                        # Create a BrowserStateHistory for terminal state
+                        compatible_state = self._create_terminal_compatible_browser_state(terminal_state)
+                        self.register_new_step_callback(compatible_state, model_output, self.n_steps)
+                    else:
+                        self.register_new_step_callback(state, model_output, self.n_steps)
                 self.update_step_info(model_output, step_info)
 
+                #Create state for history item
+                if has_terminal_actions and terminal_state:
+                    # Create a BrowserStateHistory for terminal state
+                    state_for_history = self._create_terminal_compatible_browser_state(terminal_state)
+                else:
+                    state_for_history = state
+
                 # Stream output immediately
-                self._make_history_item(model_output, state, result)
+                self._make_history_item(model_output, state_for_history, result)
                 yield self.history.history[-1]
             except Exception as e:
                 logger.error(f"Error generating thought: {e}")
@@ -306,10 +324,34 @@ class CustomAgent(Agent):
                 return
 
                 # Execute actions
-            actions: list[ActionModel] = model_output.action
-            result: list[ActionResult] = await self.controller.multi_act(
-                actions, self.browser_context
-            )
+            if has_terminal_actions:
+                result: list[ActionResult] = await self.controller.multi_act(actions, None)
+                #Process terminal info from result
+                if result and hasattr(self, "terminal_message_manager"):
+                    terminal_output = result[0].extracted_content if result[0].extracted_content else ""
+                    #extract directory from formatted output:
+                    working_directory = ""
+                    if "Directory:" in terminal_output:
+                        try:
+                            working_directory = terminal_output.split("Directory:", 1)[-1].split("\n")[0].strip()
+                        except:
+                            working_directory = terminal_state['working_directory'] if terminal_state else ""
+                            
+
+                    #Update terminal state
+                    self.terminal_message_manager.add_state_message(
+                        terminal_id=terminal_state['terminal_id'] if terminal_state else "",
+                        output=terminal_output,
+                        working_directory=working_directory,
+                        step_info=step_info
+                    )
+                    #get the updated terminal state
+                    updated_terminal_state = self.terminal_message_manager.get_last_state()
+                    state_for_history = self._create_terminal_compatible_browser_state(updated_terminal_state)
+            else:
+                
+                 result: list[ActionResult] = await self.controller.multi_act(actions, self.browser_context)
+                 state_for_history = state
 
             # Handle partial actions
             if len(result) != len(actions):
@@ -323,13 +365,15 @@ class CustomAgent(Agent):
                         )
                     )
 
-                # Update states
-            self._last_result = result
-            self._last_actions = actions
+                # Update last actions and results (only for browser actions)
+            if not has_terminal_actions:
+                self._last_actions = actions
+                self._last_result = result
 
-            # yield model output with action results
-            self._make_history_item(None, state, result)
+            #make new history item with the action results
+            self._make_history_item(None, state_for_history, result)
             yield self.history.history[-1]
+
 
         except Exception as e:
             result = await self._handle_step_error(e)
@@ -493,3 +537,78 @@ class CustomAgent(Agent):
         return BrowserStateHistory(
             url="", title="", tabs=[], interacted_element=[None], screenshot=None
         )
+    def _create_terminal_compatible_browser_state(self, terminal_state):
+        """Create a BrowserStateHistory compatible object from terminal state."""
+        return BrowserStateHistory(
+            url=f"terminal://{terminal_state['terminal_id']}",
+            title=f"Terminal - {terminal_state['working_directory']}",
+            tabs=[],
+            interacted_element=[None],
+            screenshot=None,
+        )
+
+    def _make_history_item(
+       self,
+       model_output: AgentOutput | None,
+       state: BrowserState,
+       result: list[ActionResult],
+    ) -> None:
+       """Create and store history item with special handling for terminal states"""
+
+       if state is None:
+           state_history = BrowserStateHistory(
+               url="",
+               title="",
+               tabs=[],
+               interacted_element=[None],
+               screenshot=None,
+           )
+
+           history_item = AgentHistory(model_output=model_output, result=result, state=state_history)
+           self.history.history.append(history_item)
+           return
+    
+       # Check if this is a terminal state
+       is_terminal_state = (
+           hasattr(state, 'url') and 
+           state.url and 
+           state.url.startswith("terminal://")
+       )
+    
+       # Fix selector_map access error
+       if is_terminal_state:
+           # Create a BrowserStateHistory without trying to access selector_map
+           state_history = BrowserStateHistory(
+               url=state.url,
+               title=state.title,
+               tabs=state.tabs if hasattr(state, 'tabs') else [],
+               interacted_element=[None],  
+               screenshot=state.screenshot if hasattr(state, 'screenshot') else None,
+           )
+        
+           history_item = AgentHistory(model_output=model_output, result=result, state=state_history)
+           self.history.history.append(history_item)
+           return
+    
+       # Regular browser state - create history item normally
+       interacted_elements = None
+    
+       if model_output:
+           # Handle potential selector_map absence
+           if hasattr(state, 'selector_map'):
+               interacted_elements = AgentHistory.get_interacted_element(model_output, state.selector_map)
+           else:
+               interacted_elements = [None] * len(model_output.action)
+       else:
+           interacted_elements = [None]
+    
+       state_history = BrowserStateHistory(
+           url=state.url,
+           title=state.title,
+           tabs=state.tabs,
+           interacted_element=interacted_elements,
+           screenshot=state.screenshot,
+       )
+    
+       history_item = AgentHistory(model_output=model_output, result=result, state=state_history)
+       self.history.history.append(history_item)
