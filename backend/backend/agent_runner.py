@@ -242,6 +242,22 @@ class AgentRunner:
                         brain = history_item.model_output.current_state
                         actions: List[Dict[str, Any]] = []
 
+                        #Check if this is a terminal state encoded as browser state
+                        browser_state = history_item.state
+                        is_terminal_state = (
+                            hasattr(browser_state, 'url') and 
+                            browser_state.url and
+                            browser_state.url.startswith('terminal://')
+                        )
+
+                        #Extract terminal info if available
+                        terminal_id = None
+                        working_directory = None
+                        if is_terminal_state:
+                            terminal_id = browser_state.url.replace('terminal://', "")
+                            working_directory = browser_state.title.replace("Terminal - ", "")
+                            
+
                         for action in history_item.model_output.action:
                             if isinstance(action, ActionModel):
                                 formatted_action = action.model_dump(exclude_unset=True)
@@ -255,25 +271,57 @@ class AgentRunner:
                                         "summary": brain.summary,
                                     }
                                 )
+                                if is_terminal_state:
+                                    formatted_action.update({
+                                        "terminal_id": terminal_id,
+                                        "working_directory": working_directory,
+                                        "is_terminal": True,
+                                    })
 
                                 actions.append(formatted_action)
                         formatted_update["action"] = actions
                     elif isinstance(history_item, AgentHistory) and history_item.result:
-                        formatted_update["action"] = [
-                            {
-                                "summary": (
-                                    history_item.result[0].extracted_content
-                                    if history_item.result[0].extracted_content
-                                    else ""
-                                ),
-                                "thought": (
-                                    history_item.result[0].error
-                                    if history_item.result[0].error
-                                    else ""
-                                ),
-                                "done": history_item.result[0].is_done,
-                            }
-                        ]
+                        #check if this is a terminal state encoded as browser state
+                        browser_state = history_item.state
+                        is_terminal_state = (
+                            hasattr(browser_state, 'url') and
+                            browser_state.url and
+                            browser_state.url.startswith('terminal://')
+                        )
+                        #Extract terminal info if available
+                        terminal_output = ""
+                        if history_item.result and history_item.result[0].extracted_content:
+                            terminal_output = history_item.result[0].extracted_content
+
+                        if is_terminal_state:
+                            logger.info(f"Terminal output: {terminal_output}")
+
+                        result_action = {
+                            "summary": terminal_output,
+                            "terminal_output": terminal_output,
+                            "thought": (
+                                history_item.result[0].error
+                                if history_item.result[0].error
+                                else ""
+                            ),
+                            "done": history_item.result[0].is_done,
+                        }
+
+                        if terminal_output:
+                            logger.info(f"Terminal output: {terminal_output}")
+
+
+                        if is_terminal_state:
+                            terminal_id = browser_state.url.replace('terminal://', "")
+                            working_directory = browser_state.title.replace("Terminal - ", "")
+                            result_action.update({
+                                "terminal_id": terminal_id,
+                                "working_directory": working_directory,
+                                "is_terminal": True,
+                            })
+                          
+
+                        formatted_update["action"] = [result_action]
                         logger.info(f"Formatted update being sent to UI")
                     yield formatted_update
             except Exception as e:
