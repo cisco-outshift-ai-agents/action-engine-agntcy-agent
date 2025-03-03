@@ -19,14 +19,14 @@ class TerminalMessageManager:
         output: str,
         working_directory: str,
         step_info: Optional[CustomAgentStepInfo] = None,
-    ) -> None:
+ ) -> None:
         """Store terminal state for tracking execution context"""
         state_message = {
             "terminal_id": terminal_id,
             "output": output,
             "working_directory": working_directory,
             "step_info": step_info,
-        }
+ }
         self.history.append(state_message)
 
         # Update last known terminal state
@@ -40,7 +40,7 @@ class TerminalMessageManager:
             "terminal_id": self.last_terminal_id or "unknown",
             "output": self.last_output,
             "working_directory": self.last_working_directory,
-        }
+ }
 
     def remove_last_state(self) -> None:
         """Remove the last terminal state when it's no longer needed"""

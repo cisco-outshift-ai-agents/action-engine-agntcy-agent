@@ -150,7 +150,7 @@ class CustomSystemPrompt(SystemPrompt):
         time_str = self.current_date.strftime("%Y-%m-%d %H:%M")
 
         AGENT_PROMPT = f"""You are a precise browser automation agent that interacts with websites and terminals through structured commands. Your role is to:
-    1. Analyze the provided information and determine whether to use provided webpage elements and structure for browser or terminal
+    1. Analyze the provided information and determine whether to use provided webpage elements and structure for browser or execute a command in terminal
     2. Plan a sequence of actions to accomplish the given task
     3. Your final result MUST be a valid JSON as the **RESPONSE FORMAT** described, containing your action sequence and state assessment, No need extra content to expalin. 
 
@@ -231,20 +231,48 @@ class CustomAgentMessagePrompt(AgentMessagePrompt):
 6. Interactive elements:
 {elements_text}
         """
+        is_terminal_state = (
+            hasattr(self.state, 'url')and self.state.url and self.state.url.startswith('terminal://')
+        )
+        if is_terminal_state:
+            terminal_id = self.state.url.replace('terminal://', "")
+            working_directory = self.state.title.replace("Terminal - ", "")
+
+            state_description += f"\n**Current Terminal State**\n"
+            state_description += f"Terminal ID: {terminal_id}\n"
+            state_description += f"Working Directory: {working_directory}\n"
+
+            if hasattr(self, "terminal_message_manager") and self.terminal_message_manager:
+                terminal_state = self.terminal_message_manager.get_last_state()
+                if terminal_state and terminal_state.get("output"):
+                   state_description += f"\nLast Terminal Output:\n```\n {terminal_state['output']}\n```\n"
 
         if self.actions and self.result:
             state_description += "\n **Previous Actions** \n"
             state_description += f"Previous step: {self.step_info.step_number-1}/{self.step_info.max_steps} \n"  # type: ignore
             for i, result in enumerate(self.result):
                 action = self.actions[i]
+                action_data = action.model_dump(exclude_unset=True)
+
+                #Check if this was a terminal execution
+                is_terminal_action = "execute_terminal_command" in action_data
                 state_description += f"Previous action {i + 1}/{len(self.result)}: {action.model_dump_json(exclude_unset=True)}\n"
-                if result.include_in_memory:
-                    if result.extracted_content:
-                        state_description += f"Result of previous action {i + 1}/{len(self.result)}: {result.extracted_content}\n"
+                if is_terminal_action:
+                    state_description += "\n**Terminal Command Result**\n"
                     if result.error:
-                        # only use last 300 characters of error
-                        error = result.error[-self.max_error_length :]
-                        state_description += f"Error of previous action {i + 1}/{len(self.result)}: ...{error}\n"
+                        state_description += f"Error: {result.error}\n"
+                    elif result.extracted_content:
+                        state_description += f"Output: {result.extracted_content}\n"
+                    else:
+                        state_description += f"Output: No output\n"
+                else:
+                   if result.include_in_memory:
+                       if result.extracted_content:
+                           state_description += f"Result of previous action {i + 1}/{len(self.result)}: {result.extracted_content}\n"
+                       if result.error:
+                           # only use last 300 characters of error
+                           error = result.error[-self.max_error_length :]
+                           state_description += f"Error of previous action {i + 1}/{len(self.result)}: ...{error}\n"
 
         if self.state.screenshot:
             # Format message for vision model

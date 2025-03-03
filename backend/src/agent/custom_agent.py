@@ -278,7 +278,7 @@ class CustomAgent(Agent):
             if self.browser_context:
                state = await self.browser_context.get_state(use_vision=self.use_vision)
                self.message_manager.add_state_message(
-                state, self._last_actions, self._last_result, step_info)
+                state, self._last_actions, self._last_result, step_info, terminal_message_manager=self.terminal_message_manager if hasattr(self, "terminal_message_manager") else None)
                
             # Get terminal state if available
             terminal_state = self.terminal_message_manager.get_last_state() if hasattr(self, "terminal_message_manager") else None
@@ -291,8 +291,8 @@ class CustomAgent(Agent):
                 if model_output is None:
                     logger.error("Model output is None")
                     return
-                #check of there are terminal actions
-
+                
+                # Check If there are terminal actions
                 actions: list[ActionModel] = model_output.action
                 has_terminal_actions = any("execute_terminal_command" in action.model_dump_json(exclude_unset=True) for action in actions)
 
@@ -326,10 +326,15 @@ class CustomAgent(Agent):
                 # Execute actions
             if has_terminal_actions:
                 result: list[ActionResult] = await self.controller.multi_act(actions, None)
-                #Process terminal info from result
-                if result and hasattr(self, "terminal_message_manager"):
+                # Check if there is an error in the result
+                if result and result[0].error:
+                    logger.error(f"Error executing terminal action: {result[0].error}")
+                    if terminal_state:
+                        state_for_history = self._create_terminal_compatible_browser_state(terminal_state)
+                    else:
+                        state_for_history = self._create_empty_state()
+                elif result and hasattr(self, "terminal_message_manager"):
                     terminal_output = result[0].extracted_content if result[0].extracted_content else ""
-                    #extract directory from formatted output:
                     working_directory = ""
                     if "Directory:" in terminal_output:
                         try:
@@ -337,8 +342,7 @@ class CustomAgent(Agent):
                         except:
                             working_directory = terminal_state['working_directory'] if terminal_state else ""
                             
-
-                    #Update terminal state
+                    # Update terminal state
                     self.terminal_message_manager.add_state_message(
                         terminal_id=terminal_state['terminal_id'] if terminal_state else "",
                         output=terminal_output,
@@ -585,6 +589,8 @@ class CustomAgent(Agent):
                interacted_element=[None],  
                screenshot=state.screenshot if hasattr(state, 'screenshot') else None,
            )
+
+        
         
            history_item = AgentHistory(model_output=model_output, result=result, state=state_history)
            self.history.history.append(history_item)
