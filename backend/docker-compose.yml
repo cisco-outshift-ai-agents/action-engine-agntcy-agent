@@ -28,6 +28,7 @@ services:
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - .:/app
+      - tmux-data:/root/.tmux
     restart: unless-stopped
     shm_size: "16gb"
     cap_add:
@@ -41,3 +42,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+
+volumes:
+  tmux-data:

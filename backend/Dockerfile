@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     gnupg \
     curl \
     unzip \
+    tmux \
     xvfb \
     libgconf-2-4 \
     libxss1 \
