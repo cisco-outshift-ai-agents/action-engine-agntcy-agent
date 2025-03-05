@@ -218,43 +218,52 @@ class TerminalManager:
                 working_dir = self.terminals[terminal_id].get("working_directory", "~")
             return f"Error executing command: {error_msg}\nCurrent directory: {working_dir}", False
         
-    def get_terminal_output(self, output: str, start_marker: str, end_marker:str) -> str:
-       """Extract command output between markers"""
+    def get_terminal_output(self, output: str, start_marker: str, end_marker: str) -> str:
+       """Extract command output between markers and preserve original format"""
        logger.debug(f"Raw output: {output}")
     
        if start_marker not in output:
-           logger.warning(f"Start marker '{start_marker}' ")
+           logger.warning(f"Start marker '{start_marker}' not found in output")
            return "Command execution failed: Start marker not found"
        if end_marker not in output:
            logger.warning(f"End marker '{end_marker}' not found in output")
            return "Command execution failed: End marker not found"
-       try: 
+    
+       try:
+           # Extract content between markers
            content_between_markers = output.split(start_marker, 1)[1].split(end_marker, 1)[0]
            logger.debug(f"Content between markers: {content_between_markers}")
-           output_lines = content_between_markers.splitlines()
         
-           # Skip the first line if it contains shell prompt or echo command
-           if output_lines and (
-               output_lines[0].strip().endswith("echo") or
-               "root@" in output_lines[0] or
-               "#" in output_lines[0]
-           ):
-               output_lines = output_lines[1:]
-           
-           # Skip any lines containing marker
+           lines = content_between_markers.splitlines()
            cleaned_lines = []
-           for line in output_lines:
-               stripped_line = line.strip()
-            
-               if start_marker in stripped_line or end_marker in stripped_line:
-                   continue
-               if stripped_line.endswith("echo"):
-                   continue
-               if stripped_line.startswith("root@") and "#" in stripped_line:
-                   continue
-            
-               cleaned_lines.append(stripped_line)
         
+           prompt_line_found = False
+        
+           for line in lines:
+               # Skip markers and echo commands
+               if start_marker in line or end_marker in line or line.strip().endswith("echo"):
+                   continue
+            
+               # Look for the prompt line (first occurrence only)
+               if not prompt_line_found and "root@" in line and "#" in line:
+                   prompt_parts = line.split("#", 1)
+                   if len(prompt_parts) > 1 and prompt_parts[1].strip():
+                       # This is a valid prompt with command
+                       cleaned_lines.append(line)
+                       prompt_line_found = True
+                       continue
+            
+               # Skip empty prompt lines without commands
+               if line.strip().startswith("root@") and "#" in line:
+                   after_hash = line.split("#", 1)[1].strip()
+                   if not after_hash:  # Empty command
+                       continue
+            
+               # Add other content lines
+               if line.strip():
+                   cleaned_lines.append(line)
+        
+           # Join with newlines to preserve the original line-by-line format
            result = "\n".join(cleaned_lines).strip()
            logger.debug(f"Cleaned output: {result}")
            return result
