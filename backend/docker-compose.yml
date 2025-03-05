@@ -25,6 +25,7 @@ services:
       - RESOLUTION_HEIGHT=${RESOLUTION_HEIGHT}
       - VNC_PASSWORD=${VNC_PASSWORD}
       - VNC_PORT=5900
+      - TMUX_SOCKET_PATH=/root/.tmux/tmux-server
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - .:/app
