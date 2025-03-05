@@ -42,33 +42,44 @@ class CustomController(Controller):
 
         @self.registry.action('Execute a command in terminal', param_model=TerminalCommandAction)
         async def execute_terminal_command(params: TerminalCommandAction) -> ActionResult:
-            """Execute a command in the terminal"""
+            """Execute a command in the terminals"""
             try:
                 logger.info(f"EXECUTING TERMINAL COMMAND: {params.command}")
                 terminal_manager = TerminalManager()
+
+                # Try to get an active terminal
+                terminal_id = await terminal_manager.get_current_terminal_id()
                 
-                output, success = await terminal_manager.execute_command(None, params.command)
+                output, success = await terminal_manager.execute_command(terminal_id, params.command)
+                logger.info(f"Terminal command output: {output}")
                 if not success:
                     logger.error(f"Command execution failed: {output}")
-                    return ActionResult(error=output, include_in_memory=True)
+                    error_msg = f"Command execution failed: {output}"
+                    return ActionResult(error=error_msg, include_in_memory=True)
                 
                 # Execution was successful, get terminal info
                 terminal_id = await terminal_manager.get_current_terminal_id() 
-                terminal_state = await terminal_manager.get_terminal_state(terminal_id)
+                try:
+                   terminal_state = await terminal_manager.get_terminal_state(terminal_id)
 
-                #Format output
-                formatted_output = f"📋 Command: {params.command}\n📂 Directory: {terminal_state['working_directory']}\n\n📄 Output:\n{output}"
-                logger.info(f"Formatted Terminal output: {formatted_output}")
+                   #Format output
+                   formatted_output = f"📋 Command: {params.command}\n📂 Directory: {terminal_state['working_directory']}\n\n📄 Output:\n{output}"
+                   logger.info(f"Formatted Terminal output: {formatted_output}")
 
-                return ActionResult(
-                    extracted_content=formatted_output,
-                    include_in_memory=True
-                )
+                   return ActionResult(
+                       extracted_content=formatted_output,
+                       include_in_memory=True
+                   )
+                except ValueError as e:
+                    logger.warning(f"Error getting terminal state: {str(e)}")
+                    return ActionResult(extracted_content=output, include_in_memory=True)
             
             except Exception as e:
                 error_msg = f"Execution failed: {str(e)}"
                 logger.error(error_msg)
-                return ActionResult(error=error_msg, include_in_memory=True)
+                formatted_output = f"📋 Command: {params.command}\n📂 Output:\n{output}"
+
+                return ActionResult(extracted_content=formatted_output, include_in_memory=True)
 
     @time_execution_async('--multi-act')
     async def multi_act(

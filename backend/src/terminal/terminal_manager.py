@@ -36,122 +36,179 @@ class TerminalManager:
             cls._instance.current_terminal_id = None
             logger.info("TerminalManager instance created")
         return cls._instance
-    
+
+
     async def create_terminal(self) -> str:
         """Creates a new terminal session using tmux and returns its ID"""
-        # terminal_id = str(random.randint(1000, 9999))
-        # logger.info(f"Generated terminal ID: {terminal_id}")
-
-        if self.current_terminal_id and self.current_terminal_id in self.terminals:
-            logger.info(f"Terminal {self.current_terminal_id} already exists, reusing it.")
-            return self.current_terminal_id
-        #generate a new ID that doesnt conflict with existing sessions
+        tmux_socket_path = os.environ.get('TMUX_SOCKET_PATH', '/root/.tmux/tmux-server')
         terminal_id = str(random.randint(1000, 9999))
-        while os.system(f"tmux has-session -t {terminal_id} 2>/dev/null") == 0:
-            #session exists, try another ID
-            terminal_id = str(random.randint(1000, 9999))
         logger.info(f"Generated terminal ID: {terminal_id}")
 
-        #Generate a new tmux session
 
-        try:
+        # Create the tmux session
+        process = await asyncio.create_subprocess_exec(
+            "tmux", "-S", tmux_socket_path, "new-session", "-d", "-s", terminal_id, "-c", str(os.path.expanduser("~")),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+
+        if process.returncode != 0:
+            error_msg = stderr.decode('utf-8') if stderr else "Unknown error"
+            logger.error(f"Error creating terminal via subprocess: {error_msg}")
+            raise Exception(f"Error creating terminal: {error_msg}")
         
-           process = subprocess.Popen(
- ["tmux", "new-session", "-d", "-s", terminal_id, "-c", os.path.expanduser("~")],
-               stdout=subprocess.PIPE,
-               stderr=subprocess.PIPE
- )
-           stdout, stderr = process.communicate()
+        # Give tmux some time to fully initialize the session
+        await asyncio.sleep(0.5)
+
+        #Verify the session was created
+        retries = 2
+        while retries > 0:
+            verify_session = await asyncio.create_subprocess_exec(
+                "tmux", "-S", tmux_socket_path, "list-sessions",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL
+            )
+            stdout, _ = await verify_session.communicate()
+            if terminal_id in stdout.decode():
+                break
+            await asyncio.sleep(0.5)
+            retries -= 1
+        else:
+            raise Exception(f"Failed to verify tmux session {terminal_id} creation")
         
-           if process.returncode != 0:
-               error_msg = stderr.decode('utf-8') if stderr else "Unknown error"
-               logger.error(f"Error creating terminal: {error_msg}")
-               raise Exception(f"Error creating terminal: {error_msg}")
-        
-           # Get the initial working directory
-           working_dir = await self._get_working_directory(terminal_id)
-        
-           self.terminals[terminal_id] = {
-               "session_name": terminal_id, 
-               "output": "",
-               "working_directory": working_dir
- }
-           self.current_terminal_id = terminal_id
-           logger.info(f"Created terminal with ID: {terminal_id}")
-           return terminal_id
-        except Exception as e:
-            logger.error(f"Error creating terminal: {str(e)}")
-            raise e
-    
-    async def _get_working_directory(self, terminal_id: str) -> str:
+        # Get the initial working directory
+        working_dir = await self._get_working_directory(terminal_id, tmux_socket_path)
+
+        #save the session details
+        self.terminals[terminal_id] = {
+            "session_name": terminal_id, 
+            "output": "",
+            "working_directory": working_dir
+        }
+
+        self.current_terminal_id = terminal_id
+
+        print (f"Terminal {terminal_id} created with working directory: {working_dir}")
+        return terminal_id
+
+
+    async def _get_working_directory(self, terminal_id: str, tmux_socket_path: str) -> str:
         """Get the current working directory of the terminal"""
-        if terminal_id not in self.terminals:
-            raise ValueError(f"Terminal {terminal_id} does not exist")
-        
-        session_name = self.terminals[terminal_id]["session_name"]
-        
+    
         # Run pwd in the terminal and capture output
         start_marker = f"PWD_{random.randint(1000, 9999)}"
         end_marker = f"END_{random.randint(1000, 9999)}"
-        
-        os.system(f"tmux send-keys -t {session_name} 'echo {start_marker} && pwd && echo {end_marker}' C-m")
-        
+
+        await asyncio.create_subprocess_exec("tmux", "-S", tmux_socket_path, "send-keys", "-t", terminal_id, f"echo {start_marker}", "C-m")
+        await asyncio.create_subprocess_exec("tmux", "-S", tmux_socket_path, "send-keys", "-t", terminal_id, "pwd", "C-m")
+        await asyncio.create_subprocess_exec("tmux", "-S", tmux_socket_path, "send-keys", "-t", terminal_id, f"echo {end_marker}", "C-m")
+
+        working_dir = os.path.expanduser("~")
         # Wait for output
         for _ in range(10):
             await asyncio.sleep(0.2)
-            output = subprocess.getoutput(f"tmux capture-pane -p -t {session_name}")
+            process = await asyncio.create_subprocess_exec("tmux", "-S", tmux_socket_path, "capture-pane", "-p", "-t", terminal_id, stdout=asyncio.subprocess.PIPE)
+            stdout, _ = await process.communicate()
+            output = stdout.decode()
             
             if start_marker in output and end_marker in output:
                 # Extract the working directory
                 output_lines = output.split(start_marker, 1)[1].split(end_marker, 1)[0].strip().split('\n')
-                # The pwd output should be the second line
                 if len(output_lines) >= 2:
-                    return output_lines[1].strip()
-                return os.path.expanduser("~")  # Default to home directory
+                   working_dir = output_lines[1].strip()
+                break
         
-        return os.path.expanduser("~")  # Default to home directory if unable to determine
+        return working_dir
     
     async def execute_command(self, terminal_id:Optional[str], command: str) -> tuple[str, bool]:
         """Execute a command in the specified terminal and return the output"""
         "Returns a tuple of (output, is_success)"
+        logger.info(f"Calling Execute command: {command}")
+
         try:
-            # Handle None terminal_id 
+            tmux_socket_path = os.environ.get('TMUX_SOCKET_PATH', '/root/.tmux/tmux-server')
+            session_name = None
+
             if terminal_id  is None or terminal_id not in self.terminals:
                logger.warning(f"Terminal {terminal_id} does not exist, creating a new one.")  
-               terminal_id = await self.create_terminal() 
+               try:
+                   terminal_id = await self.create_terminal() 
+                   session_name = self.terminals[terminal_id]["session_name"]
+               except Exception as e:
+                   error_msg = f"Error creating terminal: {str(e)}"
+                   logger.error(error_msg)
+                   return error_msg, False
+            else: 
+               session_name = self.terminals[terminal_id]["session_name"]
+               
+            # Check if the terminal is busy 
+            if session_name:
+               is_busy = await self._is_terminal_busy(session_name, tmux_socket_path)
+               if is_busy:
+                   logger.warning(f"Terminal {terminal_id} is busy, creating a new terminal instead.")
+                   terminal_id = await self.create_terminal()
+                   session_name = self.terminals[terminal_id]["session_name"]
+            else:
+                logger.error(f"Terminal {terminal_id} does not have a valid session name.")
+                return "Terminal does not have a valid session name", False
+                   
+           # Use markers to identify the start and end of command output
+            start_marker = f"===START_MARKER_{random.randint(10000, 99999)}==="  
+            end_marker = f"===END_MARKER_{random.randint(10000, 99999)}==="
 
-            session_name = self.terminals[terminal_id]["session_name"]
-            escaped_command = shlex.quote(command)
-        
             # Clear the terminal before executing the command
-            os.system(f"tmux send-keys -t {session_name} 'clear' C-m")
-        
-           # Use markers to identify the start and end of our command output
-            start_marker = f"START_{random.randint(1000, 9999)}"
-            end_marker = f">>>END<<<"
-        
-            os.system(f"tmux send-keys -t {session_name} 'echo {start_marker}' C-m")
-            os.system(f"tmux send-keys -t {session_name} {escaped_command} C-m")
-            os.system(f"tmux send-keys -t {session_name} 'echo {end_marker}' C-m")
+            await asyncio.create_subprocess_exec("tmux", "-S", tmux_socket_path, "send-keys", "-t", session_name, "printf '\\033[2J\\033[H'", "C-m")
+            await asyncio.sleep(0.2)
+
+            await asyncio.create_subprocess_exec("tmux", "-S", tmux_socket_path, "send-keys", "-t", session_name, f"echo '{start_marker}'", "C-m")
+            await asyncio.sleep(0.1)
+            await asyncio.create_subprocess_exec("tmux", "-S", tmux_socket_path, "send-keys", "-t", session_name, command, "C-m")
+            await asyncio.sleep(0.5) 
+
+            await asyncio.create_subprocess_exec("tmux", "-S", tmux_socket_path, "send-keys", "-t", session_name, f"echo {end_marker}", "C-m")
         
             # Poll for output until end marker is found - up to 10 seconds
             for _ in range(20):
                await asyncio.sleep(0.5)
-               output = subprocess.getoutput(f"tmux capture-pane -p -t {session_name} -S -5000")
+               capture_proc = await asyncio.create_subprocess_exec(
+                   "tmux", "-S", tmux_socket_path, "capture-pane", "-p", "-t", session_name, "-S", "-5000",
+                    stdout=asyncio.subprocess.PIPE
+               )
+               stdout, _ = await capture_proc.communicate()
+               output = stdout.decode() if stdout else ""
+               logger.info(f"Actual Output: {output}")
+
                if end_marker in output:
                    break
             else:
                logger.warning(f"Command execution timed out: {command}")
-               return "Command execution timed out"
+               return "Command execution timed out", False
         
             # Extract the command output between markers using get_terminal_output
-            final_output = self.get_terminal_output(output, start_marker)
-            self.terminals[terminal_id]["output"] = final_output
+            final_output = self.get_terminal_output(output, start_marker, end_marker)
+            logger.info(f"Final output: {final_output}")
+            logger.info(f"Command executed successfully in terminal {terminal_id}: {final_output}")
+
+            if terminal_id in self.terminals:
+                self.terminals[terminal_id]["output"] = final_output
         
-            # Update the working directory
-            self.terminals[terminal_id]["working_directory"] = await self._get_working_directory(terminal_id)
+                # Update the working directory
+                self.terminals[terminal_id]["working_directory"] = await self._get_working_directory(terminal_id, tmux_socket_path)
+                self.current_terminal_id = terminal_id
+            else:
+                logger.warning(f"Terminal {terminal_id} not found in terminals dictionary.")
+
+                # Attempt recovery by adding it to the dictionary
+                self.terminals[terminal_id] = {
+                    "session_name": terminal_id,
+                    "output": final_output,
+                    "working_directory": await self._get_working_directory(terminal_id, tmux_socket_path)
+                }
+                self.current_terminal_id = terminal_id
         
             return final_output, True
+        
         except Exception as e:
             error_msg = f"Error executing command: {str(e)}"
             logger.error(error_msg)
@@ -160,30 +217,52 @@ class TerminalManager:
             if terminal_id in self.terminals:
                 working_dir = self.terminals[terminal_id].get("working_directory", "~")
             return f"Error executing command: {error_msg}\nCurrent directory: {working_dir}", False
+        
+    def get_terminal_output(self, output: str, start_marker: str, end_marker:str) -> str:
+       """Extract command output between markers"""
+       logger.debug(f"Raw output: {output}")
     
-    def get_terminal_output(self, output: str, start_marker: str) -> str:
-        """Extract command output between markers"""
-        if start_marker in output and ">>>END<<<" in output:
-            output = output.split(start_marker, 1)[-1]
-            output = output.split(">>>END<<<", 1)[0]
-        else:
-            return "Command execution failed or output parsing error"
+       if start_marker not in output:
+           logger.warning(f"Start marker '{start_marker}' ")
+           return "Command execution failed: Start marker not found"
+       if end_marker not in output:
+           logger.warning(f"End marker '{end_marker}' not found in output")
+           return "Command execution failed: End marker not found"
+       try: 
+           content_between_markers = output.split(start_marker, 1)[1].split(end_marker, 1)[0]
+           logger.debug(f"Content between markers: {content_between_markers}")
+           output_lines = content_between_markers.splitlines()
         
-        output_lines = output.splitlines()
-        
-        # Cleanup logic from your implementation
-        cleaned_lines = []
-        for i, line in enumerate(output_lines):
-            stripped_line = line.strip()
-            if stripped_line == start_marker:
-                continue
-            if stripped_line.endswith("echo"):
-                stripped_line = stripped_line.replace("echo", "").strip()
-                
-            cleaned_lines.append(stripped_line)
+           # Skip the first line if it contains shell prompt or echo command
+           if output_lines and (
+               output_lines[0].strip().endswith("echo") or
+               "root@" in output_lines[0] or
+               "#" in output_lines[0]
+           ):
+               output_lines = output_lines[1:]
+           
+           # Skip any lines containing marker
+           cleaned_lines = []
+           for line in output_lines:
+               stripped_line = line.strip()
             
-        return "\n".join(cleaned_lines).strip()
-    
+               if start_marker in stripped_line or end_marker in stripped_line:
+                   continue
+               if stripped_line.endswith("echo"):
+                   continue
+               if stripped_line.startswith("root@") and "#" in stripped_line:
+                   continue
+            
+               cleaned_lines.append(stripped_line)
+        
+           result = "\n".join(cleaned_lines).strip()
+           logger.debug(f"Cleaned output: {result}")
+           return result
+        
+       except Exception as e:
+           logger.error(f"Error extracting output: {str(e)}")
+           return f"Command execution failed: {str(e)}"
+
     async def get_terminal_output_history(self, terminal_id: str) -> str:
         """Get the current output of the terminal session"""
         if terminal_id not in self.terminals:
@@ -192,46 +271,39 @@ class TerminalManager:
         return self.terminals[terminal_id].get("output", "")
     
     async def get_terminal_state(self, terminal_id: str) -> Dict[str, Any]:
-        """Get the current state of the terminal"""
-        if terminal_id not in self.terminals:
-            raise ValueError(f"Terminal {terminal_id} does not exist")
-        
-        return {
-            "terminal_id": terminal_id,
-            "output": self.terminals[terminal_id].get("output", ""),
-            "working_directory": self.terminals[terminal_id].get("working_directory", "")
- }
+       """Get the current state of the terminal, ensuring it's still valid in tmux."""
+       if terminal_id not in self.terminals:
+           raise ValueError(f"Terminal {terminal_id} does not exist in TerminalManager.")
+      
+       if not await self.is_terminal_active(terminal_id):
+           logger.warning(f"Terminal {terminal_id} is no longer active in tmux.")
+           del self.terminals[terminal_id] 
+           raise ValueError(f"Terminal {terminal_id} no longer exists in tmux.")
+
+       # Ensure working directory is up to date
+       working_directory = self.terminals[terminal_id].get("working_directory", "")
+       if not working_directory:
+           tmux_socket_path = os.environ.get('TMUX_SOCKET_PATH', '/root/.tmux/tmux-server')
+           working_directory = await self._get_working_directory(terminal_id, tmux_socket_path)
+
+       return {
+           "terminal_id": terminal_id,
+           "output": self.terminals[terminal_id].get("output", ""),
+           "working_directory": working_directory
+       }
     
-    async def execute_command_workflow(self, command: str) -> Dict[str, Any]:
-        """Complete workflow for executing a terminal command"""
-        try:
-            # Get or create terminal
-            if self.current_terminal_id is None or self.current_terminal_id not in self.terminals:
-                terminal_id = await self.create_terminal()
-            else:
-                terminal_id = self.current_terminal_id
-            
-            # Execute the command
-            output = await self.execute_command(terminal_id, command)
-            
-            # Get the terminal state
-            terminal_state = await self.get_terminal_state(terminal_id)
-            
-            return {
-                "success": True,
-                "terminal_id": terminal_id,
-                "output": output,
-                "working_directory": terminal_state["working_directory"],
-                "command": command
- }
-        except Exception as e:
-            error_msg = f"Terminal workflow error: {str(e)}"
-            logger.error(error_msg)
-            return {
-                "success": False,
-                "error": error_msg,
-                "command": command
- }
+    async def is_terminal_active(self, terminal_id: str) -> bool:
+        """Check if a terminal session is active in tmux"""
+    
+        tmux_socket_path = os.environ.get('TMUX_SOCKET_PATH', '/root/.tmux/tmux-server')
+        
+        verify_session = await asyncio.create_subprocess_exec(
+            "tmux", "-S", tmux_socket_path, "list-sessions",
+            stdout=asyncio.subprocess.PIPE, stderr=subprocess.DEVNULL
+        )
+        stdout, _ = await verify_session.communicate()
+        active_sessions = stdout.decode()
+        return terminal_id in active_sessions
     
     async def delete_terminal(self, terminal_id: Optional[str] = None) -> str:
         """Delete a terminal session or all terminal sessions"""
@@ -266,17 +338,65 @@ class TerminalManager:
  ["tmux", "kill-session", "-t", session_name], 
                     stdout=subprocess.PIPE, 
                     stderr=subprocess.PIPE
- )
-                # We don't check for errors here, just trying to clean up as much as possible
-            
+ )            
             self.terminals = {}
             self.current_terminal_id = None
             return "All terminals deleted"
     
     async def get_current_terminal_id(self) -> Optional[str]:
         """Get the current terminal ID"""
+        if not self.current_terminal_id:
+            return None
+        
+        if not await self.is_terminal_active(self.current_terminal_id):
+            logger.warning(f"Current terminal {self.current_terminal_id} is no longer active.")
+            self.current_terminal_id = None
+            return None
+        
         return self.current_terminal_id
     
     async def list_terminals(self) -> Dict[str, Dict[str, Any]]:
         """List all active terminal sessions"""
         return self.terminals
+    
+    async def _is_pid_running(self, pid: str) -> bool:
+        """Check if a process with the given PID is running"""
+        try:
+            os.kill(int(pid), 0)
+            return True
+        except OSError:
+            return False
+    
+    async def _is_terminal_busy(self, session_name: str, tmux_socket_path: str) -> bool:
+       """Check if a tmux terminal is busy by checking active pane processes."""
+
+       if not isinstance(session_name, str) or not session_name:
+           raise ValueError("Invalid session name provided.")
+       try:
+           process = await asyncio.create_subprocess_exec(
+               "tmux", "-S", tmux_socket_path, "list-panes", "-F", "#{pane_active} #{pane_pid}", "-t", session_name,
+               stdout=asyncio.subprocess.PIPE,
+               stderr=asyncio.subprocess.PIPE
+           )
+           stdout, _ = await process.communicate()
+
+           if process.returncode != 0:
+               error_msg = _.decode('utf-8') if _ else "Unknown error"
+               logger.error(f"Error checking terminal {session_name} status: {error_msg}")
+               return False
+           
+           output = stdout.decode().strip()
+
+           for line in output.splitlines():
+               parts = line.split()
+               if len(parts) == 2 and parts[0] == "1":  
+                   pid = parts[1]
+                   if await self._is_pid_running(pid):
+                       logger.info(f"Terminal {session_name} is currently busy with process {pid}")
+                       return True
+
+           return False  
+       except Exception as e:
+           logger.error(f"Error checking if terminal {session_name} is busy: {str(e)}")
+           return False
+
