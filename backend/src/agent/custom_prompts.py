@@ -77,9 +77,12 @@ class CustomSystemPrompt(SystemPrompt):
     6. TASK COMPLETION:
        - If you think all the requirements of user\'s instruction have been completed and no further operation is required, output the **Done** action to terminate the operation process.
        - Don't hallucinate actions.
+       - Don't hallucinate terminal output
        - If the task requires specific information - make sure to include everything in the done function. This is what the user will see.
        - If you are running out of steps (current step), think about speeding it up, and ALWAYS use the done action as the last action.
        - Note that you must verify if you've truly fulfilled the user's request by examining the actual page content, not just by looking at the actions you output but also whether the action is executed successfully. Pay particular attention when errors occur during action execution.
+       - Note that you must verify if you've truly completed a terminal execution by examining the actual output, not just by looking at the actions you output but also whether the command was executed. Pay particular attention when errors occur during action execution.
+
 
     7. VISUAL CONTEXT:
        - When an image is provided, use it to understand the page layout
@@ -193,32 +196,40 @@ class CustomAgentMessagePrompt(AgentMessagePrompt):
         self.actions = actions
         self.step_info = step_info
 
+
     def get_user_message(self) -> HumanMessage:
-        if self.step_info:
-            step_info_description = f"Current step: {self.step_info.step_number}/{self.step_info.max_steps}\n"
-        else:
-            step_info_description = ""
+       if self.step_info:
+           step_info_description = f"Current step: {self.step_info.step_number}/{self.step_info.max_steps}\n"
+       else:
+           step_info_description = ""
 
-        elements_text = self.state.element_tree.clickable_elements_to_string(
-            include_attributes=self.include_attributes
-        )
+       
+       elements_text = ""
+    
+       # Only try to get clickable elements if the state has the element_tree attribute
+       if hasattr(self.state, 'element_tree'):
+           elements_text = self.state.element_tree.clickable_elements_to_string(
+               include_attributes=self.include_attributes
+           )
 
-        has_content_above = (self.state.pixels_above or 0) > 0
-        has_content_below = (self.state.pixels_below or 0) > 0
+           has_content_above = (self.state.pixels_above or 0) > 0
+           has_content_below = (self.state.pixels_below or 0) > 0
 
-        if elements_text != "":
-            if has_content_above:
-                elements_text = f"... {self.state.pixels_above} pixels above - scroll or extract content to see more ...\n{elements_text}"
-            else:
-                elements_text = f"[Start of page]\n{elements_text}"
-            if has_content_below:
-                elements_text = f"{elements_text}\n... {self.state.pixels_below} pixels below - scroll or extract content to see more ..."
-            else:
-                elements_text = f"{elements_text}\n[End of page]"
-        else:
-            elements_text = "empty page"
+           if elements_text != "":
+               if has_content_above:
+                   elements_text = f"... {self.state.pixels_above} pixels above - scroll or extract content to see more ...\n{elements_text}"
+               else:
+                   elements_text = f"[Start of page]\n{elements_text}"
+               if has_content_below:
+                   elements_text = f"{elements_text}\n... {self.state.pixels_below} pixels below - scroll or extract content to see more ..."
+               else:
+                   elements_text = f"{elements_text}\n[End of page]"
+           else:
+               elements_text = "empty page"
+       else:
+           elements_text = "[No element tree available - likely terminal state]"
 
-        state_description = f"""
+       state_description = f"""
 {step_info_description}
 1. Task: {self.step_info.task if self.step_info else 'N/A'}. 
 2. Hints(Optional): 
@@ -230,62 +241,70 @@ class CustomAgentMessagePrompt(AgentMessagePrompt):
 {self.state.tabs}
 6. Interactive elements:
 {elements_text}
-        """
-        is_terminal_state = (
-            hasattr(self.state, 'url')and self.state.url and self.state.url.startswith('terminal://')
-        )
-        if is_terminal_state:
-            terminal_id = self.state.url.replace('terminal://', "")
-            working_directory = self.state.title.replace("Terminal - ", "")
+"""
 
-            state_description += f"\n**Current Terminal State**\n"
-            state_description += f"Terminal ID: {terminal_id}\n"
-            state_description += f"Working Directory: {working_directory}\n"
+       # Get terminal state information
+       terminal_output = None
+       is_terminal_state = (
+           hasattr(self.state, 'url') and self.state.url and self.state.url.startswith('terminal://')
+       )
 
-            if hasattr(self, "terminal_message_manager") and self.terminal_message_manager:
-                terminal_state = self.terminal_message_manager.get_last_state()
-                if terminal_state and terminal_state.get("output"):
-                   state_description += f"\nLast Terminal Output:\n```\n {terminal_state['output']}\n```\n"
+       if is_terminal_state:
+           terminal_id = self.state.url.replace('terminal://', "")
+           working_directory = self.state.title.replace("Terminal - ", "")
 
-        if self.actions and self.result:
-            state_description += "\n **Previous Actions** \n"
-            state_description += f"Previous step: {self.step_info.step_number-1}/{self.step_info.max_steps} \n"  # type: ignore
-            for i, result in enumerate(self.result):
-                action = self.actions[i]
-                action_data = action.model_dump(exclude_unset=True)
+           state_description += "\n\n======== CURRENT TERMINAL STATE ========\n"
+           state_description += f"Terminal ID: {terminal_id}\n"
+           state_description += f"Working Directory: {working_directory}\n"
 
-                #Check if this was a terminal execution
-                is_terminal_action = "execute_terminal_command" in action_data
-                state_description += f"Previous action {i + 1}/{len(self.result)}: {action.model_dump_json(exclude_unset=True)}\n"
-                if is_terminal_action:
-                    state_description += "\n**Terminal Command Result**\n"
-                    if result.error:
-                        state_description += f"Error: {result.error}\n"
-                    elif result.extracted_content:
-                        state_description += f"Output: {result.extracted_content}\n"
-                    else:
-                        state_description += f"Output: No output\n"
-                else:
+           # Get terminal output if available
+           if hasattr(self, "terminal_message_manager") and self.terminal_message_manager:
+               terminal_state = self.terminal_message_manager.get_last_state()
+               if terminal_state and terminal_state.get("output"):
+                   terminal_output = terminal_state.get("output")
+                   state_description += f"\nACTUAL TERMINAL OUTPUT:\n```\n{terminal_output}\n```\n"
+        
+           state_description += "======== END TERMINAL STATE ========\n\n"
+
+       # Add previous actions info
+       if self.actions and self.result:
+           state_description += "\n**Previous Actions**\n"
+           state_description += f"Previous step: {self.step_info.step_number-1}/{self.step_info.max_steps}\n"  # type: ignore
+        
+           for i, result in enumerate(self.result):
+               action = self.actions[i]
+               action_data = action.model_dump(exclude_unset=True)
+            
+               #Check if this was a terminal execution
+               is_terminal_action = "execute_terminal_command" in action_data
+               state_description += f"Previous action {i + 1}/{len(self.result)}: {action.model_dump_json(exclude_unset=True)}\n"
+            
+               if is_terminal_action:
+                   if result.error:
+                       state_description += f"Error in previous terminal action: {result.error}\n"
+                   elif terminal_output is None and result.extracted_content:
+                       state_description += f"Output: {result.extracted_content}\n"
+               else:
                    if result.include_in_memory:
                        if result.extracted_content:
                            state_description += f"Result of previous action {i + 1}/{len(self.result)}: {result.extracted_content}\n"
                        if result.error:
-                           # only use last 300 characters of error
                            error = result.error[-self.max_error_length :]
                            state_description += f"Error of previous action {i + 1}/{len(self.result)}: ...{error}\n"
 
-        if self.state.screenshot:
-            # Format message for vision model
-            return HumanMessage(
-                content=[
-                    {"type": "text", "text": state_description},
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{self.state.screenshot}"
-                        },
-                    },
-                ]
-            )
+       if self.state.screenshot:
+           # Format message for vision model
+           return HumanMessage(
+               content=[
+                   {"type": "text", "text": state_description},
+                   {
+                       "type": "image_url",
+                       "image_url": {
+                           "url": f"data:image/png;base64,{self.state.screenshot}"
+                       },
+                   },
+               ]
+           )
 
-        return HumanMessage(content=state_description)
+       return HumanMessage(content=state_description)
+
