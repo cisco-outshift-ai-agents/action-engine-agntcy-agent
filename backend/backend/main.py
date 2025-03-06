@@ -140,9 +140,6 @@ async def chat_endpoint(websocket: WebSocket):
                             "action": update.get("action", []),
                         }
 
-                        if update.get("action") and len(update["action"]) > 0:
-                            action = update["action"][0]
-
                         logger.info(
                             f"Prepared response: {json.dumps(response_data, indent=2)}"
                         )
