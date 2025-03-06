@@ -196,6 +196,10 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
                     .filter((a) => !!a) as string[]
                 }
                 role={message.sender === "agent" ? "assistant" : "user"}
+                isTerminal={message.text.action.some((a) => a.is_terminal)}
+                hasEmptyThought={message.text.action.some(
+                  (a) => a.is_terminal && a.thought === ""
+                )}
               />
             </div>
           ))}
@@ -307,6 +311,9 @@ const cleanData = (data: Data): CleanerData => {
         thought: action.thought,
         summary: action.summary,
         done: typeof action.done === "boolean" ? action.done : false,
+        terminal_id: action.terminal_id,
+        working_directory: action.working_directory,
+        is_terminal: action.is_terminal,
       };
     }),
     current_state: data.current_state,

@@ -23,6 +23,9 @@ export const DataZod = z.object({
         thought: z.string().optional(),
         summary: z.string().optional(),
         done: z.union([z.boolean(), z.object({ text: z.string() })]).optional(),
+        terminal_id: z.string().optional(),
+        working_directory: z.string().optional(),
+        is_terminal: z.boolean().optional(),
       }),
     ])
   ),
@@ -45,6 +48,9 @@ export const CleanerDataZod = z.object({
       thought: z.string().optional(),
       summary: z.string().optional(),
       done: z.boolean().optional(),
+      terminal_id: z.string().optional(),
+      working_directory: z.string().optional(),
+      is_terminal: z.boolean().optional(),
     })
   ),
   current_state: z.object({}).optional(),
