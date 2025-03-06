@@ -358,7 +358,7 @@ class CustomAgent(Agent):
                    updated_terminal_state = self.terminal_message_manager.get_last_state()
                    state_for_history = self._create_terminal_compatible_browser_state(updated_terminal_state)
                 
-                   # Update the message manager with the terminal results so future model outputs will see the terminal results
+                   # Update the message manager with the terminal results for proper propagation of results to model
                    self.message_manager.add_state_message(
                        state_for_history,
                        None,
