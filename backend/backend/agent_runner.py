@@ -79,7 +79,7 @@ class AgentRunner:
             message = "Stop requested - the agent will halt at the next safe point"
             logger.info(f"🛑 {message}")
 
-            stop_response ={
+            stop_response = {
                 "summary": "Stopped",
                 "stopped": True,
             }
@@ -242,20 +242,22 @@ class AgentRunner:
                         brain = history_item.model_output.current_state
                         actions: List[Dict[str, Any]] = []
 
-                        #Check if this is a terminal state encoded as browser state
+                        # Check if this is a terminal state encoded as browser state
                         browser_state = history_item.state
                         is_terminal_state = (
-                            hasattr(browser_state, 'url') and 
-                            browser_state.url and
-                            browser_state.url.startswith('terminal://')
+                            hasattr(browser_state, "url")
+                            and browser_state.url
+                            and browser_state.url.startswith("terminal://")
                         )
 
-                        #Extract terminal info if there is any
+                        # Extract terminal info if there is any
                         terminal_id = None
                         working_directory = None
                         if is_terminal_state:
-                            terminal_id = browser_state.url.replace('terminal://', "")
-                            working_directory = browser_state.title.replace("Terminal - ", "")
+                            terminal_id = browser_state.url.replace("terminal://", "")
+                            working_directory = browser_state.title.replace(
+                                "Terminal - ", ""
+                            )
 
                             # In cases where the model returns two actions in one response, add brain metadata to the first action only and avoid duplication
                         for i, action in enumerate(history_item.model_output.action):
@@ -263,45 +265,52 @@ class AgentRunner:
                                 formatted_action = action.model_dump(exclude_unset=True)
 
                                 if i == 0:
-                                   formatted_action.update({
-                                       
-                                           "prev_action_evaluation": brain.prev_action_evaluation,
-                                           "important_contents": brain.important_contents,
-                                           "task_progress": brain.task_progress,
-                                           "future_plans": brain.future_plans,
-                                           "thought": brain.thought,
-                                           "summary": brain.summary                                     
-                                   })
+                                    formatted_action.update(
+                                        {
+                                            "prev_action_evaluation": brain.prev_action_evaluation,
+                                            "important_contents": brain.important_contents,
+                                            "task_progress": brain.task_progress,
+                                            "future_plans": brain.future_plans,
+                                            "thought": brain.thought,
+                                            "summary": brain.summary,
+                                        }
+                                    )
 
                                 if is_terminal_state:
-                                    formatted_action.update({
-                                        "terminal_id": terminal_id,
-                                        "working_directory": working_directory,
-                                        "is_terminal": True,
-                                    })
+                                    formatted_action.update(
+                                        {
+                                            "terminal_id": terminal_id,
+                                            "working_directory": working_directory,
+                                            "is_terminal": True,
+                                        }
+                                    )
 
                                 actions.append(formatted_action)
                         formatted_update["action"] = actions
-                        
+
                     elif isinstance(history_item, AgentHistory) and history_item.result:
-                        #check if this is a terminal state encoded as browser state
+                        # check if this is a terminal state encoded as browser state
                         browser_state = history_item.state
                         is_terminal_state = (
-                            hasattr(browser_state, 'url') and
-                            browser_state.url and
-                            browser_state.url.startswith('terminal://')
+                            hasattr(browser_state, "url")
+                            and browser_state.url
+                            and browser_state.url.startswith("terminal://")
                         )
-                        #Extract terminal info if available
+                        # Extract terminal info if available
                         terminal_output = ""
-                        if history_item.result and history_item.result[0].extracted_content:
+                        if (
+                            history_item.result
+                            and history_item.result[0].extracted_content
+                        ):
                             formatted_output = history_item.result[0].extracted_content
 
                             # Extract and yield just the command output
                             terminal_output = formatted_output
                             if "Output" in formatted_output:
-                                terminal_output = formatted_output.split("Output:", 1)[1].strip()
+                                terminal_output = formatted_output.split("Output:", 1)[
+                                    1
+                                ].strip()
 
-                            
                         if is_terminal_state:
                             logger.info(f"Terminal output: {terminal_output}")
 
@@ -318,16 +327,18 @@ class AgentRunner:
                         if terminal_output:
                             logger.info(f"Terminal output: {terminal_output}")
 
-
                         if is_terminal_state:
-                            terminal_id = browser_state.url.replace('terminal://', "")
-                            working_directory = browser_state.title.replace("Terminal - ", "")
-                            result_action.update({
-                                "terminal_id": terminal_id,
-                                "working_directory": working_directory,
-                                "is_terminal": True,
-                            })
-                          
+                            terminal_id = browser_state.url.replace("terminal://", "")
+                            working_directory = browser_state.title.replace(
+                                "Terminal - ", ""
+                            )
+                            result_action.update(
+                                {
+                                    "terminal_id": terminal_id,
+                                    "working_directory": working_directory,
+                                    "is_terminal": True,
+                                }
+                            )
 
                         formatted_update["action"] = [result_action]
                         logger.info(f"Formatted update being sent to UI")
