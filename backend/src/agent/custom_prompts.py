@@ -48,7 +48,20 @@ class CustomSystemPrompt(SystemPrompt):
            {"go_to_url": {"url": "https://example.com"}},
            {"extract_page_content": {}}
          ]
-      
+       - File system operations: [
+           {"execute_terminal_command": {"command": "pwd"}},
+           {"execute_terminal_command": {"command": "ls -l /path/to/directory"}},
+           {"execute_terminal_command": {"command": "mkdir -p new_directory"}}
+         ]
+       - Search and analyze: [
+           {"execute_terminal_command": {"command": "find / -name \"*.txt\" -type f | grep keyword"}},
+           {"execute_terminal_command": {"command": "cat /path/to/file | grep pattern"}}
+         ]
+       - Install and configure: [
+           {"execute_terminal_command": {"command": "apt-get update"}},
+           {"execute_terminal_command": {"command": "apt-get install -y package_name"}},
+           {"execute_terminal_command": {"command": "echo 'configuration' > /etc/config/file"}}
+         ]
 
     3. ENVIRONMENT DETECTION:
        - Analyze the task and determine if it requires browser or terminal execution
@@ -103,6 +116,21 @@ class CustomSystemPrompt(SystemPrompt):
        - Only provide the action sequence until you think the page will change.
        - Try to be efficient, e.g. fill forms at once, or chain actions where nothing changes on the page like saving, extracting, checkboxes...
        - only use multiple actions if it makes sense. 
+    
+    10. TERMINAL COMMAND EXECUTION:
+        - When working with the file system, FIRST check if working_directory is available in the terminal state - this is your current directory
+        - If working_directory is provided, use it as the basis for all relative paths
+        - ALWAYS use absolute paths (starting with '/') for system directories and common directories like /app, /etc, /var
+        - When a command fails, immediately retry with absolute paths
+        - Before listing contents of a directory, first check if it exists at both current location and root
+        - For directory listing:
+            * Use 'ls' for basic listings without extra details
+            * Use 'ls -l' only when detailed file information is needed
+            * Use 'ls -la' only when hidden files are specifically required
+        - When asked to find a directory or file, use 'find / -name targetname -type d/f' command
+        - Always check command results before proceeding to next operations
+        - If uncertain about a path, first list the contents of the parent directory
+        - If looking for specific directories like 'app', first check if they exist at root level (e.g., '/app')
     """
         text += f"   - use maximum {self.max_actions_per_step} actions per sequence"
         return text
@@ -134,8 +162,6 @@ class CustomSystemPrompt(SystemPrompt):
     Example Browser elements:
     33[:]<button>Submit Form</button>
     _[:] Non-interactive text
-
-
 
     Notes:
     - Only elements with numeric indexes are interactive

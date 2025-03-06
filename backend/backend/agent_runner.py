@@ -250,27 +250,29 @@ class AgentRunner:
                             browser_state.url.startswith('terminal://')
                         )
 
-                        #Extract terminal info if available
+                        #Extract terminal info if there is any
                         terminal_id = None
                         working_directory = None
                         if is_terminal_state:
                             terminal_id = browser_state.url.replace('terminal://', "")
                             working_directory = browser_state.title.replace("Terminal - ", "")
-                            
 
-                        for action in history_item.model_output.action:
+                            # In cases where the model returns two actions in one response, add brain metadata to the first action only and avoid duplication
+                        for i, action in enumerate(history_item.model_output.action):
                             if isinstance(action, ActionModel):
                                 formatted_action = action.model_dump(exclude_unset=True)
-                                formatted_action.update(
-                                    {
-                                        "prev_action_evaluation": brain.prev_action_evaluation,
-                                        "important_contents": brain.important_contents,
-                                        "task_progress": brain.task_progress,
-                                        "future_plans": brain.future_plans,
-                                        "thought": brain.thought,
-                                        "summary": brain.summary,
-                                    }
-                                )
+
+                                if i == 0:
+                                   formatted_action.update({
+                                       
+                                           "prev_action_evaluation": brain.prev_action_evaluation,
+                                           "important_contents": brain.important_contents,
+                                           "task_progress": brain.task_progress,
+                                           "future_plans": brain.future_plans,
+                                           "thought": brain.thought,
+                                           "summary": brain.summary                                     
+                                   })
+
                                 if is_terminal_state:
                                     formatted_action.update({
                                         "terminal_id": terminal_id,
@@ -280,6 +282,7 @@ class AgentRunner:
 
                                 actions.append(formatted_action)
                         formatted_update["action"] = actions
+                        
                     elif isinstance(history_item, AgentHistory) and history_item.result:
                         #check if this is a terminal state encoded as browser state
                         browser_state = history_item.state
@@ -291,14 +294,19 @@ class AgentRunner:
                         #Extract terminal info if available
                         terminal_output = ""
                         if history_item.result and history_item.result[0].extracted_content:
-                            terminal_output = history_item.result[0].extracted_content
+                            formatted_output = history_item.result[0].extracted_content
 
+                            # Extract and yield just the command output
+                            terminal_output = formatted_output
+                            if "Output" in formatted_output:
+                                terminal_output = formatted_output.split("Output:", 1)[1].strip()
+
+                            
                         if is_terminal_state:
                             logger.info(f"Terminal output: {terminal_output}")
 
                         result_action = {
                             "summary": terminal_output,
-                            "terminal_output": terminal_output,
                             "thought": (
                                 history_item.result[0].error
                                 if history_item.result[0].error

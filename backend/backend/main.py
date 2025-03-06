@@ -143,12 +143,6 @@ async def chat_endpoint(websocket: WebSocket):
                         if update.get("action") and len(update["action"]) > 0:
                             action = update["action"][0]
 
-                            is_terminal = action.get("is_terminal", False)
-
-                            if is_terminal:
-                                logger.info(f"Terminal Action: {json.dumps(action, indent=2)}")
-                                
-
                         logger.info(
                             f"Prepared response: {json.dumps(response_data, indent=2)}"
                         )

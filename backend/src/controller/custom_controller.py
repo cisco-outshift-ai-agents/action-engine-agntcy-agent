@@ -44,14 +44,12 @@ class CustomController(Controller):
         async def execute_terminal_command(params: TerminalCommandAction) -> ActionResult:
             """Execute a command in the terminals"""
             try:
-                logger.info(f"EXECUTING TERMINAL COMMAND: {params.command}")
                 terminal_manager = TerminalManager()
 
                 # Try to get an active terminal
                 terminal_id = await terminal_manager.get_current_terminal_id()
                 
                 output, success = await terminal_manager.execute_command(terminal_id, params.command)
-                logger.info(f"Terminal command output: {output}")
                 if not success:
                     logger.error(f"Command execution failed: {output}")
                     error_msg = f"Command execution failed: {output}"
@@ -63,9 +61,7 @@ class CustomController(Controller):
                    terminal_state = await terminal_manager.get_terminal_state(terminal_id)
 
                    #Format output
-                   formatted_output = f"📋 Command: {params.command}\n📂 Directory: {terminal_state['working_directory']}\n\n📄 Output:\n{output}"
-                   logger.info(f"Formatted Terminal output: {formatted_output}")
-
+                   formatted_output = f"📂={terminal_state['working_directory']}\n\nOutput:\n{output}"
                    return ActionResult(
                        extracted_content=formatted_output,
                        include_in_memory=True
@@ -77,7 +73,7 @@ class CustomController(Controller):
             except Exception as e:
                 error_msg = f"Execution failed: {str(e)}"
                 logger.error(error_msg)
-                formatted_output = f"📋 Command: {params.command}\n📂 Output:\n{output}"
+                formatted_output = formatted_output
 
                 return ActionResult(extracted_content=formatted_output, include_in_memory=True)
 
@@ -86,7 +82,6 @@ class CustomController(Controller):
         self, actions: list[ActionModel], browser_context: Optional[BrowserContext] = None, check_for_new_elements: bool = True
  ) -> list[ActionResult]:
         """Execute multiple actions - supports both browser and terminal actions"""
-        logger.info(f"Executing Custom Controler Multi_act")
         results = []
 
         has_terminal_actions = any("execute_terminal_command" in action.model_dump(exclude_unset=True).keys() for action in actions)
@@ -124,7 +119,6 @@ class CustomController(Controller):
                 # Execute action based on its type
                 if is_terminal_action:
                     # Terminal actions don't need browser_context
-                    logger.info(f"Executing terminal command: {action_data.get('execute_terminal_command', {}).get('command', '')}") 
                     result = await self.act(action, None)
                     results.append(result)
                     logger.info(f"Terminal action result: {result}")

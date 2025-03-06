@@ -124,8 +124,6 @@ class TerminalManager:
     async def execute_command(self, terminal_id:Optional[str], command: str) -> tuple[str, bool]:
         """Execute a command in the specified terminal and return the output"""
         "Returns a tuple of (output, is_success)"
-        logger.info(f"Calling Execute command: {command}")
-
         try:
             tmux_socket_path = os.environ.get('TMUX_SOCKET_PATH', '/root/.tmux/tmux-server')
             session_name = None
@@ -161,7 +159,7 @@ class TerminalManager:
             await asyncio.create_subprocess_exec("tmux", "-S", tmux_socket_path, "send-keys", "-t", session_name, "printf '\\033[2J\\033[H'", "C-m")
             await asyncio.sleep(0.2)
 
-            await asyncio.create_subprocess_exec("tmux", "-S", tmux_socket_path, "send-keys", "-t", session_name, f"echo '{start_marker}'", "C-m")
+            await asyncio.create_subprocess_exec("tmux", "-S", tmux_socket_path, "send-keys", "-t", session_name, f"echo {start_marker}", "C-m")
             await asyncio.sleep(0.1)
             await asyncio.create_subprocess_exec("tmux", "-S", tmux_socket_path, "send-keys", "-t", session_name, command, "C-m")
             await asyncio.sleep(0.5) 
@@ -177,7 +175,6 @@ class TerminalManager:
                )
                stdout, _ = await capture_proc.communicate()
                output = stdout.decode() if stdout else ""
-               logger.info(f"Actual Output: {output}")
 
                if end_marker in output:
                    break
@@ -187,7 +184,6 @@ class TerminalManager:
         
             # Extract the command output between markers using get_terminal_output
             final_output = self.get_terminal_output(output, start_marker, end_marker)
-            logger.info(f"Final output: {final_output}")
             logger.info(f"Command executed successfully in terminal {terminal_id}: {final_output}")
 
             if terminal_id in self.terminals:
