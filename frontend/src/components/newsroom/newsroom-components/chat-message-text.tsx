@@ -85,7 +85,7 @@ const renderTerminalOutput = (content: string) => {
 
   return (
     <div className="text-green-400 font-mono text-sm overflow-auto">
-      <div className="mt-3">
+      <div>
         {lines.map((line, lineIndex) => {
           if (line.trim() && line.includes("  ")) {
             const items = line.split(/\s{2,}/g).filter((item) => item.trim());
