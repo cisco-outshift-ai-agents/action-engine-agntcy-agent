@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     gnupg \
     curl \
     unzip \
+    tmux \
     xvfb \
     libgconf-2-4 \
     libxss1 \
@@ -78,6 +79,10 @@ ENV DBUS_SESSION_BUS_ADDRESS=unix:path=/run/dbus/system_bus_socket
 # Start D-Bus service
 RUN dbus-uuidgen > /etc/machine-id && service dbus start
 
+# Create tmux directory for socket and make it persistent
+RUN mkdir -p /root/.tmux
+VOLUME /root/.tmux
+
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV BROWSER_USE_LOGGING_LEVEL=info
@@ -90,10 +95,13 @@ ENV CHROME_PERSISTENT_SESSION=true
 ENV RESOLUTION_WIDTH=1920
 ENV RESOLUTION_HEIGHT=1080
 ENV VNC_PORT=5900
+ENV TMUX_SOCKET_PATH=/root/.tmux/tmux-server
 
 # Set up supervisor configuration
 RUN mkdir -p /var/log/supervisor
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY start-tmux.sh /app/
+RUN chmod +x /app/start-tmux.sh
 
 EXPOSE 7788 6080 5900 9222
 
