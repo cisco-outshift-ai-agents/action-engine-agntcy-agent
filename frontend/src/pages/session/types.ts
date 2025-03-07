@@ -14,6 +14,7 @@ export const DataZod = z.object({
         input_text: z
           .object({ index: z.number(), text: z.string() })
           .optional(),
+        execute_terminal_command: z.object({ command: z.string() }).optional(),
         click_element: z.object({ index: z.number() }).optional(),
         prev_action_evaluation: z.string().optional(),
         important_contents: z.string().optional(),
@@ -22,6 +23,9 @@ export const DataZod = z.object({
         thought: z.string().optional(),
         summary: z.string().optional(),
         done: z.union([z.boolean(), z.object({ text: z.string() })]).optional(),
+        terminal_id: z.string().optional(),
+        working_directory: z.string().optional(),
+        is_terminal: z.boolean().optional(),
       }),
     ])
   ),
@@ -36,6 +40,7 @@ export const CleanerDataZod = z.object({
     z.object({
       input_text: z.object({ index: z.number(), text: z.string() }).optional(),
       click_element: z.object({ index: z.number() }).optional(),
+      execute_terminal_command: z.object({ command: z.string() }).optional(),
       prev_action_evaluation: z.string().optional(),
       important_contents: z.string().optional(),
       task_progress: z.string().optional(),
@@ -43,6 +48,9 @@ export const CleanerDataZod = z.object({
       thought: z.string().optional(),
       summary: z.string().optional(),
       done: z.boolean().optional(),
+      terminal_id: z.string().optional(),
+      working_directory: z.string().optional(),
+      is_terminal: z.boolean().optional(),
     })
   ),
   current_state: z.object({}).optional(),

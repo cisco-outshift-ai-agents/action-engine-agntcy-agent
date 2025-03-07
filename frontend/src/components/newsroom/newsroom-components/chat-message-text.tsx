@@ -4,6 +4,7 @@ import {
   MessageCircleMore,
   MousePointerClick,
   TextCursorIcon,
+  Terminal,
 } from "lucide-react";
 import { ReactNode } from "react";
 
@@ -13,6 +14,8 @@ const ChatMessageText: React.FC<ChatMessageTextProps> = ({
   role,
   thoughts,
   actions,
+  isTerminal,
+  hasEmptyThought,
 }) => {
   return (
     <div className="flex gap-2 flex-col">
@@ -27,15 +30,26 @@ const ChatMessageText: React.FC<ChatMessageTextProps> = ({
         </div>
       )}
       <div className="flex items-center">
-        <div className="overflow-hidden font-light">
+        <div className="overflow-hidden font-light w-full">
           {content && role === "user" && (
             <p className="font-normal text-base tracking-normal text-[#F7F7F7] whitespace-pre-wrap break-words text-base leading-[22px]">
               {content}
             </p>
           )}
-          {content && role === "assistant" && (
-            <Markdown>{content as TodoFixAny}</Markdown>
-          )}
+
+          {content &&
+            role === "assistant" &&
+            isTerminal &&
+            hasEmptyThought &&
+            typeof content === "string" &&
+            renderTerminalOutput(content)}
+
+          {content &&
+            role === "assistant" &&
+            !(isTerminal && hasEmptyThought) && (
+              <Markdown>{content as TodoFixAny}</Markdown>
+            )}
+
           {!content && (
             <span className="text-muted-foreground text-sm">
               No response provided
@@ -54,11 +68,47 @@ const ChatMessageText: React.FC<ChatMessageTextProps> = ({
               {action.toLowerCase().includes("input text") && (
                 <TextCursorIcon className="inline w-4 h-4 mr-2 flex-shrink-0" />
               )}
+              {action.toLowerCase().includes("execute terminal") && (
+                <Terminal className="inline w-4 h-4 mr-2 flex-shrink-0" />
+              )}
               {action}
             </span>
           ))}
         </div>
       )}
+    </div>
+  );
+};
+
+const renderTerminalOutput = (content: string) => {
+  const lines = content.split("\n");
+
+  return (
+    <div className="text-green-400 font-mono text-sm overflow-auto">
+      <div>
+        {lines.map((line, lineIndex) => {
+          if (line.trim() && line.includes("  ")) {
+            const items = line.split(/\s{2,}/g).filter((item) => item.trim());
+            return (
+              <div key={`line-${lineIndex}`} className="mb-1">
+                {items.map((item, itemIndex) => (
+                  <div
+                    key={`item-${lineIndex}-${itemIndex}`}
+                    className="pl-4 whitespace-nowrap"
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
+            );
+          }
+          return (
+            <div key={`line-${lineIndex}`} className="whitespace-pre-wrap">
+              {line || " "}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -70,7 +120,8 @@ interface ChatMessageTextProps {
   isThinking?: boolean | undefined | null;
   thoughts?: string[] | undefined | null;
   actions?: string[] | undefined | null;
-
+  isTerminal?: boolean;
+  hasEmptyThought?: boolean;
   role: "user" | "assistant";
 }
 
