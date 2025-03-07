@@ -388,6 +388,7 @@ class CustomAgent(Agent):
                                 .split("\n")[0]
                                 .strip()
                             )
+
                         except:
                             working_directory = (
                                 terminal_state["working_directory"]

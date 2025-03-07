@@ -162,8 +162,16 @@ class TerminalManager:
                 )
                 if len(output_lines) >= 2:
                     working_dir = output_lines[1].strip()
+                    # Remove prompt from the working directory output
+                    if "#" in working_dir and (
+                        "echo" in working_dir or "pwd" in working_dir
+                    ):
+                        try:
+                            if len(output_lines) >= 3:
+                                working_dir = output_lines[2].strip()
+                        except:
+                            pass
                 break
-
         return working_dir
 
     async def execute_command(
@@ -290,11 +298,18 @@ class TerminalManager:
             if terminal_id in self.terminals:
                 self.terminals[terminal_id]["output"] = final_output
 
-                # Update the working directory
-                self.terminals[terminal_id]["working_directory"] = (
-                    await self._get_working_directory(terminal_id, tmux_socket_path)
+                new_working_dir = await self._get_working_directory(
+                    terminal_id, tmux_socket_path
                 )
+
+                logger.info(
+                    f"Updating working directory for terminal {terminal_id}: {new_working_dir}"
+                )
+
+                # Update the working directory
+                self.terminals[terminal_id]["working_directory"] = new_working_dir
                 self.current_terminal_id = terminal_id
+
             else:
                 logger.warning(
                     f"Terminal {terminal_id} not found in terminals dictionary."

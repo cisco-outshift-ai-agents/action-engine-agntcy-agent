@@ -14,12 +14,13 @@ from browser_use.utils import time_execution_async, time_execution_sync
 
 logger = logging.getLogger(__name__)
 
+
 class CustomController(Controller):
     def __init__(
         self,
         exclude_actions: list[str] = [],
         output_model: Optional[Type[BaseModel]] = None,
- ):
+    ):
         super().__init__(exclude_actions=exclude_actions, output_model=output_model)
         self._register_custom_actions()
 
@@ -40,51 +41,74 @@ class CustomController(Controller):
 
             return ActionResult(extracted_content=text)
 
-        @self.registry.action('Execute a command in terminal', param_model=TerminalCommandAction)
-        async def execute_terminal_command(params: TerminalCommandAction) -> ActionResult:
+        @self.registry.action(
+            "Execute a command in terminal", param_model=TerminalCommandAction
+        )
+        async def execute_terminal_command(
+            params: TerminalCommandAction,
+        ) -> ActionResult:
             """Execute a command in the terminals"""
             try:
                 terminal_manager = TerminalManager()
 
                 # Try to get an active terminal
                 terminal_id = await terminal_manager.get_current_terminal_id()
-                
-                output, success = await terminal_manager.execute_command(terminal_id, params.command)
+
+                output, success = await terminal_manager.execute_command(
+                    terminal_id, params.command
+                )
                 if not success:
                     logger.error(f"Command execution failed: {output}")
                     error_msg = f"Command execution failed: {output}"
                     return ActionResult(error=error_msg, include_in_memory=True)
-                
-                # Execution was successful, get terminal info
-                terminal_id = await terminal_manager.get_current_terminal_id() 
-                try:
-                   terminal_state = await terminal_manager.get_terminal_state(terminal_id)
 
-                   #Format output
-                   formatted_output = f"📂={terminal_state['working_directory']}\n\nOutput:\n{output}"
-                   return ActionResult(
-                       extracted_content=formatted_output,
-                       include_in_memory=True
-                   )
+                # Execution was successful, get terminal info
+                terminal_id = await terminal_manager.get_current_terminal_id()
+                try:
+                    terminal_state = await terminal_manager.get_terminal_state(
+                        terminal_id
+                    )
+                    working_directory = terminal_state.get("working_directory", "")
+                    logger.info(
+                        f"Terminal state after execution: terminal_id={terminal_id}, working_directory={working_directory}"
+                    )
+
+                    # Format output
+                    formatted_output = (
+                        f"Directory:{working_directory}\n\nOutput:\n{output}"
+                    )
+                    return ActionResult(
+                        extracted_content=formatted_output, include_in_memory=True
+                    )
                 except ValueError as e:
                     logger.warning(f"Error getting terminal state: {str(e)}")
-                    return ActionResult(extracted_content=output, include_in_memory=True)
-            
+                    return ActionResult(
+                        extracted_content=output, include_in_memory=True
+                    )
+
             except Exception as e:
                 error_msg = f"Execution failed: {str(e)}"
                 logger.error(error_msg)
                 formatted_output = formatted_output
 
-                return ActionResult(extracted_content=formatted_output, include_in_memory=True)
+                return ActionResult(
+                    extracted_content=formatted_output, include_in_memory=True
+                )
 
-    @time_execution_async('--multi-act')
+    @time_execution_async("--multi-act")
     async def multi_act(
-        self, actions: list[ActionModel], browser_context: Optional[BrowserContext] = None, check_for_new_elements: bool = True
- ) -> list[ActionResult]:
+        self,
+        actions: list[ActionModel],
+        browser_context: Optional[BrowserContext] = None,
+        check_for_new_elements: bool = True,
+    ) -> list[ActionResult]:
         """Execute multiple actions - supports both browser and terminal actions"""
         results = []
 
-        has_terminal_actions = any("execute_terminal_command" in action.model_dump(exclude_unset=True).keys() for action in actions)
+        has_terminal_actions = any(
+            "execute_terminal_command" in action.model_dump(exclude_unset=True).keys()
+            for action in actions
+        )
 
         # Initialize cached path hashes for browser actions if browser_context is provided and it's not terminal actions
         cached_path_hashes = set()
@@ -92,7 +116,9 @@ class CustomController(Controller):
             try:
                 session = await browser_context.get_session()
                 cached_selector_map = session.cached_state.selector_map
-                cached_path_hashes = set(e.hash.branch_path_hash for e in cached_selector_map.values())
+                cached_path_hashes = set(
+                    e.hash.branch_path_hash for e in cached_selector_map.values()
+                )
                 await browser_context.remove_highlights()
             except Exception as e:
                 logger.error(f"Error initializing cached path hashes: {str(e)}")
@@ -102,19 +128,30 @@ class CustomController(Controller):
             action_data = action.model_dump(exclude_unset=True)
             action_name = next(iter(action_data.keys()), None)
             is_terminal_action = action_name == "execute_terminal_command"
-    
+
             # For browser actions, check element state if needed
-            if browser_context and not is_terminal_action and action.get_index() is not None and i != 0:
+            if (
+                browser_context
+                and not is_terminal_action
+                and action.get_index() is not None
+                and i != 0
+            ):
                 try:
                     new_state = await browser_context.get_state()
-                    new_path_hashes = set(e.hash.branch_path_hash for e in new_state.selector_map.values())
-                    if check_for_new_elements and not new_path_hashes.issubset(cached_path_hashes):
+                    new_path_hashes = set(
+                        e.hash.branch_path_hash for e in new_state.selector_map.values()
+                    )
+                    if check_for_new_elements and not new_path_hashes.issubset(
+                        cached_path_hashes
+                    ):
                         # next action requires index but there are new elements on the page
-                        logger.info(f'Something new appeared after action {i} / {len(actions)}')
+                        logger.info(
+                            f"Something new appeared after action {i} / {len(actions)}"
+                        )
                         break
                 except Exception as e:
                     logger.error(f"Error checking element state: {str(e)}")
-                   
+
             try:
                 # Execute action based on its type
                 if is_terminal_action:
@@ -125,17 +162,19 @@ class CustomController(Controller):
                 else:
                     # Browser actions need browser_context
                     if browser_context is None:
-                        results.append(ActionResult(
-                            error=f"Browser context required for action: {action_name}",
-                            include_in_memory=True
- ))
+                        results.append(
+                            ActionResult(
+                                error=f"Browser context required for action: {action_name}",
+                                include_in_memory=True,
+                            )
+                        )
                         continue
                     results.append(await self.act(action, browser_context))
             except Exception as e:
                 logger.error(f"Error executing action {i + 1}: {str(e)}")
                 results.append(ActionResult(error=str(e), include_in_memory=True))
 
-            logger.debug(f'Executed action {i + 1} / {len(actions)}')
+            logger.debug(f"Executed action {i + 1} / {len(actions)}")
             if results[-1].is_done or results[-1].error or i == len(actions) - 1:
                 break
 
@@ -144,8 +183,10 @@ class CustomController(Controller):
                 await asyncio.sleep(browser_context.config.wait_between_actions)
         return results
 
-    @time_execution_sync('--act')
-    async def act(self, action: ActionModel, browser_context: Optional[BrowserContext] = None) -> ActionResult:
+    @time_execution_sync("--act")
+    async def act(
+        self, action: ActionModel, browser_context: Optional[BrowserContext] = None
+    ) -> ActionResult:
         """Execute an action - supports both browser and terminal actions"""
         try:
             for action_name, params in action.model_dump(exclude_unset=True).items():
@@ -159,10 +200,12 @@ class CustomController(Controller):
                         if browser_context is None:
                             return ActionResult(
                                 error=f"Browser context required for action: {action_name}",
-                                include_in_memory=True
- )
-                        result = await self.registry.execute_action(action_name, params, browser=browser_context)
-                
+                                include_in_memory=True,
+                            )
+                        result = await self.registry.execute_action(
+                            action_name, params, browser=browser_context
+                        )
+
                     if isinstance(result, str):
                         return ActionResult(extracted_content=result)
                     elif isinstance(result, ActionResult):
@@ -170,7 +213,9 @@ class CustomController(Controller):
                     elif result is None:
                         return ActionResult()
                     else:
-                        raise ValueError(f'Invalid action result type: {type(result)} of {result}')
+                        raise ValueError(
+                            f"Invalid action result type: {type(result)} of {result}"
+                        )
             return ActionResult()
         except Exception as e:
             logger.error(f"Error in act method: {str(e)}")
