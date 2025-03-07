@@ -69,10 +69,6 @@ class CustomController(Controller):
                         terminal_id
                     )
                     working_directory = terminal_state.get("working_directory", "")
-                    logger.info(
-                        f"Terminal state after execution: terminal_id={terminal_id}, working_directory={working_directory}"
-                    )
-
                     # Format output
                     formatted_output = (
                         f"Directory:{working_directory}\n\nOutput:\n{output}"

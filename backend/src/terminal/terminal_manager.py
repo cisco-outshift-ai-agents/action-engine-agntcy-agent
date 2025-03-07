@@ -302,10 +302,6 @@ class TerminalManager:
                     terminal_id, tmux_socket_path
                 )
 
-                logger.info(
-                    f"Updating working directory for terminal {terminal_id}: {new_working_dir}"
-                )
-
                 # Update the working directory
                 self.terminals[terminal_id]["working_directory"] = new_working_dir
                 self.current_terminal_id = terminal_id
