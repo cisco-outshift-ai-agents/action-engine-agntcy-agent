@@ -67,6 +67,27 @@ To-Do List
    - [ ] Implement better completion detection
    - [ ] Add execution visualization
 
+[NEW] Development Tools Integration
+
+1. LangGraph Studio Setup
+
+   - [ ] Fix Python package structure for proper imports
+   - [ ] Convert relative imports to absolute imports
+   - [ ] Reorganize graph.py to expose compiled graph for studio
+   - [ ] Add proper setup.py for development installation
+   - [ ] Create documentation for LangGraph Studio setup
+   - [ ] Test graph visualization in Studio
+   - [ ] Add debug points for live inspection
+   - [ ] Configure Studio for local development
+
+2. Import Structure Cleanup
+   - [ ] Audit all imports for circularity
+   - [ ] Standardize import patterns across codebase
+   - [ ] Move core types to centralized location
+   - [ ] Create proper Python package hierarchy
+   - [ ] Add **init**.py files where missing
+   - [ ] Update relative imports to absolute
+
 [KNOWN ISSUES]
 
 1. Core Functionality
