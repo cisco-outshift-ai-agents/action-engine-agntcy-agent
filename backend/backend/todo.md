@@ -41,7 +41,7 @@ To-Do List
 - [] Need to add state persistence between environments
 - [] Need to implement state rollback on failures
 
-[IN PROGRESS] LangGraph Integration
+[✓] LangGraph Integration & Structure
 
 - [✓] Set up initial graph nodes
 - [✓] Implemented chain of thought -> environment selection
@@ -50,9 +50,78 @@ To-Do List
 - [✓] Added proper end node handling
 - [✓] Added synchronous fallbacks for async nodes
 - [✓] Fixed node execution compatibility
-- [] Need to implement environment-specific execution nodes
-- [] Need to add proper error recovery paths in graph
-- [] Need to implement backtracking for failed actions
+- [✓] Implemented BrowserEnvNode
+- [✓] Set up proper message formatting
+- [✓] Added state management
+
+[✓] Browser Environment Integration
+
+- [✓] Created BrowserEnvironmentAdapter
+- [✓] Added tool registry system
+- [✓] Integrated with existing browser automation
+- [✓] Added proper state conversion
+- [✓] Implemented tab management
+- [✓] Added action conversion layer
+
+[IN PROGRESS] Action Execution System
+
+- [✓] Created structured action schema
+- [✓] Added action validation
+- [✓] Implemented proper LLM formatting
+- [✓] Added action logging
+- [ ] Fix ActionModel creation - actions being lost in conversion
+- [ ] Add proper error handling for failed actions
+- [ ] Implement retry mechanism for failed actions
+- [ ] Add action validation before execution
+
+[IN PROGRESS] State Management
+
+- [✓] Implemented proper state tracking
+- [✓] Added brain state management
+- [✓] Created state conversion utilities
+- [✓] Added state logging
+- [ ] Add state persistence between actions
+- [ ] Implement state rollback on failures
+- [ ] Add state validation between transitions
+
+[NEXT] Core Functionality
+
+- [ ] Implement proper browser state tracking
+- [ ] Add completion detection logic
+- [ ] Add proper error recovery
+- [ ] Add state validation between actions
+- [ ] Add proper memory management for long tasks
+
+[UPCOMING] Terminal Integration
+
+- [ ] Port terminal execution from old system
+- [ ] Add terminal state management
+- [ ] Implement terminal action validation
+- [ ] Add terminal output parsing
+
+[CURRENT ISSUES]
+
+1. ActionModel creation is losing data during conversion
+2. Browser state not persisting between actions
+3. Need better error handling and recovery
+4. Need to implement proper state validation
+5. Need to add action retry mechanism
+
+[DEBUGGING PRIORITIES]
+
+1. Fix ActionModel creation in BrowserEnvNode
+2. Add more detailed logging around state transitions
+3. Implement proper error handling
+4. Add state validation checks
+5. Add action validation
+
+[IMPROVEMENTS NEEDED]
+
+1. Better state persistence
+2. More robust error handling
+3. Proper action validation
+4. Better completion detection
+5. Memory management for long-running tasks
 
 [NEW] Current Issues Being Addressed
 
@@ -196,3 +265,116 @@ Potential Hurdles (Updated):
 - Terminal and Code environments temporarily commented out until browser flow is stable
 - Need to verify browser environment loop with proper tool execution
 - Need to add proper state management for browser actions
+
+[ ] Maintain Terminal-use prompting in /src/agent/custom_prompts
+
+[URGENT] Browser Environment Message Management:
+
+- [ ] Implement proper message history in browser environment:
+
+  - [ ] Keep running log of all messages
+  - [ ] Include system prompts in message history
+  - [ ] Include function calls and their results
+  - [ ] Proper order: initial system prompt -> function call -> latest system prompt
+
+- [ ] Image Management:
+
+  - [ ] Port num_images_to_keep logic from custom_agent.py
+  - [ ] Limit images to 5 per LLM prompt
+  - [ ] Remove older images when limit reached
+  - [ ] Ensure newest/most relevant images are kept
+
+- [ ] Image Processing:
+  - [ ] Verify image data is included in browser state
+  - [ ] Ensure images are properly formatted for LLM
+  - [ ] Add image validation before sending to LLM
+  - [ ] Add logging for image processing steps
+
+Example Message Flow:
+
+1. First Interaction:
+
+   - System prompt with task
+   - LLM response with function
+   - Action result
+
+2. Second Interaction:
+   - System prompt with task
+   - Previous function call and result
+   - Current browser state with latest image
+   - LLM response
+
+[IMPLEMENTATION DETAILS]
+
+- Message history should be stored in agent state
+- Images should be managed with sliding window approach
+- Need to implement image cleanup for memory management
+- Consider adding compression for long-running sessions
+
+[NEXT STEPS]
+
+1. Modify browser_env.py to maintain message history
+2. Add image management logic
+3. Update prompt generation to include history
+4. Add validation for message/image limits
+
+[URGENT] Token Management:
+
+- [ ] Implement token tracking and management:
+
+  - [ ] Track token usage per message
+  - [ ] Track total tokens in conversation
+  - [ ] Add token budget per conversation
+  - [ ] Add configurable token limits
+
+- [ ] Message pruning strategy:
+
+  - [ ] Implement sliding window for conversation history
+  - [ ] Keep most recent N messages
+  - [ ] Keep important context messages
+  - [ ] Remove redundant or low-value messages
+
+- [ ] Token optimization:
+
+  - [ ] Compress lengthy content
+  - [ ] Remove duplicate information
+  - [ ] Summarize old messages
+  - [ ] Keep only essential parts of browser state
+
+- [ ] Implementation plan:
+  1. Add token counting to message preparation
+  2. Implement message pruning when token limit reached
+  3. Add token budget tracking to AgentState
+  4. Add token management configuration options
+
+[TOKEN MANAGEMENT DETAILS]
+
+- Target token limits:
+
+  - Max conversation history: 16k tokens
+  - Max single message: 4k tokens
+  - Reserve 2k tokens for response
+  - Keep last 5 messages minimum
+
+- Priority messages to keep:
+
+  1. Current task description
+  2. Last browser state
+  3. Last successful action
+  4. Critical error messages
+  5. Important extracted content
+
+- Token reduction strategies:
+  1. Summarize old browser states
+  2. Remove duplicate element listings
+  3. Compress repeated patterns
+  4. Remove unnecessary whitespace/formatting
+  5. Truncate lengthy error messages
+
+[IMPLEMENTATION REQUIREMENTS]
+
+1. Add token counting utilities
+2. Add message priority system
+3. Add configurable limits
+4. Add pruning triggers
+5. Add token usage monitoring

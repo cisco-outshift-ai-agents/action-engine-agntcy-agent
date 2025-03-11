@@ -8,8 +8,19 @@ from browser_use.controller.service import Controller
 from core.types import AgentState, EnvironmentType
 from environments.browser.prompts import get_browser_prompt
 from environments.browser.schemas import BrowserResponse
+from src.agent.custom_prompts import CustomAgentMessagePrompt
+from src.agent.custom_views import CustomAgentStepInfo
 
 logger = logging.getLogger(__name__)
+
+
+def _convert_tabs_to_dict(tabs):
+    """Convert TabInfo objects to dictionaries"""
+    if not tabs:
+        return []
+    return [
+        {"page_id": tab.page_id, "url": tab.url, "title": tab.title} for tab in tabs
+    ]
 
 
 class BrowserEnvNode:
@@ -20,6 +31,8 @@ class BrowserEnvNode:
         self.controller = Controller()
         self.max_retries = 3
         self.consecutive_failures = 0
+        self.step_number = 0
+        self.max_steps = 100  # Default value, could be made configurable
 
     async def __call__(self, state: AgentState, config: Dict):
         return await self.ainvoke(state, config)
@@ -40,10 +53,12 @@ class BrowserEnvNode:
                 "url": getattr(browser_state, "url", ""),
                 "title": getattr(browser_state, "title", ""),
                 "elements": getattr(browser_state, "elements", []),
-                "tabs": getattr(browser_state, "tabs", []),
+                "tabs": _convert_tabs_to_dict(getattr(browser_state, "tabs", [])),
             }
 
-            # Use proper browser prompt
+            logger.debug(f"Current browser state: {json.dumps(state_dict, indent=2)}")
+
+            # Create prompt
             prompt = get_browser_prompt(
                 task=state["task"],
                 elements=state_dict["elements"],
@@ -51,29 +66,107 @@ class BrowserEnvNode:
                 tabs=state_dict["tabs"],
             )
 
-            structured_llm = llm.with_structured_output(BrowserResponse)
-            messages = [SystemMessage(content=prompt)]
+            # Create the detailed state message using CustomAgentMessagePrompt
+            self.step_number += 1
+            step_info = CustomAgentStepInfo(
+                task=state["task"],
+                add_infos="",  # Could be added to state if needed
+                step_number=self.step_number,
+                max_steps=self.max_steps,
+                memory=state.get("memory", ""),
+                task_progress=state.get("task_progress", ""),
+                future_plans=state.get("future_plans", ""),
+            )
 
-            # Get response with proper schema
+            agent_prompt = CustomAgentMessagePrompt(
+                state=browser_state,
+                actions=state.get("tools_used", []),
+                result=state.get("environment_output", {})
+                .get("result", {})
+                .get("action_results", []),
+                include_attributes=[
+                    "title",
+                    "type",
+                    "name",
+                    "role",
+                    "aria-label",
+                    "placeholder",
+                    "value",
+                    "alt",
+                ],
+                max_error_length=400,
+                step_info=step_info,
+            )
+
+            # Get messages using both system prompt and detailed state
+            messages = [SystemMessage(content=prompt), agent_prompt.get_user_message()]
+
+            # Use structured output without functions
+            structured_llm = llm.with_structured_output(BrowserResponse)
             logger.info("BrowserEnvNode: Getting next actions from LLM")
             response = await structured_llm.ainvoke(messages)
+
+            # Validate response
+            if not response or not isinstance(response, BrowserResponse):
+                logger.error(f"Invalid LLM response type: {type(response)}")
+                return Command(goto="end")
+
+            logger.debug(f"LLM Response: {response.model_dump_json(indent=2)}")
 
             # Update brain state from response
             state["brain"] = response.current_state.model_dump()
 
             # Execute actions
             results = []
-            for action in response.action:
+            for raw_action in response.action:
                 try:
-                    # Convert to ActionModel
-                    action_model = ActionModel(**action)
+                    # Get action type and parameters
+                    action_type = next(iter(raw_action))
+                    action_params = raw_action[action_type]
+
+                    logger.info(f"Raw action: {raw_action}")
+                    logger.info(f"Action type: {action_type}")
+                    logger.info(f"Action params: {action_params}")
+
+                    # Format for browser_use ActionModel, which expects the action type
+                    # as a field name with parameters as the value
+                    formatted_action = {
+                        action_type: action_params  # This matches the expected format
+                    }
+
+                    logger.info(f"Formatted action for ActionModel: {formatted_action}")
+                    action_model = ActionModel(**formatted_action)
+                    logger.info(
+                        f"Created ActionModel: {action_model.model_dump_json()}"
+                    )
+
+                    logger.info("Calling controller.act...")
                     result = await self.controller.act(
                         action_model, browser_env.browser_context
                     )
-                    await browser_env.browser_context.wait_for_idle()
+                    logger.info(
+                        f"Controller.act result: {result.model_dump_json() if result else 'None'}"
+                    )
+
+                    try:
+                        logger.info("Attempting page load state waits...")
+                        page = browser_env.browser_context.page
+                        logger.info("Got page reference")
+                        await page.wait_for_load_state("networkidle")
+                        logger.info("Network idle complete")
+                        await page.wait_for_load_state("domcontentloaded")
+                        logger.info("DOM content loaded")
+                        await page.wait_for_load_state("load")
+                        logger.info("Page load complete")
+                    except Exception as wait_error:
+                        logger.debug(f"Wait error (non-critical): {str(wait_error)}")
+
                     results.append(result)
+                    logger.info(
+                        f"Added result to results list. Total results: {len(results)}"
+                    )
                 except Exception as e:
-                    logger.error(f"Action execution failed: {str(e)}")
+                    logger.error(f"Action execution failed: {str(e)}", exc_info=True)
                     results.append(ActionResult(error=str(e)))
 
             # Update state
@@ -87,13 +180,27 @@ class BrowserEnvNode:
             }
 
             if error:
-                state["error"] = error
+                logger.error(f"BrowserEnvNode: Action failed - {error}")
+                self.consecutive_failures += 1
+                if self.consecutive_failures > 3:
+                    state["error"] = "Too many consecutive failures"
+                    return Command(goto="end")
+                return Command(goto="coordinator")
+
+            # Reset failure count on success
+            self.consecutive_failures = 0
+
+            # Check completion
+            if self._evaluate_task_completion(state, results):
+                logger.info("BrowserEnvNode: Task complete")
+                state["done"] = True
                 return Command(goto="end")
 
+            logger.info("BrowserEnvNode: Actions completed, continuing to coordinator")
             return Command(goto="coordinator")
 
         except Exception as e:
-            logger.error(f"BrowserEnvNode: Execution error - {str(e)}")
+            logger.error(f"BrowserEnvNode: Execution error - {str(e)}", exc_info=True)
             state["error"] = str(e)
             return Command(goto="end")
 

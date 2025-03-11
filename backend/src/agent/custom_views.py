@@ -6,12 +6,13 @@ from browser_use.controller.registry.views import ActionModel
 from pydantic import BaseModel, ConfigDict, Field, create_model
 
 
-@dataclass
-class CustomAgentStepInfo:
-    step_number: int
-    max_steps: int
+class CustomAgentStepInfo(BaseModel):
+    """Structured step information for agent"""
+
     task: str
     add_infos: str = ""
+    step_number: int
+    max_steps: int
     memory: str = ""
     task_progress: str = ""
     future_plans: str = ""

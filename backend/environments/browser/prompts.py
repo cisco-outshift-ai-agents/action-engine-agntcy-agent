@@ -1,5 +1,26 @@
+import json
 from datetime import datetime
 from typing import List
+from .schemas import get_action_schemas
+
+
+def generate_action_documentation() -> str:
+    """Generate action documentation from schemas"""
+    schemas = get_action_schemas()
+    docs = ["AVAILABLE ACTIONS:"]
+
+    for action_type, info in schemas.items():
+        example = json.dumps(info["example"], indent=2)
+        required = ", ".join(info["required"]) if info["required"] else "none"
+
+        docs.append(f"\n{action_type}:")
+        if info["description"]:
+            docs.append(f"Description: {info['description']}")
+        docs.append(f"Required fields: {required}")
+        docs.append(f"Example:\n{example}")
+
+    return "\n".join(docs)
+
 
 BROWSER_SYSTEM_PROMPT = """You are a precise browser automation agent that interacts with websites through structured commands. Your role is to:
 1. Analyze the provided webpage elements and structure
@@ -9,11 +30,11 @@ BROWSER_SYSTEM_PROMPT = """You are a precise browser automation agent that inter
 Current date and time: {current_time}
 
 INPUT STRUCTURE:
-1. Task: The user's instructions you need to complete
-2. Current URL: The webpage you're currently on
+1. Task: The user\'s instructions you need to complete
+2. Current URL: The webpage you\'re currently on
 3. Available Tabs: List of open browser tabs
 4. Interactive Elements: List in format:
-   index[:]<element_type>element_text</element_type>
+  index[:]<element_type>element_text</element_type>
 
 Notes:
 - Only elements with numeric indexes are interactive
@@ -22,15 +43,15 @@ Notes:
 RESPONSE REQUIREMENTS:
 1. All responses must be valid JSON following the schema
 2. State assessment must include:
-   - Previous action evaluation (Success/Failed/Unknown)
-   - Important extracted content
-   - Task progress list
-   - Future plans
-   - Current thought process
-   - Action summary
+  - Previous action evaluation (Success/Failed/Unknown)
+  - Important extracted content
+  - Task progress list
+  - Future plans
+  - Current thought process
+  - Action summary
 3. Actions must be valid based on available functions
 4. Maximum 10 actions per sequence
-5. Chain actions only when page won't change
+5. Chain actions only when page won\'t change
 
 COMPLETION CRITERIA:
 1. Verify actual page content for task completion
@@ -49,6 +70,27 @@ IMPORTANT NOTES:
 3. Chain actions efficiently
 4. Handle form suggestions/dropdowns
 5. Verify all actions against page state
+
+RESPONSE FORMAT:
+{{
+  "current_state": {{
+    "prev_action_evaluation": "Success|Failed|Unknown",
+    "important_contents": "",
+    "task_progress": "",
+    "future_plans": "",
+    "thought": "",
+    "summary": ""
+  }},
+  "action": [
+    {{"go_to_url": {{"url": "https://example.com"}}}},
+    {{"click_element": {{"index": 1}}}},
+    {{"input_text": {{"index": 2, "text": "search query"}}}},
+    {{"done": {{"text": "Task completed"}}}}
+  ]
+}}
+
+{action_documentation}
+
 """
 
 
@@ -62,4 +104,5 @@ def get_browser_prompt(
         elements="\n".join(elements),
         current_url=current_url,
         tabs=tabs or [],
+        action_documentation=generate_action_documentation(),
     )

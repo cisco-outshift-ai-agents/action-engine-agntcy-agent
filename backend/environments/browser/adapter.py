@@ -1,5 +1,6 @@
 import logging
 from typing import Dict, Any, Optional
+import json
 
 from browser_use.browser.browser import Browser, BrowserConfig
 from browser_use.browser.context import BrowserContext, BrowserContextWindowSize
@@ -10,6 +11,7 @@ from src.browser.custom_context import BrowserContextConfig
 from core.tools import ToolRegistry
 from .tools import register_browser_tools
 from src.controller.custom_controller import CustomController
+from browser_use import ActionModel
 
 logger = logging.getLogger(__name__)
 
@@ -54,26 +56,45 @@ class BrowserEnvironmentAdapter(BaseEnvironment):
                 raise RuntimeError("Browser context not initialized")
 
             # Handle both direct tool calls and action objects
-            if "tools_used" in action:
-                results = []
-                for tool_call in action["tools_used"]:
-                    tool_name = next(iter(tool_call))
-                    tool_args = tool_call[tool_name]
-
-                    tool = self.tool_registry.get_tool(tool_name)
-                    if tool:
-                        result = await tool(self.browser_context, **tool_args)
-                        results.append(result)
-
-                # Combine results
-                return EnvironmentOutput(
-                    success=all(r.success for r in results),
-                    result={"action_result": [r.dict() for r in results]},
-                    error=None,
+            if "action" in action:
+                logger.info(
+                    f"Processing action sequence: {json.dumps(action['action'], indent=2)}"
                 )
+
+                # Convert each action to ActionModel format
+                action_models = []
+                for action_dict in action["action"]:
+                    logger.info(f"Converting action to ActionModel: {action_dict}")
+                    action_model = ActionModel(**action_dict)
+                    logger.info(
+                        f"Created ActionModel: {action_model.model_dump_json()}"
+                    )
+                    action_models.append(action_model)
+
+                # Use multi_act to execute sequence
+                logger.info("Calling controller.multi_act...")
+                results = await self.controller.multi_act(
+                    action_models, self.browser_context
+                )
+                logger.info(
+                    f"Multi_act complete. Results: {[r.model_dump() for r in results]}"
+                )
+
+                # Process results
+                success = all(not r.error for r in results)
+                error = next((r.error for r in results if r.error), None)
+
+                return EnvironmentOutput(
+                    success=success,
+                    result={"action_results": [r.model_dump() for r in results]},
+                    error=error,
+                )
+
             else:
-                # Handle legacy action format
+                # Legacy single action handling
+                logger.info(f"Processing single action: {json.dumps(action, indent=2)}")
                 result = await self._execute_browser_action(action)
+                logger.info(f"Single action result: {result}")
                 return EnvironmentOutput(
                     success=True, result={"action_result": result}, error=None
                 )
