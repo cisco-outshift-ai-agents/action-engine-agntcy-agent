@@ -71,26 +71,17 @@ IMPORTANT NOTES:
 4. Handle form suggestions/dropdowns
 5. Verify all actions against page state
 
-RESPONSE FORMAT:
-{{
-  "current_state": {{
-    "prev_action_evaluation": "Success|Failed|Unknown",
-    "important_contents": "",
-    "task_progress": "",
-    "future_plans": "",
-    "thought": "",
-    "summary": ""
-  }},
-  "action": [
-    {{"go_to_url": {{"url": "https://example.com"}}}},
-    {{"click_element": {{"index": 1}}}},
-    {{"input_text": {{"index": 2, "text": "search query"}}}},
-    {{"done": {{"text": "Task completed"}}}}
-  ]
-}}
-
+IMPORTANT RULES FOR TASK COMPLETION:
+1. You MUST send a {{"done": {{"text": "description"}}}} action when:
+   - The task has been successfully completed
+   - You've reached the target URL
+   - You've performed all required interactions
+   - No further actions are needed
+2. The done action should always be the last action in your sequence
+3. Include a clear completion message in the done text
+4. Your thought and summary should reflect task completion
+5. Never continue actions after task completion
 {action_documentation}
-
 """
 
 

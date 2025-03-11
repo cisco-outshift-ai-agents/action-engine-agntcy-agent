@@ -1,14 +1,15 @@
-from typing import Dict, Optional, Any
-from langgraph.graph import Graph, StateGraph, START, END
-from core.types import AgentState, BrainState, EnvironmentOutput
-from .types import TaskAnalysis
-from .router import RouterNode
-from .chain_of_thought import ChainOfThoughtNode
-from .browser_env import BrowserEnvNode
-from .coordinator import coordinate_environments
+from langchain_core.runnables import RunnableConfig
+from langgraph.graph import Graph, StateGraph
+from core.types import AgentState
+from .nodes import (
+    RouterNode,
+    ChainOfThoughtNode,
+    BrowserEnvNode,
+    coordinate_environments,
+)
 
 
-def create_agent_graph() -> Graph:
+def create_agent_graph(config: RunnableConfig = None) -> Graph:
     """Creates the main agent workflow graph with agent loop behavior"""
     workflow = StateGraph(AgentState)
 
@@ -26,7 +27,7 @@ def create_agent_graph() -> Graph:
     workflow.add_node("end", end_node)
 
     # Set up agent loop with conditional edges
-    workflow.add_edge(START, "chain_of_thought")
+    workflow.add_edge("START", "chain_of_thought")
     workflow.add_edge("chain_of_thought", "router")
     workflow.add_edge("router", "browser_env")
     workflow.add_edge("browser_env", "coordinator")
@@ -39,6 +40,10 @@ def create_agent_graph() -> Graph:
         ),
     )
 
-    workflow.add_edge("end", END)
+    workflow.add_edge("end", "END")
 
     return workflow.compile()
+
+
+# Create a compiled instance for direct use
+agent_graph = create_agent_graph()
