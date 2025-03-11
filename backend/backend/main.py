@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.agent_runner import AgentConfig, AgentRunner, LLMConfig
 from src.utils.default_config_settings import default_config
+from backend.graph_runner import GraphRunner
 
 logging.basicConfig(
     level=logging.INFO,
@@ -29,42 +30,8 @@ app.add_middleware(
 
 DEFAULT_CONFIG = default_config()
 
-# Create a global AgentRunner instance
-agent_runner = AgentRunner()
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    config = DEFAULT_CONFIG.copy()
-    # Persist the browser instance on startup.
-    config["keep_browser_open"] = True
-
-    agent_config = AgentConfig(
-        use_own_browser=config.get("use_own_browser", False),
-        keep_browser_open=config.get("keep_browser_open", True),
-        headless=config.get("headless", True),
-        disable_security=config.get("disable_security", False),
-        window_w=config.get("window_w", 1280),
-        window_h=config.get("window_h", 720),
-        task=config.get("task", ""),
-        add_infos=config.get("add_infos", ""),
-        max_steps=config.get("max_steps", 10),
-        use_vision=config.get("use_vision", False),
-        max_actions_per_step=config.get("max_actions_per_step", 5),
-        tool_calling_method=config.get("tool_calling_method", "default_method"),
-        limit_num_image_per_llm_call=config.get("limit_num_image_per_llm_call", None),
-    )
-    llm_config = LLMConfig(
-        provider=config.get("llm_provider", "openai"),
-        model_name=config.get("llm_model_name", "gpt-3.5-turbo"),
-        temperature=config.get("llm_temperature", 0.7),
-        base_url=config.get("llm_base_url", ""),
-        api_key=config.get("llm_api_key", ""),
-    )
-    await agent_runner.initialize_browser(agent_config)
-    logger.info("Browser pre-initialized at server startup.")
-
-    yield
+# Create a global GraphRunner instance
+graph_runner = GraphRunner()
 
 
 @app.get("/status")
@@ -89,46 +56,35 @@ async def chat_endpoint(websocket: WebSocket):
                 add_infos = client_payload.get("add_infos", "")
                 logger.info(f"Extracted task: {task}")
                 logger.info(f"Extracted additional info: {add_infos}")
-                
-            except json.JSONDecodeError as e:
-                error_msg = f"Failed to parse client message: {str(e)}"
-                logger.error(error_msg)
-                await websocket.send_text(json.dumps({"error": error_msg}))
-                continue
 
-            config = DEFAULT_CONFIG.copy()
-            config.update({"task": task, "add_infos": add_infos})
+                # Initialize graph runner at the start of each chat session
+                config = DEFAULT_CONFIG.copy()
+                agent_config = AgentConfig(
+                    use_own_browser=config.get("use_own_browser", False),
+                    keep_browser_open=config.get("keep_browser_open", True),
+                    headless=config.get("headless", True),
+                    disable_security=config.get("disable_security", False),
+                    window_w=config.get("window_w", 1280),
+                    window_h=config.get("window_h", 720),
+                    task=task,  # Use the received task
+                    add_infos=add_infos,  # Use received additional info
+                    max_steps=config.get("max_steps", 10),
+                    use_vision=config.get("use_vision", False),
+                    max_actions_per_step=config.get("max_actions_per_step", 5),
+                    tool_calling_method=config.get(
+                        "tool_calling_method", "default_method"
+                    ),
+                    limit_num_image_per_llm_call=config.get(
+                        "limit_num_image_per_llm_call", None
+                    ),
+                )
 
-            agent_config = AgentConfig(
-                use_own_browser=config.get("use_own_browser", False),
-                keep_browser_open=config.get("keep_browser_open", True),
-                headless=config.get("headless", True),
-                disable_security=config.get("disable_security", False),
-                window_w=config.get("window_w", 1280),
-                window_h=config.get("window_h", 720),
-                task=config.get("task", ""),
-                add_infos=config.get("add_infos", ""),
-                max_steps=config.get("max_steps", 10),
-                use_vision=config.get("use_vision", False),
-                max_actions_per_step=config.get("max_actions_per_step", 5),
-                tool_calling_method=config.get("tool_calling_method", "default_method"),
-                limit_num_image_per_llm_call=config.get(
-                    "limit_num_image_per_llm_call", None
-                ),
-            )
-            llm_config = LLMConfig(
-                provider=config.get("llm_provider", "openai"),
-                model_name=config.get("llm_model_name", "gpt-3.5-turbo"),
-                temperature=config.get("llm_temperature", 0.7),
-                base_url=config.get("llm_base_url", ""),
-                api_key=config.get("llm_api_key", ""),
-            )
+                logger.info("Initializing graph runner for new chat session")
+                await graph_runner.initialize(agent_config)
+                logger.info("Graph runner initialized successfully")
 
-            try:
-                async for update in agent_runner.stream_agent_updates(
-                    llm_config, agent_config
-                ):
-                    logger.info("Received update from agent")
+                async for update in graph_runner.execute(task):
+                    logger.info("Received update from graph runner")
                     logger.info(f"Update type: {type(update)}")
                     logger.info(f"Update content: {json.dumps(update, indent=2)}")
 
@@ -158,18 +114,11 @@ async def chat_endpoint(websocket: WebSocket):
                         }
                         await websocket.send_text(json.dumps(error_response))
 
-            except Exception as stream_error:
-                logger.error(
-                    f"Stream processing error: {str(stream_error)}", exc_info=True
-                )
-                await websocket.send_text(
-                    json.dumps(
-                        {
-                            "error": "Stream processing failed",
-                            "details": str(stream_error),
-                        }
-                    )
-                )
+            except json.JSONDecodeError as e:
+                error_msg = f"Failed to parse client message: {str(e)}"
+                logger.error(error_msg)
+                await websocket.send_text(json.dumps({"error": error_msg}))
+                continue
 
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected")
@@ -181,7 +130,6 @@ async def chat_endpoint(websocket: WebSocket):
             await websocket.close()
         except Exception as e:
             logger.error(f"Error closing WebSocket: {str(e)}")
-
 
 
 @app.websocket("/ws/stop")
@@ -197,22 +145,22 @@ async def stop_endpoint(websocket: WebSocket):
 
             try:
                 client_payload = json.loads(data)
-                task = client_payload.get("task",  "")
-               
+                task = client_payload.get("task", "")
 
-                #handle stop request
+                # handle stop request
                 if task == "stop":
                     logger.info("Received stop request")
-                    response =  await agent_runner.stop_agent()
+                    response = (
+                        await graph_runner.stop_agent()
+                    )  # Changed from agent_runner to graph_runner
                     await websocket.send_text(json.dumps(response))
                     logger.info("Stop Response sent to UI")
                     return
-                
+
             except json.JSONDecodeError as e:
                 error_msg = f"Failed to parse client message: {str(e)}"
                 logger.error(error_msg)
                 await websocket.send_text(json.dumps({"error": error_msg}))
-
 
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected")
@@ -224,12 +172,6 @@ async def stop_endpoint(websocket: WebSocket):
             await websocket.close()
         except Exception as e:
             logger.error(f"Error closing WebSocket: {str(e)}")
-
-
-
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=7788)
 
 
 if __name__ == "__main__":

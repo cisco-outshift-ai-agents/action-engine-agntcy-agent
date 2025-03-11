@@ -199,7 +199,7 @@ class CustomAgent(Agent):
                                 del content[i]
 
         # Call the LLM with the messages
-        ai_message = self.llm.invoke(messages_to_process)
+        ai_message = await self.llm.ainvoke(messages_to_process)
         self.message_manager._add_message_with_tokens(ai_message)
 
         if isinstance(ai_message.content, list):
