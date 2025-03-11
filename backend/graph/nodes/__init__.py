@@ -39,5 +39,4 @@ def create_agent_graph() -> Graph:
     )
 
     workflow.add_edge("end", END)
-
     return workflow.compile()

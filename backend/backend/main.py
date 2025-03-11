@@ -89,6 +89,10 @@ async def chat_endpoint(websocket: WebSocket):
                     logger.info(f"Update content: {json.dumps(update, indent=2)}")
 
                     try:
+                        # Skip None updates from graph runner
+                        if update is None:
+                            logger.debug("Skipping None update from graph runner")
+                            continue
 
                         response_data = {
                             "html_content": update.get("html_content", ""),
@@ -96,12 +100,13 @@ async def chat_endpoint(websocket: WebSocket):
                             "action": update.get("action", []),
                         }
 
-                        logger.info(
-                            f"Prepared response: {json.dumps(response_data, indent=2)}"
-                        )
-
-                        await websocket.send_text(json.dumps(response_data))
-                        logger.info("Successfully sent response to client")
+                        # Only send non-empty responses
+                        if response_data["action"] or response_data["current_state"]:
+                            logger.info(
+                                f"Prepared response: {json.dumps(response_data, indent=2)}"
+                            )
+                            await websocket.send_text(json.dumps(response_data))
+                            logger.info("Successfully sent response to client")
 
                     except Exception as serialize_error:
                         logger.error(

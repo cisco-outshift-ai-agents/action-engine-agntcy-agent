@@ -13,15 +13,9 @@ def get_action_schemas() -> Dict[str, Dict]:
             "required": ["text"],
             "properties": {"text": {"type": "string"}},
         },
-        "search_google": {
-            "example": {"search_google": {"query": "python programming"}},
-            "description": "Search Google in the current tab",
-            "required": ["query"],
-            "properties": {"query": {"type": "string"}},
-        },
         "go_to_url": {
             "example": {"go_to_url": {"url": "https://example.com"}},
-            "description": "Navigate to URL in the current tab",
+            "description": "Navigate to a different URL in the current tab",
             "required": ["url"],
             "properties": {"url": {"type": "string"}},
         },

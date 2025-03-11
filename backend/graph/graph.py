@@ -28,15 +28,17 @@ def create_agent_graph(config: RunnableConfig = None) -> Graph:
     workflow.add_edge("router", "browser_env")
     workflow.add_edge("browser_env", "coordinator")
 
-    # Add conditional edges from coordinator
+    # Single conditional edge using environment_output.is_done
     workflow.add_conditional_edges(
         "coordinator",
-        # Decide next node based on state
         lambda state: (
-            END if state.get("done") or state.get("error") else "chain_of_thought"
+            END
+            if state.get("environment_output", {}).get("is_done") or state.get("error")
+            else "chain_of_thought"
         ),
     )
 
+    workflow.add_edge("end", END)
     return workflow.compile()
 
 

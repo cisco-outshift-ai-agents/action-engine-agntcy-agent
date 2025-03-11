@@ -19,14 +19,16 @@ async def coordinate_environments(state: AgentState) -> AgentState:
         logger.error("Invalid environment output: %s", str(e))
         output = EnvironmentOutput()
 
-    # Update done state if needed
+    # Check completion state
     if output.is_done or (
         output.result.get("action_results", [])
         and output.result["action_results"][-1].get("is_done")
     ):
         logger.info("Task completion detected")
         state["done"] = True
+        return state
 
-    # Always update environment output
-    state["environment_output"] = output.model_dump()
-    return state
+    # Always return state to preserve it
+    if output.model_dump() != env_output_dict:
+        state["environment_output"] = output.model_dump()
+    return state  # Return state regardless of changes

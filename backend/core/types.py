@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional, Any
 from typing_extensions import TypedDict, Annotated
 from enum import Enum
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # Reducer functions
@@ -41,12 +41,33 @@ class EnvironmentType(str, Enum):
 class BrainState(BaseModel):
     """Captures the thought process and state evaluation"""
 
-    prev_action_evaluation: str = ""
-    important_contents: str = ""
-    task_progress: str = ""
-    future_plans: str = ""
-    thought: str = ""
-    summary: str = ""
+    prev_action_evaluation: str = Field(
+        default="",
+        description="Evaluation of the previous action's success or failure",
+        examples=["Success", "Failure", "Unknown"],
+    )
+    important_contents: str = Field(
+        default="",
+        description="Key information extracted from the current state",
+        examples=[
+            "The page title is 'Wikipedia'",
+            "The error message is '404 Not Found'",
+            "The user's email is ...",
+        ],
+    )
+    task_progress: str = Field(
+        default="",
+        description="Current progress towards completing the task.",
+    )
+    future_plans: str = Field(default="", description="Planned next steps or actions")
+    thought: str = Field(
+        default="",
+        description="Current reasoning process.  This will be sent to the user.",
+    )
+    summary: str = Field(
+        default="",
+        description="Brief summary of current state and progress.  This will be sent to the user, so please keep it focused and concise.",
+    )
 
 
 class ActionResult(BaseModel):
@@ -83,16 +104,16 @@ class AgentState(TypedDict, total=False):
     # Task tracking
     task_analysis: Annotated[Dict[str, Any], dict_merge_reducer]
     context: Annotated[Dict[str, Any], dict_merge_reducer]
+    todo_list: Annotated[str, last_value_reducer]
 
     # Memory and history
     messages: Annotated[List[Dict], list_extend_reducer]
     tools_used: Annotated[List[Dict], list_extend_reducer]
     environment_output: Annotated[EnvironmentOutput, last_value_reducer]
 
-    # Control flow
+    # Control flow - remove the done field since we use environment_output.is_done
     error: Annotated[Optional[str], last_value_reducer]
     next_node: Annotated[Optional[str], last_value_reducer]
-    done: Annotated[bool, last_value_reducer]
 
     class Config:
         """Pydantic configuration"""
@@ -111,10 +132,10 @@ def create_default_agent_state(task: str = "") -> Dict:
         "summary": "",
         "task_analysis": {},
         "context": {},
+        "todo_list": "",
         "messages": [],
         "tools_used": [],
         "environment_output": EnvironmentOutput().model_dump(),  # Initialize with empty model
         "error": None,
         "next_node": None,
-        "done": False,
     }

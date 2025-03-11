@@ -4,8 +4,11 @@ import asyncio
 from typing import Dict, List
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.types import Command
-from browser_use.agent.views import ActionModel
-from core.types import AgentState, EnvironmentType, EnvironmentOutput, ActionResult
+from core.types import (
+    AgentState,
+    EnvironmentType,
+    EnvironmentOutput,
+)
 from environments.browser.prompts import get_browser_prompt
 from environments.browser.schemas import BrowserResponse
 from src.agent.custom_prompts import CustomAgentMessagePrompt
@@ -134,14 +137,16 @@ class BrowserEnvNode:
 
             # Check for task completion from LLM response
             if any(isinstance(action.get("done"), dict) for action in response.action):
-                logger.info("LLM indicated task completion with done action")
+                logger.info("LLM indicated task completion")
                 output = await browser_env.execute({"action": response.action})
                 output_dict = output.model_dump()
 
-                # Create proper environment output
+                # Add completion summary to brain state
+                final_brain_state = response.current_state.model_dump()
+
                 env_output = EnvironmentOutput(
                     success=True,
-                    is_done=True,
+                    is_done=True,  # This is now our only completion indicator
                     result={
                         "action_results": [
                             {
@@ -159,7 +164,7 @@ class BrowserEnvNode:
                 return Command(
                     update={
                         "environment_output": env_output.model_dump(),
-                        "brain": response.current_state.model_dump(),
+                        "brain": final_brain_state,
                     },
                     goto="coordinator",
                 )
@@ -172,6 +177,7 @@ class BrowserEnvNode:
                 output = await browser_env.execute({"action": response.action})
                 output_dict = output.model_dump()
 
+                # Remove redundant done setting - only use is_done in EnvironmentOutput
                 env_output = EnvironmentOutput(
                     success=True,
                     is_done=output_dict.get("is_done", False),
@@ -180,6 +186,7 @@ class BrowserEnvNode:
                             {
                                 "action": response.action[0],
                                 "is_done": output_dict.get("is_done", False),
+                                # Remove redundant done field
                                 "error": output_dict.get("error"),
                                 "extracted_content": output_dict.get(
                                     "extracted_content"

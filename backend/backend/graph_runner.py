@@ -1,5 +1,7 @@
 import logging
 import os
+import json
+import asyncio
 from typing import Dict, Any, AsyncIterator
 
 from core.delegator import EnvironmentDelegator, create_default_agent_state
@@ -68,39 +70,30 @@ class GraphRunner:
         await self.delegator.initialize_environments()
 
     async def execute(self, task: str) -> AsyncIterator[Dict[str, Any]]:
-        """Execute task using LangGraph"""
+        """Execute task using LangGraph with proper streaming"""
         try:
-            logger.info("Starting graph execution")
-            logger.debug(f"Delegator exists: {self.delegator is not None}")
-            logger.debug(
-                f"Graph exists: {self.delegator and self.delegator.graph is not None}"
-            )
+            logger.info("Starting graph execution with streaming")
 
-            if not self.delegator:
-                logger.error("Delegator is None")
-                raise RuntimeError("Delegator not initialized")
-
-            if not self.delegator.graph:
-                logger.error("Graph is None")
+            if not self.delegator or not self.delegator.graph:
                 raise RuntimeError("Graph not initialized")
 
             agent_state = create_default_agent_state(task)
-            logger.debug(f"Created agent state: {agent_state}")
-
-            # Create config correctly with tools directly in configurable
             config = {
                 "configurable": {
                     "llm": self.llm,
-                    "env_registry": {
-                        EnvironmentType.BROWSER: self.browser_env,
-                    },
+                    "env_registry": {EnvironmentType.BROWSER: self.browser_env},
                 }
             }
 
-            result = await self.delegator.graph.ainvoke(agent_state, config)
-            logger.info("Graph invocation successful")
-
-            yield self._format_state_for_ui(result)
+            # Use astream and properly await the async generator
+            async for step_output in self.delegator.graph.astream(agent_state, config):
+                logger.info(f"Stream output: {json.dumps(step_output, indent=2)}")
+                # Skip empty states
+                if not step_output:
+                    continue
+                response = self._format_state_for_ui(step_output)
+                if response:  # Only yield non-None responses
+                    yield response
 
         except Exception as e:
             logger.error(f"Graph execution error: {str(e)}", exc_info=True)
@@ -124,19 +117,76 @@ class GraphRunner:
             return {"error": error_msg}
 
     def _format_state_for_ui(self, state: Dict) -> Dict[str, Any]:
-        """Format graph state for UI consumption with brain state"""
-        brain_state = state.get("brain", {})
+        """Enhanced state formatting for UI with streaming support"""
+        # Only process browser_env node outputs
+        if isinstance(state, dict) and len(state) == 1:
+            node_name, node_value = next(iter(state.items()))
+            if node_name != "browser_env" or node_value is None:
+                return None
+            node_state = node_value
+        else:
+            return None
+
+        brain_state = node_state.get("brain", {})
+        environment_output = node_state.get("environment_output", {})
+
+        # Skip if no meaningful state to send
+        if not brain_state and not environment_output:
+            return None
+
+        # Format actions array
+        actions = []
+
+        # Add brain state action if it has content
+        brain_action = {
+            "thought": brain_state.get("thought", ""),
+            "summary": brain_state.get("summary", ""),
+            "task_progress": brain_state.get("task_progress", ""),
+            "future_plans": brain_state.get("future_plans", ""),
+            "important_contents": brain_state.get("important_contents", ""),
+            "prev_action_evaluation": brain_state.get("prev_action_evaluation", ""),
+        }
+        if any(brain_action.values()):
+            actions.append(brain_action)
+
+        # Add latest environment action if present
+        if environment_output and environment_output.get("result", {}).get(
+            "action_results"
+        ):
+            latest_action = environment_output["result"]["action_results"][-1]
+            if latest_action:
+                actions.append(
+                    {
+                        **latest_action["action"],
+                        "is_done": environment_output.get("is_done", False),
+                    }
+                )
+
+        # Add completion marker if environment reports done
+        if environment_output.get("is_done"):
+            actions.append(
+                {
+                    "done": True,
+                    "thought": brain_state.get(
+                        "thought",
+                        "I have completed the requested task! Let me know if you need anything else.",
+                    ),
+                    "summary": brain_state.get(
+                        "summary", "Task completed successfully"
+                    ),
+                }
+            )
+
+        if not actions:
+            return None
+
         return {
-            "html_content": self._get_html_content(state),
+            "html_content": self._get_html_content(node_state),
             "current_state": {
-                "prev_action_evaluation": brain_state.get("prev_action_evaluation", ""),
-                "important_contents": brain_state.get("important_contents", ""),
-                "task_progress": brain_state.get("task_progress", ""),
-                "future_plans": brain_state.get("future_plans", ""),
-                "thought": brain_state.get("thought", ""),
-                "summary": brain_state.get("summary", ""),
+                **brain_state,
+                "todo_list": node_state.get("todo_list") or "",
             },
-            "action": state.get("tools_used", []),
+            "action": actions,
         }
 
     def _get_html_content(self, state: Dict) -> str:

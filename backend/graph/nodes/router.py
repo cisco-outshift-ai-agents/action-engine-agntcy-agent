@@ -1,8 +1,10 @@
 import logging
 from typing import Dict, List
 from pydantic import BaseModel, Field
+from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langgraph.types import Command
+from ..prompts import get_router_prompt
 
 from core.types import AgentState
 
@@ -60,22 +62,14 @@ async def analyze_task(state: AgentState, llm) -> TaskAnalysis:
     """Analyze task and determine appropriate environment"""
     structured_llm = llm.with_structured_output(TaskAnalysis)
 
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                """You are an expert at breaking down tasks and determining the best environment to execute them.
-Available environments:
-- browser: For web automation, form filling, navigation
-- terminal: For file system operations, running commands
-- code: For code writing, editing, and execution
-""",
-            ),
-            ("user", "Task: {task}"),
-        ]
-    )
+    messages = [
+        HumanMessage(content=state["task"]),
+        SystemMessage(
+            content=get_router_prompt(
+                task=state["task"], todo_list=state.get("todo_list", "")
+            )
+        ),
+    ]
 
-    # Use proper variable substitution
-    messages = prompt.format_messages(task=state["task"])
     response = await structured_llm.ainvoke(messages)
     return response

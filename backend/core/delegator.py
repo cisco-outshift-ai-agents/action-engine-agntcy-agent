@@ -96,7 +96,7 @@ class EnvironmentDelegator:
 
             logger.info("Graph invocation successful")
             self.shared_context.agent_state.update(result)
-            return output.dict()
+            return output.model_dump()
 
         except Exception as e:
             logger.error(f"Action execution failed: {str(e)}", exc_info=True)

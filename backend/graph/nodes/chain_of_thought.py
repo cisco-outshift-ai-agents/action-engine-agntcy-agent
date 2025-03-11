@@ -1,7 +1,16 @@
 import logging
 from typing import Dict
 from langchain_core.messages import SystemMessage, HumanMessage
-from core.types import AgentState, BrainState  # Update import to use core.types
+from core.types import AgentState
+from ..prompts import get_chain_of_thought_prompt
+
+import logging
+from typing import Dict, List
+from pydantic import BaseModel, Field
+from langchain_core.prompts import ChatPromptTemplate
+from langgraph.types import Command
+
+from core.types import AgentState
 
 logger = logging.getLogger(__name__)
 
@@ -30,24 +39,30 @@ class ChainOfThoughtNode:
         messages = [
             HumanMessage(content=state["task"]),
             SystemMessage(
-                content="Think about how to accomplish this task. What tools or approaches might help?"
+                content=get_chain_of_thought_prompt(
+                    task=state["task"],
+                    context=state.get("context", ""),
+                    todo_list=state.get("todo_list", []),
+                )
             ),
         ]
 
-        response = await llm.ainvoke(messages)
+        structured_llm = llm.with_structured_output(ChainOfThought)
+        # Use ainvoke() instead of calling directly
+        response = await structured_llm.ainvoke(messages)
+        logger.info(f"ChainOfThoughtNode: Response: {response.model_dump()}")
 
-        logger.info(f"ChainOfThoughtNode: Thought: {response.content}")
-
-        # Update brain state with thoughts but don't control flow
-        state["brain"] = BrainState(
-            thought=response.content,
-            summary=_generate_summary(state),
-        ).model_dump()
-
+        state["todo_list"] = response.todo_list
         return state
 
 
-def _generate_summary(state: AgentState) -> str:
-    """Generate action summary"""
-    current_env = state.get("current_env", "")
-    return f"Using {current_env} to complete task: {state.get('task', '')}"
+class ChainOfThought(BaseModel):
+    """Simple chain of thought response"""
+
+    todo_list: str = Field(
+        description="""
+    The updated Todo list for the users task.
+    Format the todo list as a series of checklist items, formatted like '- [ ] item'.  
+    As the user completes items, check them off by changing the item to '- [✓] item'."
+    """
+    )
