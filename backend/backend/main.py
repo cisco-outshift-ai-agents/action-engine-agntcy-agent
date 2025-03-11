@@ -11,7 +11,7 @@ from src.utils.default_config_settings import default_config
 from backend.graph_runner import GraphRunner
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.INFO,  # Overwritten from .env usually
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[logging.FileHandler("agent.log"), logging.StreamHandler()],
 )

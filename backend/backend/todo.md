@@ -21,6 +21,8 @@ To-Do List
    - [✓] Implemented proper state transitions
    - [✓] Added chain-of-thought integration
    - [✓] Fixed node execution compatibility
+   - [✓] Implemented proper completion detection using LangGraph END state
+   - [✓] Fixed infinite loop in graph execution
 
 [IN PROGRESS]
 
@@ -31,6 +33,9 @@ To-Do List
    - [ ] Add pre-execution validation
    - [ ] Improve completion detection
    - [ ] Add performance monitoring
+   - [ ] Ensure a tighter coupling between `browser_use` action controller and the schemas in get_action_schemas
+   - [ ] Improve logging around state transitions
+   - [ ] Add safeguards against circular state transitions
 
 2. State Management
 
@@ -40,10 +45,22 @@ To-Do List
    - [ ] Optimize memory usage for long sessions
 
 3. Memory Management
+
    - [ ] Implement message history pruning
    - [ ] Add token counting and management
    - [ ] Add memory summarization
    - [ ] Optimize state storage
+
+4. Streaming
+
+   - [ ] Ensure results are streamed in to the front-end
+   - [ ] Implement streaming for long-running actions
+   - [ ] Ensure tool-use and action results are streamed
+
+5. Logging
+   - [ ] Reduce INFO level logging to DEBUG where appropriate
+   - [ ] Add more detailed logging for action execution
+   - [ ] Implement logging for state transitions
 
 [NEXT PHASE]
 
@@ -96,9 +113,18 @@ To-Do List
    - Need improved state validation between transitions
    - Memory management needs optimization for long sessions
    - Need better completion detection logic
+   - Graph execution flow needs monitoring for long-running tasks
+   - Need to implement proper session cleanup on completion
 
 2. Technical Debt
    - Remove redundant state tracking
    - Standardize error handling across components
    - Improve logging consistency
    - Clean up deprecated code paths
+   - Convert AgentState fields to Pydantic models:
+     - Convert brain state to BrainState model
+     - Convert task_analysis to TaskAnalysis model
+     - Convert context to ContextState model
+     - Convert messages to Message model
+     - Convert tools_used to Tool model
+     - Ensure all state fields use proper Pydantic models

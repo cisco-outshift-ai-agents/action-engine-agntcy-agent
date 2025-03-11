@@ -255,9 +255,6 @@ class CustomController(Controller):
                         logger.info(
                             f"Action registered: {action_name in registry_actions}"
                         )
-                        logger.info(
-                            f"Browser state: {await browser_context.get_state()}"
-                        )
 
                         try:
                             result = await self.registry.execute_action(

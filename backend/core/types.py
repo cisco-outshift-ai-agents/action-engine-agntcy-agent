@@ -49,13 +49,23 @@ class BrainState(BaseModel):
     summary: str = ""
 
 
+class ActionResult(BaseModel):
+    """Individual action result structure"""
+
+    action: Dict[str, Any]
+    is_done: bool = False
+    error: Optional[str] = None
+    extracted_content: Optional[str] = None
+
+
 class EnvironmentOutput(BaseModel):
     """Standardized output from environment execution"""
 
-    success: bool
+    success: bool = True
     next_env: Optional[str] = None
-    result: Dict = {}
     error: Optional[str] = None
+    is_done: bool = False
+    result: Dict[str, Any] = {"action_results": []}
 
 
 class AgentState(TypedDict, total=False):
@@ -77,7 +87,7 @@ class AgentState(TypedDict, total=False):
     # Memory and history
     messages: Annotated[List[Dict], list_extend_reducer]
     tools_used: Annotated[List[Dict], list_extend_reducer]
-    environment_output: Annotated[Optional[Dict], last_value_reducer]
+    environment_output: Annotated[EnvironmentOutput, last_value_reducer]
 
     # Control flow
     error: Annotated[Optional[str], last_value_reducer]
@@ -103,7 +113,7 @@ def create_default_agent_state(task: str = "") -> Dict:
         "context": {},
         "messages": [],
         "tools_used": [],
-        "environment_output": {},
+        "environment_output": EnvironmentOutput().model_dump(),  # Initialize with empty model
         "error": None,
         "next_node": None,
         "done": False,

@@ -30,7 +30,6 @@ def create_agent_graph() -> Graph:
     workflow.add_edge("chain_of_thought", "router")
     workflow.add_edge("router", "browser_env")
     workflow.add_edge("browser_env", "coordinator")
-    workflow.add_edge("coordinator", "chain_of_thought")
 
     workflow.add_conditional_edges(
         "coordinator",

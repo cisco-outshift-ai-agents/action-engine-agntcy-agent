@@ -6,10 +6,6 @@ from langchain_core.language_models import BaseChatModel
 
 from .interfaces import BaseEnvironment, EnvironmentType, SharedContext
 from .types import (
-    AgentState,
-    dict_merge_reducer,
-    list_extend_reducer,
-    last_value_reducer,
     create_default_agent_state,  # Add this import
 )
 from graph.nodes import create_agent_graph, EnvironmentOutput

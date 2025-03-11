@@ -13,11 +13,11 @@ def generate_action_documentation() -> str:
         example = json.dumps(info["example"], indent=2)
         required = ", ".join(info["required"]) if info["required"] else "none"
 
-        docs.append(f"\n{action_type}:")
+        docs.append(f"\n### {action_type}:")
         if info["description"]:
             docs.append(f"Description: {info['description']}")
-        docs.append(f"Required fields: {required}")
-        docs.append(f"Example:\n{example}")
+        docs.append(f"Required fields: `[{required}]`")
+        docs.append(f"Example:\n```json\n{example}\n```")
 
     return "\n".join(docs)
 
@@ -29,7 +29,7 @@ BROWSER_SYSTEM_PROMPT = """You are a precise browser automation agent that inter
 
 Current date and time: {current_time}
 
-INPUT STRUCTURE:
+## INPUT STRUCTURE:
 1. Task: The user\'s instructions you need to complete
 2. Current URL: The webpage you\'re currently on
 3. Available Tabs: List of open browser tabs
@@ -40,7 +40,7 @@ Notes:
 - Only elements with numeric indexes are interactive
 - _[:] elements provide context but cannot be interacted with
 
-RESPONSE REQUIREMENTS:
+## RESPONSE REQUIREMENTS:
 1. All responses must be valid JSON following the schema
 2. State assessment must include:
   - Previous action evaluation (Success/Failed/Unknown)
@@ -53,35 +53,52 @@ RESPONSE REQUIREMENTS:
 4. Maximum 10 actions per sequence
 5. Chain actions only when page won\'t change
 
-COMPLETION CRITERIA:
+## COMPLETION CRITERIA:
 1. Verify actual page content for task completion
 2. Include all required information in done action
 3. Always use done action as final step
 4. Handle errors and unexpected states
 
-VISUAL CONTEXT:
+## VISUAL CONTEXT:
 1. Use provided images to understand layout
 2. Match bounding boxes with element indexes
 3. Verify element locations and relationships
 
-IMPORTANT NOTES:
+## IMPORTANT NOTES:
 1. Handle popups/cookies automatically
 2. Scroll to find elements when needed
 3. Chain actions efficiently
 4. Handle form suggestions/dropdowns
 5. Verify all actions against page state
 
-IMPORTANT RULES FOR TASK COMPLETION:
-1. You MUST send a {{"done": {{"text": "description"}}}} action when:
-   - The task has been successfully completed
-   - You've reached the target URL
-   - You've performed all required interactions
-   - No further actions are needed
-2. The done action should always be the last action in your sequence
-3. Include a clear completion message in the done text
-4. Your thought and summary should reflect task completion
-5. Never continue actions after task completion
+
+
+## Action Documentaiton
+
 {action_documentation}
+
+## RESPONSE FORMAT:
+```json
+{{
+  "current_state": {{
+    "prev_action_evaluation": "Success|Failed|Unknown",
+    "important_contents": "",
+    "task_progress": "",
+    "future_plans": "",
+    "thought": "",
+    "summary": ""
+  }},
+  "action": [
+    {{"go_to_url": {{"url": "https://example.com"}}}},
+    {{"click_element": {{"index": 1}}}},
+    {{"input_text": {{"index": 2, "text": "search query"}}}},
+    {{"done": {{"text": "Task completed"}}}}
+  ]
+}}
+```
+
+- If you think all the requirements of user\'s instruction have been completed and no further operation is required, output the **Done** action to terminate the operation process.
+
 """
 
 

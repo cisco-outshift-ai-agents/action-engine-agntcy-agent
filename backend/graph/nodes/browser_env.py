@@ -4,8 +4,8 @@ import asyncio
 from typing import Dict, List
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.types import Command
-from browser_use.agent.views import ActionModel, ActionResult
-from core.types import AgentState, EnvironmentType
+from browser_use.agent.views import ActionModel
+from core.types import AgentState, EnvironmentType, EnvironmentOutput, ActionResult
 from environments.browser.prompts import get_browser_prompt
 from environments.browser.schemas import BrowserResponse
 from src.agent.custom_prompts import CustomAgentMessagePrompt
@@ -36,7 +36,7 @@ class BrowserEnvNode:
     async def __call__(self, state: AgentState, config: Dict):
         return await self.ainvoke(state, config)
 
-    async def ainvoke(self, state: AgentState, config: Dict) -> Dict:
+    async def ainvoke(self, state: AgentState, config: Dict) -> AgentState:
         logger.info("BrowserEnvNode: Starting execution")
         llm = config.get("configurable", {}).get("llm")
         env_registry = config.get("configurable", {}).get("env_registry", {})
@@ -44,7 +44,8 @@ class BrowserEnvNode:
 
         if not browser_env or not llm:
             logger.error("BrowserEnvNode: Missing required components")
-            return Command(goto="end")
+            state["error"] = "Missing required components"
+            return state
 
         try:
             # Add delay to allow page to load
@@ -131,60 +132,80 @@ class BrowserEnvNode:
 
             logger.debug(f"LLM Response: {response.model_dump_json(indent=2)}")
 
-            # Check for task completion before execution
-            if self._should_complete_task(state, response, browser_state):
-                logger.info("Task completion detected, ensuring done action is present")
-                if not any(
-                    isinstance(action.get("done"), dict) for action in response.action
-                ):
-                    response.action = [
-                        {"done": {"text": "Task completed successfully"}}
-                    ]
+            # Check for task completion from LLM response
+            if any(isinstance(action.get("done"), dict) for action in response.action):
+                logger.info("LLM indicated task completion with done action")
+                output = await browser_env.execute({"action": response.action})
+                output_dict = output.model_dump()
+
+                # Create proper environment output
+                env_output = EnvironmentOutput(
+                    success=True,
+                    is_done=True,
+                    result={
+                        "action_results": [
+                            {
+                                "action": response.action[0],
+                                "is_done": True,
+                                "error": None,
+                                "extracted_content": output_dict.get(
+                                    "extracted_content"
+                                ),
+                            }
+                        ]
+                    },
+                )
+
+                return Command(
+                    update={
+                        "environment_output": env_output.model_dump(),
+                        "brain": response.current_state.model_dump(),
+                    },
+                    goto="coordinator",
+                )
 
             # Update brain state from response
             state["brain"] = response.current_state.model_dump()
 
             # Execute actions through environment adapter
             try:
-                # Format actions for adapter
-                actions_dict = {"action": response.action}
+                output = await browser_env.execute({"action": response.action})
+                output_dict = output.model_dump()
 
-                # Let the adapter handle execution
-                output = await browser_env.execute(actions_dict)
+                env_output = EnvironmentOutput(
+                    success=True,
+                    is_done=output_dict.get("is_done", False),
+                    result={
+                        "action_results": [
+                            {
+                                "action": response.action[0],
+                                "is_done": output_dict.get("is_done", False),
+                                "error": output_dict.get("error"),
+                                "extracted_content": output_dict.get(
+                                    "extracted_content"
+                                ),
+                            }
+                        ]
+                    },
+                )
 
-                # Update state with results
-                state["environment_output"] = output.dict()
-
-                if output.error:
-                    logger.error(f"BrowserEnvNode: Action failed - {output.error}")
-                    self.consecutive_failures += 1
-                    if self.consecutive_failures > 3:
-                        state["error"] = "Too many consecutive failures"
-                        return Command(goto="end")
-                    return Command(goto="coordinator")
-
-                # Reset failure count on success
-                self.consecutive_failures = 0
-
-                # Check completion based on output
-                if self._evaluate_task_completion(
-                    state, output.result.get("action_results", [])
-                ):
-                    logger.info("BrowserEnvNode: Task complete")
-                    state["done"] = True
-                    return Command(goto="end")
-
-                return Command(goto="coordinator")
+                return Command(
+                    update={
+                        "environment_output": env_output.model_dump(),
+                        "brain": response.current_state.model_dump(),
+                    },
+                    goto="coordinator",
+                )
 
             except Exception as e:
                 logger.error(f"Action execution failed: {str(e)}", exc_info=True)
                 state["error"] = str(e)
-                return Command(goto="end")
+                return state
 
         except Exception as e:
             logger.error(f"BrowserEnvNode: Execution error - {str(e)}", exc_info=True)
             state["error"] = str(e)
-            return Command(goto="end")
+            return state
 
     def _prepare_messages(self, state: AgentState, browser_state: Dict) -> List[Dict]:
         return [
@@ -194,88 +215,3 @@ class BrowserEnvNode:
                 content=f"Current browser state:\nURL: {browser_state.get('url')}\nTitle: {browser_state.get('title')}"
             ),
         ]
-
-    def _parse_llm_response(self, ai_message) -> List[ActionModel]:
-        if not ai_message.additional_kwargs.get("function_call"):
-            return []
-        try:
-            tool_calls = json.loads(
-                ai_message.additional_kwargs["function_call"]["arguments"]
-            )
-            return [ActionModel(**action) for action in tool_calls.get("actions", [])]
-        except Exception as e:
-            logger.error(f"Failed to parse LLM response: {e}")
-            return []
-
-    def _evaluate_task_completion(
-        self, state: AgentState, results: List[Dict]  # Change type hint to Dict
-    ) -> bool:
-        """Enhanced task completion detection with more signals"""
-        if not results:
-            return False
-
-        last_result = results[-1]
-
-        # Check for errors using dict access instead of attribute
-        if last_result.get("error"):
-            return False
-
-        # Look for completion indicators in extracted content
-        if last_result.get("extracted_content"):
-            completion_indicators = [
-                "task complete",
-                "finished",
-                "done",
-                "success",
-                "completed successfully",
-                "goal achieved",
-                "found what we needed",
-                "mission accomplished",
-            ]
-            content = last_result["extracted_content"].lower()
-            if any(indicator in content for indicator in completion_indicators):
-                return True
-
-        # Check for repeated actions or no progress
-        if state.get("last_url") == last_result.get("url"):
-            state["same_url_count"] = state.get("same_url_count", 0) + 1
-            if state["same_url_count"] > 3:  # No progress after multiple attempts
-                return True
-        else:
-            state["same_url_count"] = 0
-            state["last_url"] = last_result.get("url")
-
-        return False
-
-    def _should_complete_task(
-        self, state: AgentState, response: BrowserResponse, browser_state
-    ) -> bool:
-        """Determine if task should be considered complete"""
-        # Check current browser state against task requirements
-        task = state.get("task", "").lower()
-        current_url = getattr(browser_state, "url", "").lower()
-
-        # Task-specific completion checks
-        if "go to" in task:
-            target_url = task.split("go to")[-1].strip()
-            if target_url in current_url:
-                # Add done action if not present
-                if not any(
-                    isinstance(action.get("done"), dict) for action in response.action
-                ):
-                    response.action.append(
-                        {"done": {"text": f"Successfully navigated to {target_url}"}}
-                    )
-                return True
-
-        # Check response indicators
-        brain_state = response.current_state
-        completion_indicators = [
-            not brain_state.future_plans,
-            "no further actions" in brain_state.future_plans.lower(),
-            "task complete" in brain_state.thought.lower(),
-            "accomplished" in brain_state.thought.lower(),
-            "achieved" in brain_state.thought.lower(),
-        ]
-
-        return any(completion_indicators)

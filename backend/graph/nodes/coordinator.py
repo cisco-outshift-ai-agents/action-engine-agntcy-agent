@@ -1,37 +1,32 @@
 from typing import Dict
 from langgraph.types import Command
-from core.types import AgentState
+from core.types import AgentState, EnvironmentOutput
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
 
-async def coordinate_environments(state: AgentState) -> Dict:
+async def coordinate_environments(state: AgentState) -> AgentState:
     """Coordinates transitions between environments"""
     logger.info("Coordinator: Processing state")
-    output = state.get("environment_output", {})
 
-    if state.get("error"):
-        logger.error(f"Coordinator: Error detected - {state['error']}")
-        return Command(goto="end")
+    # Get environment output
+    env_output_dict = state.get("environment_output", {})
+    try:
+        output = EnvironmentOutput.model_validate(env_output_dict)
+    except Exception as e:
+        logger.error("Invalid environment output: %s", str(e))
+        output = EnvironmentOutput()
 
-    if state.get("done"):
-        logger.info("Coordinator: Task marked as done")
-        return Command(goto="end")
+    # Update done state if needed
+    if output.is_done or (
+        output.result.get("action_results", [])
+        and output.result["action_results"][-1].get("is_done")
+    ):
+        logger.info("Task completion detected")
+        state["done"] = True
 
-    if output.get("error"):
-        logger.error(f"Coordinator: Environment error - {output['error']}")
-        state["error"] = output["error"]
-        return Command(goto="end")
-
-    if output.get("next_env"):
-        logger.info(f"Coordinator: Switching to environment {output['next_env']}")
-        state["current_env"] = output["next_env"]
-        return Command(goto="router")
-
-    if output.get("success"):
-        logger.info("Coordinator: Action successful, continuing execution")
-        return Command(goto="browser_env")
-
-    logger.info("Coordinator: Continuing to browser environment")
-    return Command(goto="browser_env")
+    # Always update environment output
+    state["environment_output"] = output.model_dump()
+    return state
