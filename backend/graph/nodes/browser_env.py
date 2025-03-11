@@ -4,7 +4,6 @@ from typing import Dict, List
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.types import Command
 from browser_use.agent.views import ActionModel, ActionResult
-from browser_use.controller.service import Controller
 from core.types import AgentState, EnvironmentType
 from environments.browser.prompts import get_browser_prompt
 from environments.browser.schemas import BrowserResponse
@@ -28,7 +27,6 @@ class BrowserEnvNode:
 
     def __init__(self):
         self.name = "browser_env"
-        self.controller = Controller()
         self.max_retries = 3
         self.consecutive_failures = 0
         self.step_number = 0
@@ -116,88 +114,42 @@ class BrowserEnvNode:
             # Update brain state from response
             state["brain"] = response.current_state.model_dump()
 
-            # Execute actions
-            results = []
-            for raw_action in response.action:
-                try:
-                    # Get action type and parameters
-                    action_type = next(iter(raw_action))
-                    action_params = raw_action[action_type]
+            # Execute actions through environment adapter
+            try:
+                # Format actions for adapter
+                actions_dict = {"action": response.action}
 
-                    logger.info(f"Raw action: {raw_action}")
-                    logger.info(f"Action type: {action_type}")
-                    logger.info(f"Action params: {action_params}")
+                # Let the adapter handle execution
+                output = await browser_env.execute(actions_dict)
 
-                    # Format for browser_use ActionModel, which expects the action type
-                    # as a field name with parameters as the value
-                    formatted_action = {
-                        action_type: action_params  # This matches the expected format
-                    }
+                # Update state with results
+                state["environment_output"] = output.dict()
 
-                    logger.info(f"Formatted action for ActionModel: {formatted_action}")
-                    action_model = ActionModel(**formatted_action)
-                    logger.info(
-                        f"Created ActionModel: {action_model.model_dump_json()}"
-                    )
+                if output.error:
+                    logger.error(f"BrowserEnvNode: Action failed - {output.error}")
+                    self.consecutive_failures += 1
+                    if self.consecutive_failures > 3:
+                        state["error"] = "Too many consecutive failures"
+                        return Command(goto="end")
+                    return Command(goto="coordinator")
 
-                    logger.info("Calling controller.act...")
-                    result = await self.controller.act(
-                        action_model, browser_env.browser_context
-                    )
-                    logger.info(
-                        f"Controller.act result: {result.model_dump_json() if result else 'None'}"
-                    )
+                # Reset failure count on success
+                self.consecutive_failures = 0
 
-                    try:
-                        logger.info("Attempting page load state waits...")
-                        page = browser_env.browser_context.page
-                        logger.info("Got page reference")
-                        await page.wait_for_load_state("networkidle")
-                        logger.info("Network idle complete")
-                        await page.wait_for_load_state("domcontentloaded")
-                        logger.info("DOM content loaded")
-                        await page.wait_for_load_state("load")
-                        logger.info("Page load complete")
-                    except Exception as wait_error:
-                        logger.debug(f"Wait error (non-critical): {str(wait_error)}")
-
-                    results.append(result)
-                    logger.info(
-                        f"Added result to results list. Total results: {len(results)}"
-                    )
-                except Exception as e:
-                    logger.error(f"Action execution failed: {str(e)}", exc_info=True)
-                    results.append(ActionResult(error=str(e)))
-
-            # Update state
-            success = all(not r.error for r in results)
-            error = next((r.error for r in results if r.error), None)
-
-            state["environment_output"] = {
-                "success": success,
-                "result": {"action_results": [r.model_dump() for r in results]},
-                "error": error,
-            }
-
-            if error:
-                logger.error(f"BrowserEnvNode: Action failed - {error}")
-                self.consecutive_failures += 1
-                if self.consecutive_failures > 3:
-                    state["error"] = "Too many consecutive failures"
+                # Check completion based on output
+                if self._evaluate_task_completion(
+                    state, output.result.get("action_results", [])
+                ):
+                    logger.info("BrowserEnvNode: Task complete")
+                    state["done"] = True
                     return Command(goto="end")
+
                 return Command(goto="coordinator")
 
-            # Reset failure count on success
-            self.consecutive_failures = 0
-
-            # Check completion
-            if self._evaluate_task_completion(state, results):
-                logger.info("BrowserEnvNode: Task complete")
-                state["done"] = True
+            except Exception as e:
+                logger.error(f"Action execution failed: {str(e)}", exc_info=True)
+                state["error"] = str(e)
                 return Command(goto="end")
-
-            logger.info("BrowserEnvNode: Actions completed, continuing to coordinator")
-            return Command(goto="coordinator")
 
         except Exception as e:
             logger.error(f"BrowserEnvNode: Execution error - {str(e)}", exc_info=True)
@@ -226,7 +178,7 @@ class BrowserEnvNode:
             return []
 
     def _evaluate_task_completion(
-        self, state: AgentState, results: List[ActionResult]
+        self, state: AgentState, results: List[Dict]  # Change type hint to Dict
     ) -> bool:
         """Enhanced task completion detection with more signals"""
         if not results:
@@ -234,12 +186,12 @@ class BrowserEnvNode:
 
         last_result = results[-1]
 
-        # Check for errors
-        if last_result.error:
+        # Check for errors using dict access instead of attribute
+        if last_result.get("error"):
             return False
 
         # Look for completion indicators in extracted content
-        if last_result.extracted_content:
+        if last_result.get("extracted_content"):
             completion_indicators = [
                 "task complete",
                 "finished",
@@ -250,17 +202,17 @@ class BrowserEnvNode:
                 "found what we needed",
                 "mission accomplished",
             ]
-            content = last_result.extracted_content.lower()
+            content = last_result["extracted_content"].lower()
             if any(indicator in content for indicator in completion_indicators):
                 return True
 
         # Check for repeated actions or no progress
-        if state.get("last_url") == getattr(last_result, "url", None):
+        if state.get("last_url") == last_result.get("url"):
             state["same_url_count"] = state.get("same_url_count", 0) + 1
             if state["same_url_count"] > 3:  # No progress after multiple attempts
                 return True
         else:
             state["same_url_count"] = 0
-            state["last_url"] = getattr(last_result, "url", None)
+            state["last_url"] = last_result.get("url")
 
         return False

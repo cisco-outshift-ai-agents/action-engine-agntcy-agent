@@ -1,31 +1,41 @@
+import logging
+
 from core.tools import ToolMetadata, ToolRegistry
 from src.controller.custom_controller import CustomController
+
+
+logger = logging.getLogger(__name__)
+
+
+def get_registry_actions(controller):
+    """Get all registered actions from a controller's registry"""
+    try:
+        # Try accessing internal _actions dictionary if it exists
+        if hasattr(controller.registry, "_actions"):
+            return controller.registry._actions
+        # Try accessing any _registry attribute
+        elif hasattr(controller.registry, "_registry"):
+            return controller.registry._registry
+        # Fallback: get all callable attributes that don't start with _
+        return {
+            name: getattr(controller.registry, name)
+            for name in dir(controller.registry)
+            if callable(getattr(controller.registry, name))
+            and not name.startswith("_")
+            and name
+            not in ("register", "get", "list", "execute_action", "create_action_model")
+        }
+    except Exception as e:
+        logger.error(f"Failed to get registry actions: {e}")
+        return {}
 
 
 def register_browser_tools(registry: ToolRegistry) -> None:
     """Register browser tools using existing controller actions"""
     controller = CustomController()
 
-    # Map existing controller actions to new tool registry
-    # First get available actions (different controllers might store actions differently)
-    available_actions = {}
-
-    # Try different common attribute names used in Registry implementations
-    if hasattr(controller.registry, "actions"):
-        available_actions = controller.registry.actions
-    elif hasattr(controller.registry, "tools"):
-        available_actions = controller.registry.tools
-    elif hasattr(controller.registry, "_registry"):
-        available_actions = controller.registry._registry
-    else:
-        # Fallback to getting all callable attributes that don't start with _
-        available_actions = {
-            name: getattr(controller.registry, name)
-            for name in dir(controller.registry)
-            if callable(getattr(controller.registry, name))
-            and not name.startswith("_")
-            and name not in ("register", "get", "list")
-        }
+    # Get available actions using helper function
+    available_actions = get_registry_actions(controller)
 
     # Register available actions
     for action_name, action_func in available_actions.items():

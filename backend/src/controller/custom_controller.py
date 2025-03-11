@@ -21,8 +21,25 @@ class CustomController(Controller):
         exclude_actions: list[str] = [],
         output_model: Optional[Type[BaseModel]] = None,
     ):
+        logger.info("Initializing CustomController")
         super().__init__(exclude_actions=exclude_actions, output_model=output_model)
+        logger.info("Registering custom actions")
         self._register_custom_actions()
+
+        # Log available actions safely
+        try:
+            actions = self._get_registry_actions()
+            logger.info(f"Available actions: {list(actions)}")
+        except Exception as e:
+            logger.warning(f"Could not list available actions: {e}")
+
+    def _get_registry_actions(self):
+        """Get all registered actions from registry"""
+        if hasattr(self.registry, "_registry"):
+            return self.registry._registry.keys()
+        elif hasattr(self.registry, "_actions"):
+            return self.registry._actions.keys()
+        return []
 
     def _register_custom_actions(self):
         """Register all custom browser actions"""
@@ -98,7 +115,11 @@ class CustomController(Controller):
         browser_context: Optional[BrowserContext] = None,
         check_for_new_elements: bool = True,
     ) -> list[ActionResult]:
-        """Execute multiple actions - supports both browser and terminal actions"""
+        logger.info(
+            f"multi_act called with browser_context id: {id(browser_context) if browser_context else None}"
+        )
+        logger.info(f"Actions received: {[a.model_dump_json() for a in actions]}")
+
         results = []
 
         has_terminal_actions = any(
@@ -120,6 +141,13 @@ class CustomController(Controller):
                 logger.error(f"Error initializing cached path hashes: {str(e)}")
 
         for i, action in enumerate(actions):
+            action_dump = action.model_dump(exclude_unset=True)
+            logger.info(f"Processing action {i}: {action_dump}")
+
+            if not action_dump:
+                logger.error(f"Empty action data for action {i}")
+                continue
+
             # Determine action type
             action_data = action.model_dump(exclude_unset=True)
             action_name = next(iter(action_data.keys()), None)
@@ -183,36 +211,91 @@ class CustomController(Controller):
     async def act(
         self, action: ActionModel, browser_context: Optional[BrowserContext] = None
     ) -> ActionResult:
-        """Execute an action - supports both browser and terminal actions"""
+        logger.info(
+            f"act called with browser_context id: {id(browser_context) if browser_context else None}"
+        )
+        logger.info(f"Action data: {action.model_dump_json() if action else 'None'}")
+
         try:
-            for action_name, params in action.model_dump(exclude_unset=True).items():
+            logger.info(
+                f"Starting action execution with model: {action.model_dump_json()}"
+            )
+            logger.info(f"Browser context available: {browser_context is not None}")
+
+            action_data = action.model_dump(exclude_unset=True)
+            logger.info(f"Action data after dump: {action_data}")
+
+            for action_name, params in action_data.items():
+                logger.info(f"Processing action: {action_name} with params: {params}")
+                registry_actions = self._get_registry_actions()
+                logger.info(f"Registry actions: {list(registry_actions)}")
+
                 if params is not None:
                     # Check if this is a terminal action
                     if action_name == "execute_terminal_command":
-                        # Terminal commands don't need browser_context
+                        logger.info("Executing terminal command")
                         result = await self.registry.execute_action(action_name, params)
                     else:
                         # Browser actions need browser_context
                         if browser_context is None:
-                            return ActionResult(
-                                error=f"Browser context required for action: {action_name}",
-                                include_in_memory=True,
+                            error_msg = (
+                                f"Browser context required for action: {action_name}"
                             )
-                        result = await self.registry.execute_action(
-                            action_name, params, browser=browser_context
+                            logger.error(error_msg)
+                            return ActionResult(error=error_msg, include_in_memory=True)
+
+                        logger.info(f"Executing browser action: {action_name}")
+                        # Check if action exists in registry's actions
+                        registry_actions = (
+                            self.registry.registry.actions
+                            if hasattr(self.registry, "registry")
+                            and hasattr(self.registry.registry, "actions")
+                            else {}
+                        )
+                        logger.info(
+                            f"Action registered: {action_name in registry_actions}"
+                        )
+                        logger.info(
+                            f"Browser state: {await browser_context.get_state()}"
                         )
 
+                        try:
+                            result = await self.registry.execute_action(
+                                action_name, params, browser=browser_context
+                            )
+                            logger.info(
+                                f"Action execution result: {result.model_dump_json() if result else None}"
+                            )
+                        except Exception as action_error:
+                            logger.error(
+                                f"Action execution failed: {str(action_error)}",
+                                exc_info=True,
+                            )
+                            return ActionResult(
+                                error=str(action_error), include_in_memory=True
+                            )
+
                     if isinstance(result, str):
+                        logger.info(f"String result received: {result}")
                         return ActionResult(extracted_content=result)
                     elif isinstance(result, ActionResult):
+                        logger.info(
+                            f"ActionResult received: {result.model_dump_json()}"
+                        )
                         return result
                     elif result is None:
+                        logger.info("No result received")
                         return ActionResult()
                     else:
-                        raise ValueError(
+                        error_msg = (
                             f"Invalid action result type: {type(result)} of {result}"
                         )
+                        logger.error(error_msg)
+                        raise ValueError(error_msg)
+
+            logger.info("No actions executed")
             return ActionResult()
+
         except Exception as e:
-            logger.error(f"Error in act method: {str(e)}")
+            logger.error(f"Error in act method: {str(e)}", exc_info=True)
             return ActionResult(error=str(e), include_in_memory=True)

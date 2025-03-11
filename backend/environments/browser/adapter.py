@@ -26,21 +26,27 @@ class BrowserEnvironmentAdapter(BaseEnvironment):
         self._state = BaseEnvironmentState(status="initialized")
         register_browser_tools(self.tool_registry)
         self.controller = CustomController()
+        logger.info("Initializing BrowserEnvironmentAdapter")
 
     async def initialize(self, context: SharedContext) -> None:
         """Initialize browser with settings from context"""
+        logger.info("Starting browser initialization")
         browser_config = self._get_browser_config(context)
         window_size = self._get_window_size(context)
 
         if not self.browser:
+            logger.info("Creating new browser instance")
             self.browser = CustomBrowser(config=browser_config)
+            logger.info(f"Browser created: {id(self.browser)}")
 
         if not self.browser_context:
+            logger.info("Creating new browser context")
             self.browser_context = await self.browser.new_context(
                 config=BrowserContextConfig(
                     no_viewport=False, browser_window_size=window_size
                 )
             )
+            logger.info(f"Browser context created: {id(self.browser_context)}")
 
     async def get_state(self) -> BaseEnvironmentState:
         """Get the current state of the browser environment"""
@@ -50,29 +56,37 @@ class BrowserEnvironmentAdapter(BaseEnvironment):
 
     async def execute(self, action: Dict[str, Any]) -> EnvironmentOutput:
         """Execute browser action and return standardized output"""
+        logger.info(
+            f"Execute called with browser_context id: {id(self.browser_context)}"
+        )
         self._state.status = "executing"
         try:
             if not self.browser_context:
                 raise RuntimeError("Browser context not initialized")
 
-            # Handle both direct tool calls and action objects
             if "action" in action:
                 logger.info(
                     f"Processing action sequence: {json.dumps(action['action'], indent=2)}"
                 )
 
-                # Convert each action to ActionModel format
                 action_models = []
-                for action_dict in action["action"]:
-                    logger.info(f"Converting action to ActionModel: {action_dict}")
-                    action_model = ActionModel(**action_dict)
+                for raw_action in action["action"]:
+                    logger.info(f"Raw action: {raw_action}")
+
+                    # Create ActionModel directly with the raw action
+                    # Don't modify the structure - pass it through as-is
+                    model_class = self.controller.registry.create_action_model()
+                    action_model = model_class.model_validate(raw_action)
+
                     logger.info(
                         f"Created ActionModel: {action_model.model_dump_json()}"
                     )
                     action_models.append(action_model)
 
-                # Use multi_act to execute sequence
-                logger.info("Calling controller.multi_act...")
+                # Execute actions
+                logger.info(
+                    f"Calling multi_act with browser_context id: {id(self.browser_context)}"
+                )
                 results = await self.controller.multi_act(
                     action_models, self.browser_context
                 )

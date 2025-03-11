@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 from typing import List
-from .schemas import get_action_schemas
+from .action_schemas import get_action_schemas
 
 
 def generate_action_documentation() -> str:
