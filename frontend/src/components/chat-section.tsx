@@ -212,6 +212,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
           className="max-w-3xl mx-auto bg-[#373c42] border-2 border-[#7E868F] pr-3 pt-2 pr-3 pl-5 pb-2 rounded-lg"
         >
           <TextareaAutosize
+            tabIndex={1}
             minRows={1}
             maxRows={8}
             value={input}
