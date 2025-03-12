@@ -18,17 +18,19 @@ class GraphRunner:
     """Manages execution of the LangGraph agent system while maintaining browser state"""
 
     def __init__(self):
-        logger.info("Initializing GraphRunner...")
+        logger.info(
+            "Initializing GraphRunner..."
+        )  # Keep as info - important initialization
         # Initialize core components
         self.browser_env = BrowserEnvironmentAdapter()
         self.llm = None
-        self.delegator = None  # Initialize to None first
+        self.delegator = None
 
         try:
             self.delegator = EnvironmentDelegator(llm=None)
-            logger.info(
+            logger.debug(
                 f"Created delegator, graph present: {self.delegator.graph is not None}"
-            )
+            )  # Changed from info to debug
 
             self.delegator.shared_context = SharedContext(
                 task_description="",
@@ -40,8 +42,9 @@ class GraphRunner:
             raise
 
     async def initialize(self, agent_config: AgentConfig) -> None:
-        """Initialize environments and graph with LLM"""
-        logger.info("Initializing GraphRunner with agent config")
+        logger.debug(
+            "Initializing GraphRunner with agent config"
+        )  # Changed from info to debug
         # Initialize LLM first
         self.llm = get_llm_model(
             provider=os.getenv("LLM_PROVIDER", "openai"),
@@ -136,6 +139,7 @@ class GraphRunner:
             return None
 
         # Format actions array
+
         actions = []
 
         # Add brain state action if it has content

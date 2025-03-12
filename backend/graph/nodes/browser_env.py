@@ -46,7 +46,7 @@ class BrowserEnvNode:
         Returns:
             AgentState with updated brain state, environment output, and message history
         """
-        logger.info("BrowserEnvNode: Starting execution")
+        logger.debug("BrowserEnvNode: Starting execution")  # Changed from info to debug
         llm = config.get("configurable", {}).get("llm")
         env_registry = config.get("configurable", {}).get("env_registry", {})
         browser_env = env_registry.get(EnvironmentType.BROWSER)
@@ -60,7 +60,9 @@ class BrowserEnvNode:
             # State initialization and browser setup
             if "messages" not in state:
                 state["messages"] = []
-                logger.info("Initialized empty messages list in state")
+                logger.debug(
+                    "Initialized empty messages list in state"
+                )  # Changed from info to debug
 
             # Load state management - required for proper page rendering
             if browser_env.browser_context:
@@ -91,8 +93,12 @@ class BrowserEnvNode:
                 "tabs": _convert_tabs_to_dict(getattr(browser_state, "tabs", [])),
             }
 
-            logger.info(f"Current browser state URL: {state_dict['url']}")
-            logger.info(f"Element count: {len(state_dict['elements'])}")
+            logger.debug(
+                f"Current browser state URL: {state_dict['url']}"
+            )  # Changed from info
+            logger.debug(
+                f"Element count: {len(state_dict['elements'])}"
+            )  # Changed from info
 
             logger.debug(f"Current browser state: {json.dumps(state_dict, indent=2)}")
 
@@ -143,9 +149,9 @@ class BrowserEnvNode:
             if messages_list:
                 formatted_history = format_message_history(messages_list)
                 previous_responses.append(AIMessage(content=formatted_history))
-                logger.info(
+                logger.debug(
                     f"Added formatted history with {len(messages_list)} entries"
-                )
+                )  # Changed from info
 
             # Get messages using both system prompt and detailed state
             messages = [
@@ -153,11 +159,15 @@ class BrowserEnvNode:
                 *previous_responses,  # Add previous responses
                 agent_prompt.get_user_message(),
             ]
-            logger.info(f"Constructed message chain with {len(messages)} messages")
+            logger.debug(
+                f"Constructed message chain with {len(messages)} messages"
+            )  # Changed from info
 
             # Use structured output without functions
             structured_llm = llm.with_structured_output(BrowserResponse)
-            logger.info("BrowserEnvNode: Getting next actions from LLM")
+            logger.info(
+                "BrowserEnvNode: Getting next actions from LLM"
+            )  # Keep as info - important state change
             response = await structured_llm.ainvoke(messages)
 
             # Store this response for future context

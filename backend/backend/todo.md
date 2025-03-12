@@ -48,7 +48,6 @@ To-Do List
    - [ ] Implement proper error recovery
    - [ ] Add pre-execution validation
    - [ ] Improve completion detection
-   - [ ] Add performance monitoring
    - [ ] Ensure a tighter coupling between `browser_use` action controller and the schemas in get_action_schemas
    - [ ] Improve logging around state transitions
    - [ ] Add safeguards against circular state transitions

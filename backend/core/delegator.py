@@ -49,7 +49,9 @@ class EnvironmentDelegator:
     ) -> None:
         """Register a new environment"""
         self.environments[env_type] = environment
-        logger.info(f"Registered environment: {env_type}")
+        logger.debug(
+            f"Registered environment: {env_type}"
+        )  # Changed from info to debug
 
     async def initialize_environments(self) -> None:
         """Initialize all registered environments"""
@@ -65,7 +67,7 @@ class EnvironmentDelegator:
 
     async def execute_action(self, action: Dict) -> dict:
         """Execute an action in the appropriate environment"""
-        logger.info("Starting execute_action")
+        logger.debug("Starting execute_action")  # Changed from info to debug
         logger.debug(f"Graph state: {self._graph is not None}")
         logger.debug(f"Action: {action}")
 
@@ -94,7 +96,7 @@ class EnvironmentDelegator:
                 self.shared_context.agent_state, config=config
             )
 
-            logger.info("Graph invocation successful")
+            logger.debug("Graph invocation successful")  # Changed from info to debug
             self.shared_context.agent_state.update(result)
             return output.model_dump()
 
