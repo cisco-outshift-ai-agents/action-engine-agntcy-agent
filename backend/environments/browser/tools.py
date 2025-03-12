@@ -3,7 +3,6 @@ import logging
 from core.tools import ToolMetadata, ToolRegistry
 from src.controller.custom_controller import CustomController
 
-
 logger = logging.getLogger(__name__)
 
 

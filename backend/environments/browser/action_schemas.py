@@ -1,6 +1,5 @@
 from typing import Dict
 
-
 # TODO: Tighter coupling between this and the browser_use controller
 
 

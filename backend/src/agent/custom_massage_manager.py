@@ -91,7 +91,7 @@ class CustomMassageManager(MessageManager):
             max_error_length=self.max_error_length,
             step_info=step_info,
         )
-        
+
         if terminal_message_manager:
             setattr(prompt, "terminal_message_manager", terminal_message_manager)
         state_message = prompt.get_user_message()

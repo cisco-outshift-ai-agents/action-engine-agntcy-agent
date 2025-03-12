@@ -1,14 +1,15 @@
+import asyncio
+import json
 import logging
 import os
-import json
-import asyncio
-from typing import Dict, Any, AsyncIterator
+from typing import Any, AsyncIterator, Dict
 
 from core.delegator import EnvironmentDelegator, create_default_agent_state
 from core.interfaces import EnvironmentType, SharedContext
 from environments.browser.adapter import BrowserEnvironmentAdapter
-from .agent_runner import AgentConfig
 from src.utils.utils import get_llm_model
+
+from .agent_runner import AgentConfig
 
 logger = logging.getLogger(__name__)
 

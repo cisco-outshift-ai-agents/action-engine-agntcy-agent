@@ -1,11 +1,14 @@
-from typing import Dict, Optional, Any
-from langgraph.graph import Graph, StateGraph, START, END
+from typing import Any, Dict, Optional
+
+from langgraph.graph import END, START, Graph, StateGraph
+
 from core.types import AgentState, BrainState, EnvironmentOutput
-from .types import TaskAnalysis
-from .router import RouterNode
-from .chain_of_thought import ChainOfThoughtNode
+
 from .browser_env import BrowserEnvNode
+from .chain_of_thought import ChainOfThoughtNode
 from .coordinator import coordinate_environments
+from .router import RouterNode
+from .types import TaskAnalysis
 
 
 def create_agent_graph() -> Graph:

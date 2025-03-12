@@ -92,7 +92,6 @@ To-Do List
 
    - [ ] Add comprehensive error recovery
    - [ ] Implement action batching
-   - [ ] Add execution metrics
    - [ ] Optimize message handling
 
 3. User Experience
@@ -141,7 +140,6 @@ To-Do List
    - [ ] Configure Studio for local development
 
 2. Import Structure Cleanup
-   - [ ] Audit all imports for circularity
    - [ ] Standardize import patterns across codebase
    - [ ] Move core types to centralized location
    - [ ] Create proper Python package hierarchy

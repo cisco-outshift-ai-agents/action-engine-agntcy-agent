@@ -1,11 +1,14 @@
 import logging
+
 from langchain_core.runnables import RunnableConfig
-from langgraph.graph import Graph, StateGraph, START, END
+from langgraph.graph import END, START, Graph, StateGraph
+
 from core.types import AgentState
+
 from .nodes import (
-    RouterNode,
-    ChainOfThoughtNode,
     BrowserEnvNode,
+    ChainOfThoughtNode,
+    RouterNode,
     coordinate_environments,
 )
 

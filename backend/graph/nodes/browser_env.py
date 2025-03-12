@@ -1,19 +1,18 @@
+import asyncio
 import json
 import logging
-import asyncio
 import uuid
 from typing import Dict
-from langchain_core.messages import SystemMessage, AIMessage
+
+from langchain_core.messages import AIMessage, SystemMessage
 from langgraph.types import Command
-from core.types import (
-    AgentState,
-    EnvironmentType,
-    EnvironmentOutput,
-)
+
+from core.types import AgentState, EnvironmentOutput, EnvironmentType
 from environments.browser.prompts import get_browser_prompt
 from environments.browser.schemas import BrowserResponse
 from src.agent.custom_prompts import CustomAgentMessagePrompt
 from src.agent.custom_views import CustomAgentStepInfo
+
 from ..prompts import format_message_history  # Updated import path
 
 logger = logging.getLogger(__name__)

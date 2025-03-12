@@ -1,16 +1,14 @@
-import logging
 import json
-from typing import Dict
-from langchain_core.messages import SystemMessage, HumanMessage
-from core.types import AgentState
-from ..prompts import get_chain_of_thought_prompt
-from ..prompts import format_message_history  # Updated import path
-
 import logging
 from typing import Dict
+
+from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
 from core.types import AgentState
+
+from ..prompts import format_message_history  # Updated import path
+from ..prompts import get_chain_of_thought_prompt
 
 logger = logging.getLogger(__name__)
 

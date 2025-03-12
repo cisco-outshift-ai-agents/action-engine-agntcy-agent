@@ -1,17 +1,19 @@
-import logging
-from typing import Dict, Any, Optional
 import json
+import logging
+from typing import Any, Dict, Optional
 
+from browser_use import ActionModel
 from browser_use.browser.browser import Browser, BrowserConfig
 from browser_use.browser.context import BrowserContext, BrowserContextWindowSize
-from core.interfaces import BaseEnvironment, SharedContext, BaseEnvironmentState
+
+from core.interfaces import BaseEnvironment, BaseEnvironmentState, SharedContext
+from core.tools import ToolRegistry
 from graph.nodes import EnvironmentOutput
 from src.browser.custom_browser import CustomBrowser
 from src.browser.custom_context import BrowserContextConfig
-from core.tools import ToolRegistry
-from .tools import register_browser_tools
 from src.controller.custom_controller import CustomController
-from browser_use import ActionModel
+
+from .tools import register_browser_tools
 
 logger = logging.getLogger(__name__)
 
