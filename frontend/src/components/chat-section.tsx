@@ -13,9 +13,17 @@ import { CleanerData, Data, DataZod, StopDataZod } from "@/pages/session/types";
 
 interface ChatSectionProps {
   className?: string;
+  onTerminalUpdate?: (
+    content: string,
+    isTerminal: boolean,
+    hasEmptyThought: boolean,
+    isDone: boolean,
+    terminalId: string,
+    workingDirectory: string
+  ) => void;
 }
 
-const ChatSection: React.FC<ChatSectionProps> = () => {
+const ChatSection: React.FC<ChatSectionProps> = ({ onTerminalUpdate }) => {
   const [messages, setMessages] = useState<
     {
       sender: string;
@@ -25,6 +33,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
   const [input, setInput] = useState("");
   const wsRef = useRef<WebSocket | null>(null); //Main websocket for tasks
   const wsStopRef = useRef<WebSocket | null>(null); //Websocket for stop requests
+  const onTerminalUpdateRef = useRef(onTerminalUpdate);
   const isThinking = useChatStore((state) => state.isThinking);
   const setisThinking = useChatStore((state) => state.setisThinking);
   const isStopped = useChatStore((state) => state.isStopped);
@@ -57,6 +66,10 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
       }
       const clean = cleanData(d);
       console.log("processed data:", clean);
+
+      if (onTerminalUpdate) {
+        checkAndNotifyTerminalContent(clean);
+      }
 
       setMessages((messages) => [
         ...messages,
@@ -111,6 +124,35 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
       wsStop.close();
     };
   }, []);
+
+  const checkAndNotifyTerminalContent = (data: CleanerData) => {
+    if (!onTerminalUpdateRef.current) return;
+
+    const terminalAction = data.action.find(
+      (a) => a.is_terminal && a.thought === "" && !a.done
+    );
+
+    console.log("Checking for terminal action:", terminalAction);
+
+    if (terminalAction) {
+      console.log("Found terminal action:", terminalAction);
+      const isTerminal = !!terminalAction.is_terminal;
+      const hasEmptyThought = terminalAction.thought === "";
+      const isDone = !!terminalAction.done;
+      const terminalContent = terminalAction.summary || "";
+      const terminalId = terminalAction.terminal_id || "";
+      const workingDirectory = terminalAction.working_directory || "";
+
+      onTerminalUpdateRef.current(
+        terminalContent,
+        isTerminal,
+        hasEmptyThought,
+        isDone,
+        terminalId,
+        workingDirectory
+      );
+    }
+  };
 
   const sendMessage = () => {
     if (!wsRef.current) {
