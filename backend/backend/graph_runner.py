@@ -30,7 +30,7 @@ class GraphRunner:
             self.delegator = EnvironmentDelegator(llm=None)
             logger.debug(
                 f"Created delegator, graph present: {self.delegator.graph is not None}"
-            )  # Changed from info to debug
+            )
 
             self.delegator.shared_context = SharedContext(
                 task_description="",
@@ -42,9 +42,7 @@ class GraphRunner:
             raise
 
     async def initialize(self, agent_config: AgentConfig) -> None:
-        logger.debug(
-            "Initializing GraphRunner with agent config"
-        )  # Changed from info to debug
+        logger.debug("Initializing GraphRunner with agent config")
         # Initialize LLM first
         self.llm = get_llm_model(
             provider=os.getenv("LLM_PROVIDER", "openai"),

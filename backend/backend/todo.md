@@ -74,7 +74,7 @@ To-Do List
    - [✓] Ensure tool-use and action results are streamed
 
 5. Logging
-   - [ ] Reduce INFO level logging to DEBUG where appropriate
+   - [✓] Reduce INFO level logging to DEBUG where appropriate
    - [ ] Add more detailed logging for action execution
    - [ ] Implement logging for state transitions
 
@@ -139,7 +139,7 @@ To-Do List
    - [ ] Configure Studio for local development
 
 2. Import Structure Cleanup
-   - [ ] Standardize import patterns across codebase
+   - [] Standardize import patterns across codebase
    - [ ] Move core types to centralized location
    - [ ] Create proper Python package hierarchy
    - [ ] Add **init**.py files where missing

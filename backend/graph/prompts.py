@@ -58,7 +58,7 @@ def get_chain_of_thought_prompt(task: str, context: str, todo_list: str) -> str:
     )
 
 
-ROUTER_PROMPT = """You are an expert at breaking down tasks and determining the best environment to execute them.
+ROUTER_PROMPT = """You are a router agent that helps determine the best environment for a given task.
 
 You will be provided with a todo list and a task to complete.
 Based on the task and the todo list, you will need to determine the best environment to complete the task.
@@ -67,6 +67,7 @@ Available environments:
 - browser: For web automation, form filling, navigation
 - terminal: For file system operations, running commands
 - code: For code writing, editing, and execution
+- chat: For conversational tasks
 
 Given the task and the todo list, determine the best environment to complete the task and provide a reasoning for your choice.
 

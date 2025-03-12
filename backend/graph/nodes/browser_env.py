@@ -46,7 +46,7 @@ class BrowserEnvNode:
         Returns:
             AgentState with updated brain state, environment output, and message history
         """
-        logger.debug("BrowserEnvNode: Starting execution")  # Changed from info to debug
+        logger.debug("BrowserEnvNode: Starting execution")
         llm = config.get("configurable", {}).get("llm")
         env_registry = config.get("configurable", {}).get("env_registry", {})
         browser_env = env_registry.get(EnvironmentType.BROWSER)
@@ -60,9 +60,7 @@ class BrowserEnvNode:
             # State initialization and browser setup
             if "messages" not in state:
                 state["messages"] = []
-                logger.debug(
-                    "Initialized empty messages list in state"
-                )  # Changed from info to debug
+                logger.debug("Initialized empty messages list in state")
 
             # Load state management - required for proper page rendering
             if browser_env.browser_context:

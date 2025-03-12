@@ -45,23 +45,19 @@ async def chat_endpoint(websocket: WebSocket):
         "New WebSocket connection attempt"
     )  # Keep as info - important connection event
     await websocket.accept()
-    logger.debug("WebSocket connection accepted")  # Changed from info to debug
+    logger.debug("WebSocket connection accepted")
 
     try:
         while True:
             data = await websocket.receive_text()
-            logger.debug(
-                f"Client message received: {data}"
-            )  # Changed from info to debug
+            logger.debug(f"Client message received: {data}")
 
             try:
                 client_payload = json.loads(data)
                 task = client_payload.get("task", DEFAULT_CONFIG.get("task", ""))
                 add_infos = client_payload.get("add_infos", "")
-                logger.debug(f"Extracted task: {task}")  # Changed from info to debug
-                logger.debug(
-                    f"Extracted additional info: {add_infos}"
-                )  # Changed from info to debug
+                logger.debug(f"Extracted task: {task}")
+                logger.debug(f"Extracted additional info: {add_infos}")
 
                 # Initialize graph runner at the start of each chat session
                 config = DEFAULT_CONFIG.copy()
@@ -85,24 +81,14 @@ async def chat_endpoint(websocket: WebSocket):
                     ),
                 )
 
-                logger.info(
-                    "Initializing graph runner for new chat session"
-                )  # Keep as info - important state change
+                logger.info("Initializing graph runner for new chat session")
                 await graph_runner.initialize(agent_config)
-                logger.debug(
-                    "Graph runner initialized successfully"
-                )  # Changed from info to debug
+                logger.debug("Graph runner initialized successfully")
 
                 async for update in graph_runner.execute(task):
-                    logger.debug(
-                        "Received update from graph runner"
-                    )  # Changed from info to debug
-                    logger.debug(
-                        f"Update type: {type(update)}"
-                    )  # Changed from info to debug
-                    logger.debug(
-                        f"Update content: {json.dumps(update, indent=2)}"
-                    )  # Changed from info to debug
+                    logger.debug("Received update from graph runner")
+                    logger.debug(f"Update type: {type(update)}")
+                    logger.debug(f"Update content: {json.dumps(update, indent=2)}")
 
                     try:
                         # Skip None updates from graph runner
