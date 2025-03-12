@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 def _convert_tabs_to_dict(tabs):
-    """Convert TabInfo objects to dictionaries"""
+    """Makes browser tab data JSON-serializable for state storage"""
     if not tabs:
         return []
     return [
@@ -29,7 +29,7 @@ def _convert_tabs_to_dict(tabs):
 
 
 class BrowserEnvNode:
-    """Handles browser environment execution with agent-like behavior"""
+    """Handles browser automation and maintains conversation history for context awareness"""
 
     def __init__(self):
         self.name = "browser_env"
@@ -42,6 +42,11 @@ class BrowserEnvNode:
         return await self.ainvoke(state, config)
 
     async def ainvoke(self, state: AgentState, config: Dict) -> AgentState:
+        """Main execution loop that manages browser interaction and state updates
+
+        Returns:
+            AgentState with updated brain state, environment output, and message history
+        """
         logger.info("BrowserEnvNode: Starting execution")
         llm = config.get("configurable", {}).get("llm")
         env_registry = config.get("configurable", {}).get("env_registry", {})
@@ -53,12 +58,12 @@ class BrowserEnvNode:
             return state
 
         try:
-            # Ensure messages list exists
+            # State initialization and browser setup
             if "messages" not in state:
                 state["messages"] = []
                 logger.info("Initialized empty messages list in state")
 
-            # Add delay to allow page to load
+            # Load state management - required for proper page rendering
             if browser_env.browser_context:
                 try:
                     page = await browser_env.browser_context.get_current_page()

@@ -29,31 +29,39 @@ class BaseEnvironmentState(BaseModel):
 
 
 class BaseEnvironment(ABC):
-    """Base environment interface that all environments must implement"""
+    """Defines the core interface for environment implementations (browser, terminal, code)
+
+    Each environment provides isolated execution capabilities while maintaining consistent
+    state management and error handling patterns. This abstraction ensures that:
+
+    1. All environments share the same initialization lifecycle
+    2. State updates flow through a common interface
+    3. Resources are properly cleaned up on completion
+    """
 
     @abstractmethod
     async def initialize(self, context: SharedContext) -> None:
-        """Initialize the environment"""
+        """Set up environment-specific resources and state"""
         pass
 
     @abstractmethod
     async def execute(self, action: Dict[str, Any]) -> EnvironmentOutput:
-        """Execute an action in this environment and return graph-compatible output"""
+        """Run actions while maintaining proper state management"""
         pass
 
     @abstractmethod
     async def get_state(self) -> BaseEnvironmentState:
-        """Get the current state of this environment"""
+        """Get serializable state for environment handoffs"""
         pass
 
     @abstractmethod
     async def cleanup(self) -> None:
-        """Clean up any resources used by this environment"""
+        """Release environment resources and reset state"""
         pass
 
     @abstractmethod
     def can_handle_action(self, action: Dict[str, Any]) -> bool:
-        """Determine if this environment can handle the given action"""
+        """Verify if this environment supports the requested action"""
         pass
 
 

@@ -14,7 +14,15 @@ class ToolMetadata(BaseModel):
 
 
 class ToolRegistry(BaseToolRegistry):
-    """Enhanced tool registry that supports multiple environments"""
+    """Central registry for browser automation tools that interfaces with browser_use controller
+
+    This registry maintains the connection between high-level actions available to the LLM
+    and their low-level implementations in the browser_use controller. It ensures that:
+
+    1. Only valid actions are exposed to the LLM
+    2. Parameter validation matches browser_use expectations
+    3. Action schemas stay in sync with controller capabilities
+    """
 
     def __init__(self):
         self._tools: Dict[str, Callable] = {}

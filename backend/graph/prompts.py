@@ -3,7 +3,7 @@ from typing import List
 
 
 def format_message_history(messages: list) -> str:
-    """Format message history into a narrative prompt"""
+    """Creates a narrative of previous actions to help the LLM understand context and avoid loops"""
     if not messages:
         return ""
 
@@ -52,8 +52,7 @@ You will be given 3 pieces of information:
 
 
 def get_chain_of_thought_prompt(task: str, context: str, todo_list: str) -> str:
-    """Generate chain of thought prompt with current context"""
-
+    """Builds a prompt that helps the agent plan its next steps based on previous attempts"""
     return CHAIN_OF_THOUGHT_PROMPT.format(
         task=task, context=context, todo_list=todo_list
     )
@@ -80,6 +79,5 @@ Given the task and the todo list, determine the best environment to complete the
 
 
 def get_router_prompt(task: str, todo_list: str) -> str:
-    """Generate router prompt with task and todo list"""
-
+    """Helps the agent decide which environment is most appropriate for the current task"""
     return ROUTER_PROMPT.format(task=task, todo_list=todo_list)
