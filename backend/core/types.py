@@ -30,6 +30,20 @@ def list_extend_reducer(current_list, new_list):
     return current_list + new_list
 
 
+def unique_list_reducer(current_list, new_list) -> List[Dict]:
+    """Extends lists while maintaining uniqueness based on id field"""
+    if current_list is None:
+        return new_list or []
+    if new_list is None:
+        return current_list
+
+    seen = {item.get("id"): item for item in current_list if item.get("id")}
+    for item in new_list:
+        if item.get("id"):  # Only add items that have the id field
+            seen[item["id"]] = item
+    return list(seen.values())
+
+
 class EnvironmentType(str, Enum):
     """Supported environment types"""
 
@@ -107,7 +121,7 @@ class AgentState(TypedDict, total=False):
     todo_list: Annotated[str, last_value_reducer]
 
     # Memory and history
-    messages: Annotated[List[Dict], list_extend_reducer]
+    messages: Annotated[List[Dict], unique_list_reducer]  # Simplified annotation
     tools_used: Annotated[List[Dict], list_extend_reducer]
     environment_output: Annotated[EnvironmentOutput, last_value_reducer]
 

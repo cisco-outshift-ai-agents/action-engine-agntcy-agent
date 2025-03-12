@@ -1,14 +1,14 @@
 import logging
+import json
 from typing import Dict
 from langchain_core.messages import SystemMessage, HumanMessage
 from core.types import AgentState
 from ..prompts import get_chain_of_thought_prompt
+from ..prompts import format_message_history  # Updated import path
 
 import logging
-from typing import Dict, List
+from typing import Dict
 from pydantic import BaseModel, Field
-from langchain_core.prompts import ChatPromptTemplate
-from langgraph.types import Command
 
 from core.types import AgentState
 
@@ -36,19 +36,29 @@ class ChainOfThoughtNode:
         if not llm:
             raise ValueError("LLM not provided in config")
 
+        # Build context from previous brain states
+        context = []
+        if state.get("messages"):
+            formatted_history = format_message_history(state["messages"])
+            context.append(formatted_history)
+        else:
+            logger.debug("No previous messages found for context building")
+
+        context_text = "\n".join(context)
+        logger.info(f"Built context with {len(context)} entries")
+
         messages = [
             HumanMessage(content=state["task"]),
             SystemMessage(
                 content=get_chain_of_thought_prompt(
                     task=state["task"],
-                    context=state.get("context", ""),
+                    context=context_text,
                     todo_list=state.get("todo_list", []),
                 )
             ),
         ]
 
         structured_llm = llm.with_structured_output(ChainOfThought)
-        # Use ainvoke() instead of calling directly
         response = await structured_llm.ainvoke(messages)
         logger.info(f"ChainOfThoughtNode: Response: {response.model_dump()}")
 

@@ -66,13 +66,13 @@ def get_action_schemas() -> Dict[str, Dict]:
         },
         "scroll_down": {
             "example": {"scroll_down": {"amount": None}},
-            "description": "Scroll down the page by pixel amount",
+            "description": "Scroll down the page by pixel amount. Provide a null value to scroll down one page.",
             "required": [],
             "properties": {"amount": {"type": ["integer", "null"], "default": None}},
         },
         "scroll_up": {
             "example": {"scroll_up": {"amount": None}},
-            "description": "Scroll up the page by pixel amount",
+            "description": "Scroll up the page by pixel amount. Provide a null value to scroll up one page.",
             "required": [],
             "properties": {"amount": {"type": ["integer", "null"], "default": None}},
         },
@@ -81,12 +81,6 @@ def get_action_schemas() -> Dict[str, Dict]:
             "description": "Send special keys or keyboard shortcuts",
             "required": ["keys"],
             "properties": {"keys": {"type": "string"}},
-        },
-        "scroll_to_text": {
-            "example": {"scroll_to_text": {"text": "Submit"}},
-            "description": "Scroll to specific text on the page",
-            "required": ["text"],
-            "properties": {"text": {"type": "string"}},
         },
         "get_dropdown_options": {
             "example": {"get_dropdown_options": {"index": 1}},

@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 async def coordinate_environments(state: AgentState) -> AgentState:
     """Coordinates transitions between environments"""
     logger.info("Coordinator: Processing state")
+    logger.info(f"State contains {len(state.get('messages', []))} messages")
 
     # Get environment output
     env_output_dict = state.get("environment_output", {})
@@ -31,4 +32,9 @@ async def coordinate_environments(state: AgentState) -> AgentState:
     # Always return state to preserve it
     if output.model_dump() != env_output_dict:
         state["environment_output"] = output.model_dump()
-    return state  # Return state regardless of changes
+
+    # Ensure messages persist
+    if "messages" not in state:
+        state["messages"] = []
+
+    return state

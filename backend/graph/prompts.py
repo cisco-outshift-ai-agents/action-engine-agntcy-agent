@@ -1,4 +1,27 @@
+import json
 from typing import List
+
+
+def format_message_history(messages: list) -> str:
+    """Format message history into a narrative prompt"""
+    if not messages:
+        return ""
+
+    formatted = [
+        "Here is the summary of all previous actions taken by AI agents before you:"
+    ]
+
+    for i, msg in enumerate(messages, 1):
+        state = msg.get("current_state", {})
+        # Get action from the state itself since it's stored in response.action
+        action = state.get("action", [{}])[0] if state.get("action") else {}
+
+        formatted.append(f"\n## Run {i}")
+        formatted.append(f"**Thought**: \"{state.get('thought', '')}\"")
+        formatted.append(f"**Action**: {json.dumps(action, indent=2)}")
+
+    return "\n".join(formatted)
+
 
 CHAIN_OF_THOUGHT_PROMPT = """
 You are an agent that can think and plan ahead for a browser/code/terminal automation task.

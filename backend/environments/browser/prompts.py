@@ -71,8 +71,6 @@ Notes:
 4. Handle form suggestions/dropdowns
 5. Verify all actions against page state
 
-
-
 ## Action Documentaiton
 
 {action_documentation}

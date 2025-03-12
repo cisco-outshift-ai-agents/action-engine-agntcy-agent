@@ -1,8 +1,9 @@
 import json
 import logging
 import asyncio
-from typing import Dict, List
-from langchain_core.messages import SystemMessage, HumanMessage
+import uuid
+from typing import Dict
+from langchain_core.messages import SystemMessage, AIMessage
 from langgraph.types import Command
 from core.types import (
     AgentState,
@@ -13,6 +14,7 @@ from environments.browser.prompts import get_browser_prompt
 from environments.browser.schemas import BrowserResponse
 from src.agent.custom_prompts import CustomAgentMessagePrompt
 from src.agent.custom_views import CustomAgentStepInfo
+from ..prompts import format_message_history  # Updated import path
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +53,11 @@ class BrowserEnvNode:
             return state
 
         try:
+            # Ensure messages list exists
+            if "messages" not in state:
+                state["messages"] = []
+                logger.info("Initialized empty messages list in state")
+
             # Add delay to allow page to load
             if browser_env.browser_context:
                 try:
@@ -125,13 +132,55 @@ class BrowserEnvNode:
                 step_info=step_info,
             )
 
+            # Get previous responses and format as AIMessages
+            previous_responses = []
+            messages_list = state.get("messages", [])
+
+            if messages_list:
+                formatted_history = format_message_history(messages_list)
+                previous_responses.append(AIMessage(content=formatted_history))
+                logger.info(
+                    f"Added formatted history with {len(messages_list)} entries"
+                )
+
             # Get messages using both system prompt and detailed state
-            messages = [SystemMessage(content=prompt), agent_prompt.get_user_message()]
+            messages = [
+                SystemMessage(content=prompt),
+                *previous_responses,  # Add previous responses
+                agent_prompt.get_user_message(),
+            ]
+            logger.info(f"Constructed message chain with {len(messages)} messages")
 
             # Use structured output without functions
             structured_llm = llm.with_structured_output(BrowserResponse)
             logger.info("BrowserEnvNode: Getting next actions from LLM")
             response = await structured_llm.ainvoke(messages)
+
+            # Store this response for future context
+            if response.current_state:
+                new_message = {
+                    "id": str(uuid.uuid4()),
+                    "current_state": {
+                        **response.current_state.model_dump(),
+                        "action": response.action,  # Store the action in the state
+                    },
+                }
+                state["messages"] = state.get("messages", []) + [new_message]
+
+            # Get previous responses and format as AIMessages
+            previous_responses = []
+            messages_list = state.get("messages", [])
+            if messages_list:
+                logger.info(f"Found {len(messages_list)} previous messages in state")
+                for msg in messages_list:
+                    if msg.get("current_state"):
+                        previous_responses.append(
+                            AIMessage(
+                                content=json.dumps(msg["current_state"], indent=2)
+                            )
+                        )
+            else:
+                logger.debug("No previous messages found in state")
 
             logger.debug(f"LLM Response: {response.model_dump_json(indent=2)}")
 
@@ -146,7 +195,7 @@ class BrowserEnvNode:
 
                 env_output = EnvironmentOutput(
                     success=True,
-                    is_done=True,  # This is now our only completion indicator
+                    is_done=True,
                     result={
                         "action_results": [
                             {
@@ -161,13 +210,13 @@ class BrowserEnvNode:
                     },
                 )
 
-                return Command(
-                    update={
+                state.update(
+                    {
                         "environment_output": env_output.model_dump(),
                         "brain": final_brain_state,
-                    },
-                    goto="coordinator",
+                    }
                 )
+                return state
 
             # Update brain state from response
             state["brain"] = response.current_state.model_dump()
@@ -177,7 +226,6 @@ class BrowserEnvNode:
                 output = await browser_env.execute({"action": response.action})
                 output_dict = output.model_dump()
 
-                # Remove redundant done setting - only use is_done in EnvironmentOutput
                 env_output = EnvironmentOutput(
                     success=True,
                     is_done=output_dict.get("is_done", False),
@@ -186,7 +234,6 @@ class BrowserEnvNode:
                             {
                                 "action": response.action[0],
                                 "is_done": output_dict.get("is_done", False),
-                                # Remove redundant done field
                                 "error": output_dict.get("error"),
                                 "extracted_content": output_dict.get(
                                     "extracted_content"
@@ -196,13 +243,13 @@ class BrowserEnvNode:
                     },
                 )
 
-                return Command(
-                    update={
+                state.update(
+                    {
                         "environment_output": env_output.model_dump(),
                         "brain": response.current_state.model_dump(),
-                    },
-                    goto="coordinator",
+                    }
                 )
+                return state
 
             except Exception as e:
                 logger.error(f"Action execution failed: {str(e)}", exc_info=True)
@@ -213,12 +260,3 @@ class BrowserEnvNode:
             logger.error(f"BrowserEnvNode: Execution error - {str(e)}", exc_info=True)
             state["error"] = str(e)
             return state
-
-    def _prepare_messages(self, state: AgentState, browser_state: Dict) -> List[Dict]:
-        return [
-            SystemMessage(content="You are a browser automation expert."),
-            HumanMessage(content=state["task"]),
-            SystemMessage(
-                content=f"Current browser state:\nURL: {browser_state.get('url')}\nTitle: {browser_state.get('title')}"
-            ),
-        ]
