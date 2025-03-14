@@ -22,7 +22,8 @@ const SessionPage = () => {
       terminalId?: string,
       workingDirectory?: string
     ) => {
-      setTerminalContent((prev) => (prev !== content ? content : prev));
+      setTerminalContent(`${content}_${Date.now()}`);
+
       setIsTerminal((prev) => (prev !== isTerminal ? isTerminal : prev));
       setHasEmptyThought((prev) =>
         prev !== hasEmptyThought ? hasEmptyThought : prev

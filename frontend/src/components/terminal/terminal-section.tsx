@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Terminal as XTerm } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
@@ -12,6 +12,16 @@ interface TerminalComponentProps {
   onContentUpdate?: (id: string, content: string) => void;
 }
 
+// Create a persistent terminal instance cache to prevent recreation
+const terminalInstances: Record<
+  string,
+  {
+    term: XTerm;
+    fitAddon: FitAddon;
+    mounted: boolean;
+  }
+> = {};
+
 const TerminalSection = ({
   content,
   isVisible,
@@ -21,17 +31,15 @@ const TerminalSection = ({
   onContentUpdate,
 }: TerminalComponentProps): JSX.Element => {
   const terminalRef = useRef<HTMLDivElement>(null);
-  const xtermRef = useRef<XTerm | null>(null);
-  const fitAddonRef = useRef<FitAddon | null>(null);
+  const instanceIdRef = useRef<string>(terminalId || "unknown");
   const previousContentRef = useRef<string>("");
-  const terminalMountedRef = useRef<boolean>(false);
   const [domReady, setDomReady] = useState(false);
   const [currentInput, setCurrentInput] = useState("");
   const cursorPosRef = useRef(0);
   const commandHistoryRef = useRef<string[]>([]);
   const historyPosRef = useRef(-1);
 
-  //   // Wait for DOM to be ready
+  // Wait for DOM to be ready
   useEffect(() => {
     if (isVisible && terminalRef.current) {
       const timer = setTimeout(() => {
@@ -40,6 +48,40 @@ const TerminalSection = ({
       return () => clearTimeout(timer);
     }
   }, [isVisible]);
+
+  // Get current terminal instance from cache or create a new one
+  const getTerminalInstance = useCallback(() => {
+    const id = instanceIdRef.current;
+    if (!terminalInstances[id]) {
+      console.log(`Creating new terminal instance for ${id}`);
+      const term = new XTerm({
+        cursorBlink: true,
+        scrollback: 10000,
+        theme: {
+          background: "#1a1a1a",
+          foreground: "#00ff00",
+          cursor: "#00ff00",
+        },
+        fontSize: 14,
+        fontFamily: "Menlo, Monaco, Consolas, monospace",
+        lineHeight: 1.2,
+        convertEol: true,
+        cols: 80,
+        rows: 24,
+      });
+
+      const fitAddon = new FitAddon();
+      term.loadAddon(fitAddon);
+
+      terminalInstances[id] = {
+        term,
+        fitAddon,
+        mounted: false,
+      };
+    }
+
+    return terminalInstances[id];
+  }, []);
 
   // Handle user input and special keys and history management
   const handleUserInput = (data: string, term: XTerm) => {
@@ -52,11 +94,9 @@ const TerminalSection = ({
         term.write("\r\n");
         term.write(`Command entered: ${command}`);
         term.write("\r\n");
-
         if (onContentUpdate) {
           onContentUpdate(terminalId || "terminal", command);
         }
-
         setCurrentInput("");
         cursorPosRef.current = 0;
 
@@ -158,71 +198,62 @@ const TerminalSection = ({
     }
   };
 
-  // Initialize terminal (    // Only initialize if visible, DOM is ready, and terminal not already mounted)
   useEffect(() => {
-    if (
-      isVisible &&
-      terminalRef.current &&
-      domReady &&
-      !terminalMountedRef.current
-    ) {
-      console.log(`Initializing terminal ${terminalId}`);
+    if (isVisible && terminalRef.current && domReady) {
+      const id = instanceIdRef.current;
+      console.log(`Setting up terminal ${id}`);
+
       try {
-        const term = new XTerm({
-          cursorBlink: true,
-          scrollback: 10000,
-          theme: {
-            background: "#1a1a1a",
-            foreground: "#00ff00",
-            cursor: "#00ff00",
-          },
-          fontSize: 14,
-          fontFamily: "Menlo, Monaco, Consolas, monospace",
-          lineHeight: 1.2,
-          convertEol: true,
-          cols: 80,
-          rows: 24,
-        });
+        const instance = getTerminalInstance();
+        const { term, fitAddon } = instance;
 
-        term.open(terminalRef.current);
+        // Only open and setup the terminal if it's not already mounted
+        if (!instance.mounted) {
+          console.log(`Mounting terminal ${id} to DOM`);
+          term.open(terminalRef.current);
 
-        const fitAddon = new FitAddon();
-        term.loadAddon(fitAddon);
+          term.onData((data) => {
+            handleUserInput(data, term);
+          });
 
-        term.onData((data) => {
-          handleUserInput(data, term);
-        });
+          if (contentBuffer) {
+            const contentLines = contentBuffer.split("\n");
+            contentLines.forEach((line, index) => {
+              term.write(`${line}`);
+              if (index < contentLines.length - 1) {
+                term.write("\r\n");
+              }
+            });
 
-        xtermRef.current = term;
-        fitAddonRef.current = fitAddon;
-        terminalMountedRef.current = true;
+            if (
+              terminalId &&
+              workingDirectory &&
+              !contentBuffer.endsWith("#")
+            ) {
+              term.write(`\r\nroot@${terminalId}:${workingDirectory}# `);
+            }
+          } else {
+            const hostname = terminalId || "unknown";
+            const dir = workingDirectory || "~";
+            term.write(`root@${hostname}:${dir}# `);
+          }
+
+          instance.mounted = true;
+        } else {
+          if (term.element && term.element.parentNode !== terminalRef.current) {
+            console.log(`Reattaching terminal ${id} to DOM`);
+            if (terminalRef.current) {
+              terminalRef.current.innerHTML = "";
+              terminalRef.current.appendChild(term.element);
+            }
+          }
+        }
 
         setTimeout(() => {
           try {
-            if (fitAddonRef.current && terminalRef.current) {
-              fitAddonRef.current.fit();
-
-              if (contentBuffer) {
-                const contentLines = contentBuffer.split("\n");
-                contentLines.forEach((line, index) => {
-                  term.write(`${line}`);
-                  if (index < contentLines.length - 1) {
-                    term.write("\r\n");
-                  }
-                });
-
-                if (
-                  terminalId &&
-                  workingDirectory &&
-                  !contentBuffer.endsWith("#")
-                ) {
-                  term.write(`\r\nroot@${terminalId}:${workingDirectory}# `);
-                }
-              } else {
-                const hostname = terminalId || "unknown";
-                const dir = workingDirectory || "~";
-                term.write(`root@${hostname}:${dir}# `);
-              }
+            if (fitAddon && terminalRef.current) {
+              fitAddon.fit();
+              term.scrollToBottom();
             }
           } catch (err) {
             console.error("Error fitting terminal:", err);
@@ -231,8 +262,8 @@ const TerminalSection = ({
 
         const handleResize = () => {
           try {
-            if (fitAddonRef.current && terminalMountedRef.current) {
-              fitAddonRef.current.fit();
+            if (fitAddon) {
+              fitAddon.fit();
             }
           } catch (err) {
             console.error("Error during resize:", err);
@@ -243,64 +274,52 @@ const TerminalSection = ({
 
         return () => {
           window.removeEventListener("resize", handleResize);
-          term.dispose();
-          xtermRef.current = null;
-          fitAddonRef.current = null;
-          terminalMountedRef.current = false;
-          console.log(`Terminal ${terminalId} cleaned up`);
         };
       } catch (err) {
         console.error("Error initializing terminal:", err);
       }
     }
-  }, [isVisible, domReady, terminalId, workingDirectory, contentBuffer]);
+  }, [isVisible, domReady, getTerminalInstance]);
 
   useEffect(() => {
-    if (
-      !content ||
-      !xtermRef.current ||
-      !isVisible ||
-      !terminalMountedRef.current
-    ) {
+    if (!content || !isVisible || !domReady) {
       return;
     }
 
+    const instance = getTerminalInstance();
+    const { term } = instance;
+
+    if (!term) return;
+
     requestAnimationFrame(() => {
-      //   if (content !== previousContentRef.current) {
       previousContentRef.current = content;
-      const term = xtermRef.current;
-      if (!term) return;
+      console.log("Writing content to terminal:", content);
 
+      // Write content to terminal
       term.write(`\r\n${content}`);
-
-      // if (onContentUpdate) {
-      //   onContentUpdate(terminalId || "terminal", content);
-      // }
 
       setTimeout(() => {
         term.scrollToBottom();
-        term.write("\r\n");
 
-        if (terminalId && workingDirectory) {
+        if (terminalId && workingDirectory && !content.endsWith("#")) {
+          term.write("\r\n");
           term.write(`root@${terminalId}:${workingDirectory}# `);
         }
       }, 50);
     });
-  }, [content, isVisible, terminalId, workingDirectory]);
+  }, [content, isVisible, domReady, getTerminalInstance]);
 
   useEffect(() => {
-    if (isVisible && xtermRef.current && terminalMountedRef.current) {
+    if (isVisible && domReady) {
       try {
-        const resizeObserver = new ResizeObserver(() => {
-          const fitAddon = fitAddonRef.current;
-          const term = xtermRef.current;
+        const instance = getTerminalInstance();
+        const { fitAddon, term } = instance;
 
+        const resizeObserver = new ResizeObserver(() => {
           if (fitAddon && term) {
             setTimeout(() => {
-              if (fitAddon && term) {
-                fitAddon.fit();
-                term.scrollToBottom();
-              }
+              fitAddon.fit();
+              term.scrollToBottom();
             }, 100);
           }
         });
@@ -310,16 +329,12 @@ const TerminalSection = ({
         }
 
         setTimeout(() => {
-          const fitAddon = fitAddonRef.current;
-          const term = xtermRef.current;
-
           if (fitAddon && term) {
             fitAddon.fit();
             term.scrollToBottom();
           }
         }, 100);
 
-        // Cleanup observer on unmount
         return () => {
           resizeObserver.disconnect();
         };
@@ -327,7 +342,18 @@ const TerminalSection = ({
         console.error("Error fitting terminal after size change:", err);
       }
     }
-  }, [isVisible]);
+  }, [isVisible, domReady, getTerminalInstance]);
+
+  useEffect(() => {
+    return () => {
+      if (terminalRef.current === null) {
+        const id = instanceIdRef.current;
+        console.log(
+          `Component completely unmounted, cleaning up terminal ${id}`
+        );
+      }
+    };
+  }, []);
 
   return (
     <div className="flex flex-col h-full bg-[#1a1a1a] rounded-b-lg">
