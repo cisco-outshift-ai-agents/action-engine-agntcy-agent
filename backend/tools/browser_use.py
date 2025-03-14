@@ -5,9 +5,11 @@ from enum import Enum
 from langchain_core.runnables import RunnableConfig
 from .base import ToolResult
 from langchain_core.tools import tool
-from browser_use.controller.service import Controller
+from src.browser.custom_context import CustomBrowserContext
 
 logger = logging.getLogger(__name__)
+
+MAX_LENGTH = 2000
 
 
 class BrowserAction(str, Enum):
@@ -19,7 +21,6 @@ class BrowserAction(str, Enum):
     SCREENSHOT = "screenshot"
     GET_HTML = "get_html"
     GET_TEXT = "get_text"
-    READ_LINKS = "read_links"
     EXECUTE_JS = "execute_js"
     SCROLL = "scroll"
     SWITCH_TAB = "switch_tab"
@@ -54,10 +55,15 @@ class BrowserToolInput(BaseModel):
                 "navigate": ["url"],
                 "click": ["index"],
                 "input_text": ["index", "text"],
+                "screenshot": [],
+                "get_html": [],
+                "get_text": [],
                 "execute_js": ["script"],
+                "scroll": ["scroll_amount"],
                 "switch_tab": ["tab_id"],
                 "new_tab": ["url"],
-                "scroll": ["scroll_amount"],
+                "close_tab": [],
+                "refresh": [],
             },
         }
     }
@@ -93,7 +99,7 @@ async def browser_use_tool(
             return ToolResult(error="Config is required")
 
         browser_context = config["configurable"].get("browser_context")
-        if not browser_context:
+        if not isinstance(browser_context, CustomBrowserContext):
             return ToolResult(error="Browser context not initialized")
 
         # Create validated model from inputs
@@ -108,34 +114,85 @@ async def browser_use_tool(
         )
 
         if params.action == BrowserAction.NAVIGATE:
-            if not params.url:
+            if not url:
                 return ToolResult(error="URL is required for 'navigate' action")
-            await browser_context.navigate_to(params.url)
-            return ToolResult(output=f"Navigated to {params.url}")
+            await browser_context.navigate_to(url)
+            return ToolResult(output=f"Navigated to {url}")
 
         elif params.action == BrowserAction.CLICK:
-            index = params.index
             if index is None:
                 return ToolResult(error="Index is required for 'click' action")
-            await browser_context._click_element_by_index(index)
-            return ToolResult(output=f"Clicked element at index {index}")
+            element = await browser_context.get_dom_element_by_index(index)
+            if not element:
+                return ToolResult(error=f"Element with index {index} not found")
+            download_path = await browser_context._click_element_node(element)
+            output = f"Clicked element at index {index}"
+            if download_path:
+                output += f" - Downloaded file to {download_path}"
+            return ToolResult(output=output)
 
         elif params.action == BrowserAction.INPUT_TEXT:
-            index = params.index
-            text = params.text
             if index is None or not text:
                 return ToolResult(
                     error="Index and text are required for 'input_text' action"
                 )
             element = await browser_context.get_dom_element_by_index(index)
             if not element:
-                return ToolResult(error=f"Element {index} not found")
+                return ToolResult(error=f"Element with index {index} not found")
             await browser_context._input_text_element_node(element, text)
-            return ToolResult(output=f"Input '{text} at index {index}")
+            return ToolResult(output=f"Input '{text}' into element at index {index}")
 
         elif params.action == BrowserAction.SCREENSHOT:
             screenshot = await browser_context.take_screenshot(full_page=True)
             return ToolResult(output=screenshot, system=screenshot)
+
+        elif params.action == BrowserAction.GET_HTML:
+            html = await browser_context.get_page_html()
+            truncated = html[:MAX_LENGTH] + "..." if len(html) > MAX_LENGTH else html
+            return ToolResult(output=truncated)
+
+        elif params.action == BrowserAction.GET_TEXT:
+            text = await browser_context.execute_javascript("document.body.innerText")
+            return ToolResult(output=text)
+
+        elif params.action == BrowserAction.EXECUTE_JS:
+            if not params.script:
+                return ToolResult(
+                    error="JavaScript code is required for 'execute_js' action"
+                )
+            result = await browser_context.execute_javascript(params.script)
+            return ToolResult(output=result)
+
+        elif params.action == BrowserAction.SCROLL:
+            if not params.scroll_amount:
+                return ToolResult(error="Scroll amount is required for 'scroll' action")
+            await browser_context.execute_javascript(
+                f"window.scrollBy(0, {scroll_amount});"
+            )
+            direction = "down" if scroll_amount > 0 else "up"
+            return ToolResult(
+                output=f"Scrolled {direction} by {abs(scroll_amount)} pixels"
+            )
+
+        elif params.action == BrowserAction.SWITCH_TAB:
+            if tab_id is None:
+                return ToolResult(error="Tab ID is required for 'switch_tab' action")
+            await browser_context.switch_to_tab(tab_id)
+            return ToolResult(output=f"Switched to tab {tab_id}")
+
+        elif params.action == BrowserAction.NEW_TAB:
+            if not url:
+                return ToolResult(error="URL is required for 'new_tab' action")
+            await browser_context.create_new_tab(url)
+            return ToolResult(output=f"Opened new tab with URL {url}")
+
+        elif action == "close_tab":
+            await browser_context.close_current_tab()
+            return ToolResult(output="Closed current tab")
+
+        elif action == "refresh":
+            await browser_context.refresh_page()
+            return ToolResult(output="Refreshed current page")
 
         else:
             return ToolResult(error=f"Action {params.action} not implemented")
