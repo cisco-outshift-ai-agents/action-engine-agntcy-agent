@@ -1,5 +1,16 @@
+from typing import Any, Dict, Optional
+
+from langchain_openai import ChatOpenAI
+from browser_use.dom.service import DomService
+from src.browser.custom_browser import CustomBrowser
+from src.browser.custom_context import CustomBrowserContext
+from graph.environments.terminal import TerminalManager
+from graph.environments.planning import PlanningEnvironment
+
+
 from enum import Enum
 from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
 
 from pydantic import BaseModel, Field
 from typing_extensions import Annotated, TypedDict
@@ -129,6 +140,7 @@ class AgentState(TypedDict, total=False):
     # Control flow - remove the done field since we use environment_output.is_done
     error: Annotated[Optional[str], last_value_reducer]
     next_node: Annotated[Optional[str], last_value_reducer]
+    exiting: Annotated[bool, last_value_reducer]
 
     class Config:
         """Pydantic configuration"""
@@ -154,3 +166,18 @@ def create_default_agent_state(task: str = "") -> Dict:
         "error": None,
         "next_node": None,
     }
+
+
+@dataclass
+class AgentConfigConfigurable:
+    llm: ChatOpenAI
+    browser: CustomBrowser
+    browser_context: CustomBrowserContext
+    dom_service: DomService
+    terminal_manager: TerminalManager
+    planning_environment: PlanningEnvironment
+
+
+@dataclass
+class AgentConfig:
+    configurable: AgentConfigConfigurable

@@ -1,26 +1,25 @@
-from typing import Any, Dict, List, Optional, Union
+import logging
+from typing import Any, Dict, List, Optional
 
-from langchain.tools import BaseTool as LangChainBaseTool
-from pydantic import BaseModel
+from langchain.tools import BaseTool
+from .base import ToolResult
 
-from .base import BaseTool, ToolResult
+logger = logging.getLogger(__name__)
 
 
 class ActionEngineToolCollection:
     """Manages a collection of ActionEngine tools with LangChain compatibility"""
 
-    def __init__(
-        self, tools: Optional[List[Union[BaseTool, LangChainBaseTool]]] = None
-    ):
-        self.tools: List[Union[BaseTool, LangChainBaseTool]] = []
-        self.tool_map: Dict[str, Union[BaseTool, LangChainBaseTool]] = {}
+    def __init__(self, tools: Optional[List[BaseTool]] = None):
+        self.tools: List[BaseTool] = []
+        self.tool_map: Dict[str, BaseTool] = {}
 
         # Add any initial tools
         if tools:
             for tool in tools:
                 self.add_tool(tool)
 
-    def add_tool(self, tool: Union[BaseTool, LangChainBaseTool]) -> None:
+    def add_tool(self, tool: BaseTool) -> None:
         """Add a tool to the collection"""
         if tool.name in self.tool_map:
             raise ValueError(f"Tool with name {tool.name} already exists")
@@ -33,7 +32,7 @@ class ActionEngineToolCollection:
         if tool := self.tool_map.pop(name, None):
             self.tools.remove(tool)
 
-    def get_tool(self, name: str) -> Optional[Union[BaseTool, LangChainBaseTool]]:
+    def get_tool(self, name: str) -> Optional[BaseTool]:
         """Get a tool by name"""
         return self.tool_map.get(name)
 
@@ -41,30 +40,30 @@ class ActionEngineToolCollection:
         """Get list of available tool names"""
         return list(self.tool_map.keys())
 
-    def get_tools(self) -> List[Union[BaseTool, LangChainBaseTool]]:
+    def get_tools(self) -> List[BaseTool]:
         """Get tools in format suitable for LLM binding"""
         return self.tools
 
-    async def execute_tool(self, name: str, input_dict: Any) -> ToolResult:
+    async def execute_tool(
+        self, name: str, input_dict: Any, config: Dict = None
+    ) -> ToolResult:
         """Execute a tool by name with given parameters"""
         tool = self.tool_map.get(name)
+
+        logger.info(f"Executing tool {name} with input: {input_dict}")
+
         if not tool:
             return ToolResult(error=f"Tool {name} not found")
 
         try:
-            # Handle both class-based and decorated tools
-            if isinstance(tool, BaseTool):
-                result = await tool.ainvoke(input_dict)
-            else:
-                result = await tool.arun(input_dict)
-
-            # Ensure result is wrapped in ToolResult
-            if not isinstance(result, ToolResult):
-                result = ToolResult(output=result)
-
-            return result
+            # Let LangChain handle config injection via type hints
+            result = await tool.ainvoke(input_dict, config=config)
+            return (
+                result if isinstance(result, ToolResult) else ToolResult(output=result)
+            )
 
         except Exception as e:
+            logger.error(f"Failed to execute {name}: {str(e)}")
             return ToolResult(error=str(e), system=f"Failed to execute {name}")
 
     def get_schemas(self) -> List[Dict]:

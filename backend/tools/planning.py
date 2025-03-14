@@ -1,80 +1,14 @@
-from typing import Dict, List, Literal, Optional, Union, Any
+import logging
+from typing import List, Optional, Dict, Any
 from enum import Enum
-from pydantic import BaseModel, Field
+from langchain_core.tools import tool
+from langchain_core.runnables import RunnableConfig
 
 from .base import ToolResult
-from langchain_core.tools import tool
+from graph.environments.planning import Plan
+import traceback
 
-
-class Plan(BaseModel):
-    """Plan model for tracking steps and progress"""
-
-    plan_id: str
-    title: str
-    steps: List[str]
-    step_statuses: List[Literal["not_started", "in_progress", "completed", "blocked"]]
-    step_notes: List[str]
-
-
-class PlanManager:
-    """Manages plan state"""
-
-    _plans: Dict[str, Plan] = {}
-    _current_plan_id: Optional[str] = None
-
-    @classmethod
-    def get_plan(cls, plan_id: Optional[str] = None) -> Optional[Plan]:
-        """Get plan by ID or current active plan"""
-        if not plan_id:
-            plan_id = cls._current_plan_id
-        return cls._plans.get(plan_id)
-
-    @classmethod
-    def set_active_plan(cls, plan_id: str) -> None:
-        """Set active plan"""
-        if plan_id not in cls._plans:
-            raise ValueError(f"No plan found with ID: {plan_id}")
-        cls._current_plan_id = plan_id
-
-    @classmethod
-    def format_plan(cls, plan: Plan) -> str:
-        """Format plan for display"""
-        output = f"Plan: {plan.title} (ID: {plan.plan_id})\n"
-        output += "=" * len(output) + "\n\n"
-
-        # Calculate progress statistics
-        total_steps = len(plan.steps)
-        completed = sum(1 for status in plan.step_statuses if status == "completed")
-        in_progress = sum(1 for status in plan.step_statuses if status == "in_progress")
-        blocked = sum(1 for status in plan.step_statuses if status == "blocked")
-        not_started = sum(1 for status in plan.step_statuses if status == "not_started")
-
-        output += f"Progress: {completed}/{total_steps} steps completed "
-        if total_steps > 0:
-            percentage = (completed / total_steps) * 100
-            output += f"({percentage:.1f}%)\n"
-        else:
-            output += "(0%)\n"
-
-        output += f"Status: {completed} completed, {in_progress} in progress, {blocked} blocked, {not_started} not started\n\n"
-        output += "Steps:\n"
-
-        # Add each step with its status and notes
-        for i, (step, status, notes) in enumerate(
-            zip(plan.steps, plan.step_statuses, plan.step_notes)
-        ):
-            status_symbol = {
-                "not_started": "[ ]",
-                "in_progress": "[→]",
-                "completed": "[✓]",
-                "blocked": "[!]",
-            }.get(status, "[ ]")
-
-            output += f"{i}. {status_symbol} {step}\n"
-            if notes:
-                output += f"   Notes: {notes}\n"
-
-        return output
+logger = logging.getLogger(__name__)
 
 
 class PlanCommand(str, Enum):
@@ -108,6 +42,7 @@ async def planning_tool(
     step_index: Optional[int] = None,
     step_status: Optional[StepStatus] = None,
     step_notes: Optional[str] = None,
+    config: RunnableConfig = None,  # Changed to explicitly use RunnableConfig
 ) -> ToolResult:
     """
     A planning tool that allows the agent to create and manage plans for solving complex tasks.
@@ -123,10 +58,19 @@ async def planning_tool(
         step_status: Status to set for a step
         step_notes: Notes to add to a step
     """
+
+    if not config or "configurable" not in config:
+        logger.error("[PlanningTool] No configurable in config")
+        return ToolResult(error="Config missing 'configurable' key")
+
+    planning_env = config["configurable"].get("planning_environment")
+    if not planning_env:
+        logger.error("[PlanningTool] No planning_environment in configurable")
+        return ToolResult(error="Planning environment not initialized")
+
     try:
         if command == PlanCommand.CREATE:
-            if not plan_id:
-                return ToolResult(error="plan_id is required for create command")
+            plan_id = plan_id or f"plan_{len(planning_env._plans)}"
 
             title = title or task or "Untitled Plan"
             if not task:
@@ -141,70 +85,45 @@ async def planning_tool(
                 step_statuses=["not_started"] * len(steps),
                 step_notes=[""] * len(steps),
             )
-            PlanManager._plans[plan.plan_id] = plan
-            PlanManager._current_plan_id = plan.plan_id
+            planning_env.create_plan(plan)
 
         elif command == PlanCommand.UPDATE:
-            plan_id = plan_id
             if not plan_id:
                 return ToolResult(error="plan_id is required for update command")
 
-            if plan_id not in PlanManager._plans:
-                return ToolResult(error=f"No plan found with ID: {plan_id}")
-
-            plan = PlanManager._plans[plan_id]
-
+            updates = {}
             if title:
-                plan.title = title
-
+                updates["title"] = title
             if steps:
-                if not isinstance(steps, list):
-                    return ToolResult(error="Steps must be a list")
+                updates["steps"] = steps
+                updates["step_statuses"] = ["not_started"] * len(steps)
+                updates["step_notes"] = [""] * len(steps)
 
-                new_steps = steps
-                old_steps = plan.steps
-                old_statuses = plan.step_statuses
-                old_notes = plan.step_notes
-
-                new_statuses = []
-                new_notes = []
-
-                for i, step in enumerate(new_steps):
-                    if i < len(old_steps) and step == old_steps[i]:
-                        new_statuses.append(old_statuses[i])
-                        new_notes.append(old_notes[i])
-                    else:
-                        new_statuses.append("not_started")
-                        new_notes.append("")
-
-                plan.steps = new_steps
-                plan.step_statuses = new_statuses
-                plan.step_notes = new_notes
+            planning_env.update_plan(plan_id, updates)
 
         elif command == PlanCommand.LIST:
-            if not PlanManager._plans:
+            plans = planning_env.list_plans()
+            if not plans:
                 return ToolResult(output="No plans available")
 
             output = ["Available plans:"]
-            for plan_id, plan in PlanManager._plans.items():
+            for p_id, plan in plans.items():
+                active = " (active)" if p_id == planning_env._current_plan_id else ""
                 completed = sum(1 for s in plan.step_statuses if s == "completed")
                 total = len(plan.steps)
                 percentage = (completed / total * 100) if total > 0 else 0
-                active = " (active)" if plan_id == PlanManager._current_plan_id else ""
-
                 output.append(
-                    f"• {plan_id}{active}: {plan.title} - "
-                    f"{completed}/{total} steps ({percentage:.1f}%)"
+                    f"• {p_id}{active}: {plan.title} - {completed}/{total} steps ({percentage:.1f}%)"
                 )
 
             return ToolResult(output="\n".join(output))
 
         elif command == PlanCommand.GET:
-            plan_id = plan_id or PlanManager._current_plan_id
+            plan_id = plan_id or planning_env._current_plan_id
             if not plan_id:
                 return ToolResult(error="No plan ID provided and no active plan set")
 
-            plan = PlanManager.get_plan(plan_id)
+            plan = planning_env.get_plan(plan_id)
             if not plan:
                 return ToolResult(error=f"No plan found with ID: {plan_id}")
 
@@ -213,17 +132,17 @@ async def planning_tool(
             if not plan_id:
                 return ToolResult(error="plan_id is required for set_active command")
 
-            if plan_id not in PlanManager._plans:
+            if plan_id not in planning_env._plans:
                 return ToolResult(error=f"No plan found with ID: {plan_id}")
 
-            PlanManager._current_plan_id = plan_id
+            planning_env._current_plan_id = plan_id
 
         elif command == PlanCommand.MARK_STEP:
-            plan_id = plan_id or PlanManager._current_plan_id
+            plan_id = plan_id or planning_env._current_plan_id
             if not plan_id:
                 return ToolResult(error="No plan ID provided and no active plan set")
 
-            plan = PlanManager.get_plan(plan_id)
+            plan = planning_env.get_plan(plan_id)
             if not plan:
                 return ToolResult(error=f"No plan found with ID: {plan_id}")
 
@@ -248,20 +167,21 @@ async def planning_tool(
             if not plan_id:
                 return ToolResult(error="plan_id is required for delete command")
 
-            if plan_id not in PlanManager._plans:
+            if plan_id not in planning_env._plans:
                 return ToolResult(error=f"No plan found with ID: {plan_id}")
 
-            del PlanManager._plans[plan_id]
-            if PlanManager._current_plan_id == plan_id:
-                PlanManager._current_plan_id = None
+            del planning_env._plans[plan_id]
+            if planning_env._current_plan_id == plan_id:
+                planning_env._current_plan_id = None
 
             return ToolResult(output=f"Plan {plan_id} deleted successfully")
 
         if command != PlanCommand.LIST and command != PlanCommand.DELETE:
-            plan = PlanManager.get_plan(plan_id)
+            plan = planning_env.get_plan(plan_id)
             return ToolResult(
-                output=PlanManager.format_plan(plan) if plan else "No plan found"
+                output=planning_env.format_plan(plan) if plan else "No plan found"
             )
 
     except Exception as e:
+        traceback.print_exc()
         return ToolResult(error=str(e))

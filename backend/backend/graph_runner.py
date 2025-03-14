@@ -1,13 +1,18 @@
-import asyncio
 import json
 import logging
 import os
-from typing import Any, AsyncIterator, Dict
+from typing import Any, AsyncIterator, Dict, Optional
 
-from core.delegator import EnvironmentDelegator, create_default_agent_state
-from core.interfaces import EnvironmentType, SharedContext
-from environments.browser.adapter import BrowserEnvironmentAdapter
 from src.utils.utils import get_llm_model
+from browser_use.dom.service import DomService
+from src.browser.custom_browser import CustomBrowser
+from src.browser.custom_context import CustomBrowserContext
+from graph.environments.terminal import TerminalManager
+from graph.global_configurable import context
+from graph.nodes import create_agent_graph
+from graph.environments.browser import BrowserSession
+from core.types import create_default_agent_state, AgentConfig
+from graph.environments.planning import PlanningEnvironment
 
 from .agent_runner import AgentConfig
 
@@ -15,35 +20,20 @@ logger = logging.getLogger(__name__)
 
 
 class GraphRunner:
-    """Manages execution of the LangGraph agent system while maintaining browser state"""
+    """Manages execution of the LangGraph agent system while maintaining global resources"""
 
     def __init__(self):
-        logger.info(
-            "Initializing GraphRunner..."
-        )  # Keep as info - important initialization
-        # Initialize core components
-        self.browser_env = BrowserEnvironmentAdapter()
         self.llm = None
-        self.delegator = None
-
-        try:
-            self.delegator = EnvironmentDelegator(llm=None)
-            logger.debug(
-                f"Created delegator, graph present: {self.delegator.graph is not None}"
-            )
-
-            self.delegator.shared_context = SharedContext(
-                task_description="",
-                current_environment=EnvironmentType.BROWSER,
-                agent_state=create_default_agent_state(),
-            )
-        except Exception as e:
-            logger.error(f"Failed to create delegator: {str(e)}", exc_info=True)
-            raise
+        self.browser_session = BrowserSession()
+        self.terminal_manager = TerminalManager()
+        self.planning_env = PlanningEnvironment()
+        self.graph = None
 
     async def initialize(self, agent_config: AgentConfig) -> None:
+        """Initialize global resources and LLM"""
         logger.debug("Initializing GraphRunner with agent config")
-        # Initialize LLM first
+
+        # Initialize LLM and store in both places
         self.llm = get_llm_model(
             provider=os.getenv("LLM_PROVIDER", "openai"),
             model_name=os.getenv("LLM_MODEL_NAME", "gpt-4o"),
@@ -51,45 +41,47 @@ class GraphRunner:
             llm_base_url=os.getenv("LLM_BASE_URL", "https://api.openai.com/v1"),
             llm_api_key=os.getenv("LLM_API_KEY", ""),
         )
+        context.llm = self.llm
 
-        # Update delegator with LLM
-        self.delegator.llm = self.llm
+        # Initialize graph
+        self.graph = create_agent_graph()
 
-        # Register environments
-        self.delegator.register_environment(EnvironmentType.BROWSER, self.browser_env)
-
-        # Initialize shared context with config
-        self.delegator.shared_context.global_memory.update(
-            {
-                "headless": agent_config.headless,
-                "disable_security": agent_config.disable_security,
-                "window_w": agent_config.window_w,
-                "window_h": agent_config.window_h,
-            }
+        # Initialize browser session
+        await self.browser_session.initialize(
+            window_w=agent_config.window_w,
+            window_h=agent_config.window_h,
         )
 
-        # Initialize environments
-        await self.delegator.initialize_environments()
+        # Store resources in context
+        context.browser = self.browser_session.browser
+        context.browser_context = self.browser_session.browser_context
+        context.dom_service = self.browser_session.dom_service
+        context.terminal_manager = self.terminal_manager
+        context.planning_environment = self.planning_env
 
     async def execute(self, task: str) -> AsyncIterator[Dict[str, Any]]:
         """Execute task using LangGraph with proper streaming"""
         try:
             logger.info("Starting graph execution with streaming")
 
-            if not self.delegator or not self.delegator.graph:
-                raise RuntimeError("Graph not initialized")
+            if not self.llm:
+                raise RuntimeError("LLM not initialized")
 
             agent_state = create_default_agent_state(task)
-            config = {
+            config: AgentConfig = {
                 "configurable": {
                     "llm": self.llm,
-                    "env_registry": {EnvironmentType.BROWSER: self.browser_env},
+                    "browser": context.browser,
+                    "browser_context": context.browser_context,
+                    "dom_service": context.dom_service,
+                    "terminal_manager": context.terminal_manager,
+                    "planning_environment": context.planning_environment,  # Add planning environment
                 }
             }
 
             # Use astream and properly await the async generator
-            async for step_output in self.delegator.graph.astream(agent_state, config):
-                logger.info(f"Stream output: {json.dumps(step_output, indent=2)}")
+            async for step_output in self.graph.astream(agent_state, config):
+                # logger.info(f"Stream output: {json.dumps(step_output, indent=2)}")
                 # Skip empty states
                 if not step_output:
                     continue
@@ -105,8 +97,7 @@ class GraphRunner:
         """Stop the agent execution"""
         try:
             # Signal to environments to stop
-            if self.delegator:
-                await self.delegator.cleanup()
+            await self.cleanup()
 
             stop_response = {
                 "summary": "Stopped",
@@ -137,7 +128,6 @@ class GraphRunner:
             return None
 
         # Format actions array
-
         actions = []
 
         # Add brain state action if it has content
@@ -194,6 +184,16 @@ class GraphRunner:
 
     def _get_html_content(self, state: Dict) -> str:
         """Get HTML content from browser state if available"""
-        # This will need to use browser screenshot functionality
-        # from the existing implementation
         return "<h1>Processing...</h1>"
+
+    async def cleanup(self) -> None:
+        """Cleanup global resources"""
+        await self.browser_session.cleanup()
+        await self.terminal_manager.delete_terminal()
+
+        # Clear context
+        context.browser = None
+        context.browser_context = None
+        context.dom_service = None
+        context.terminal_manager = None
+        context.planning_environment = None

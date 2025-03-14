@@ -1,6 +1,6 @@
 import logging
 from typing import Dict, List, Any
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, BaseMessage
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 
 from core.types import AgentState
@@ -12,6 +12,7 @@ from tools.google_search import google_search_tool
 from tools.python_execute import python_execute_tool
 from tools.str_replace_editor import str_replace_editor_tool
 from tools.terminate import terminate_tool
+from tools.utils import deserialize_messages, serialize_messages
 
 logger = logging.getLogger(__name__)
 
@@ -37,56 +38,27 @@ class ExecutorNode:
         """Make node callable for LangGraph and ensure async execution"""
         return await self.ainvoke(state, config)
 
-    def _serialize_message(self, message: BaseMessage) -> Dict[str, Any]:
-        """Convert a message to a serializable format"""
-        base = {
-            "type": message.__class__.__name__,
-            "content": message.content,
-        }
-        # Handle additional fields for specific message types
-        if isinstance(message, ToolMessage):
-            base.update(
-                {
-                    "tool_call_id": message.tool_call_id,
-                    "tool_name": message.tool_name,
-                }
-            )
-        return base
-
     async def ainvoke(self, state: AgentState, config: Dict) -> Dict:
         """Async invocation with direct tool execution"""
         if "messages" not in state:
             state["messages"] = []
             logger.debug("Initialized empty messages list in state")
 
+        if not config:
+            logger.debug("Config not provided in ExecutorNode")
+            raise ValueError("Config not provided in ExecutorNode")
+
         llm: ChatOpenAI = config.get("configurable", {}).get("llm")
         if not llm:
             raise ValueError("LLM not provided in config")
 
         # Bind tools to LLM
-        bound_llm = llm.bind_tools(self.tool_collection.get_tools())
+        bound_llm = llm.bind_tools(self.tool_collection.get_tools()).with_config(
+            config=config
+        )
 
-        # Deserialize messages for LLM
-        messages = [
-            (
-                HumanMessage(content=m["content"])
-                if m["type"] == "HumanMessage"
-                else (
-                    AIMessage(content=m["content"])
-                    if m["type"] == "AIMessage"
-                    else (
-                        ToolMessage(
-                            content=m["content"],
-                            tool_call_id=m.get("tool_call_id"),
-                            tool_name=m.get("tool_name"),
-                        )
-                        if m["type"] == "ToolMessage"
-                        else m
-                    )
-                )
-            )
-            for m in state["messages"]
-        ]
+        # Deserialize existing messages
+        messages = deserialize_messages(state["messages"])
 
         # Add new human message
         human_message = HumanMessage(content=state["task"])
@@ -95,23 +67,28 @@ class ExecutorNode:
         # Get LLM response with tool calls
         response: AIMessage = await bound_llm.ainvoke(messages)
 
-        logger.info(f"Response from LLM: {response}")
-
         # Serialize messages for state storage
-        serialized_messages = [self._serialize_message(m) for m in messages]
-        serialized_messages.append(self._serialize_message(response))
+        serialized_messages = serialize_messages(messages)
+        serialized_messages.extend(serialize_messages([response]))
 
         # Execute any tool calls
         if hasattr(response, "tool_calls") and response.tool_calls:
-            tool_messages = await self.execute_tools(response)
-            serialized_messages.extend(
-                [self._serialize_message(tm) for tm in tool_messages]
-            )
+            tool_messages = await self.execute_tools(message=response, config=config)
+            serialized_messages.extend(serialize_messages(tool_messages))
+
+        termination_tool_call = next(
+            (tc for tc in response.tool_calls if tc["name"] == "terminate"), None
+        )
+        if termination_tool_call:
+            state["exiting"] = True
+            state["thought"] = termination_tool_call["reason"]
 
         state["messages"] = serialized_messages
         return state
 
-    async def execute_tools(self, message: AIMessage) -> List[ToolMessage]:
+    async def execute_tools(
+        self, message: AIMessage, config: Dict = None
+    ) -> List[ToolMessage]:
         """Execute tools using tool collection"""
         tool_messages = []
 
@@ -123,7 +100,12 @@ class ExecutorNode:
                 if not name:
                     raise ValueError("Tool call missing function")
 
-                result = await self.tool_collection.execute_tool(name, args)
+                # Pass the config separately - let tool_collection handle merging
+                result = await self.tool_collection.execute_tool(
+                    name=name,
+                    input_dict=args,
+                    config=config,
+                )
                 random_id = str(hash(str(tool_call) + str(result)))[:8]
 
                 tool_messages.append(

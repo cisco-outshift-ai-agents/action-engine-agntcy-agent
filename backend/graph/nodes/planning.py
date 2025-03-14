@@ -1,14 +1,13 @@
-import json
 import logging
-from typing import Dict
-
-from langchain_core.messages import HumanMessage, SystemMessage
-from pydantic import BaseModel, Field
+from typing import Dict, List
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 
 from core.types import AgentState
 
-from ..prompts import format_message_history  # Updated import path
-from ..prompts import get_chain_of_thought_prompt
+from tools.tool_collection import ActionEngineToolCollection
+from tools.planning import planning_tool
+from tools.utils import deserialize_messages, serialize_messages
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +17,7 @@ class PlanningNode:
 
     def __init__(self):
         self.name = "planning"
+        self.tool_collection = ActionEngineToolCollection([planning_tool])
 
     async def __call__(self, state: AgentState, config: Dict):
         """Make node callable for LangGraph and ensure async execution"""
@@ -27,50 +27,81 @@ class PlanningNode:
         """Prevent sync execution"""
         raise NotImplementedError("Chain of thought requires async execution")
 
-    async def ainvoke(self, state: AgentState, config: Dict) -> AgentState:
-        """Think about current state and provide guidance"""
-        logger.info("ChainOfThoughtNode: Starting execution")
-        llm = config.get("configurable", {}).get("llm")
-        if not llm:
-            raise ValueError("LLM not provided in config")
+    async def ainvoke(self, state: AgentState, config: Dict = None) -> AgentState:
+        if "messages" not in state:
+            state["messages"] = []
+            logger.debug("Initialized empty messages list in state")
 
-        # Build context from previous brain states
-        context = []
-        if state.get("messages"):
-            formatted_history = format_message_history(state["messages"])
-            context.append(formatted_history)
-        else:
-            logger.debug("No previous messages found for context building")
+        if not config:
+            logger.debug("Config not provided in PlanningNode")
+            raise ValueError("Config not provided")
 
-        context_text = "\n".join(context)
-        logger.info(f"Built context with {len(context)} entries")
+        llm: ChatOpenAI = config.get("configurable", {}).get("llm")
 
-        messages = [
-            HumanMessage(content=state["task"]),
-            SystemMessage(
-                content=get_chain_of_thought_prompt(
-                    task=state["task"],
-                    context=context_text,
-                    todo_list=state.get("todo_list", []),
-                )
-            ),
-        ]
+        bound_llm = llm.bind_tools(self.tool_collection.get_tools()).with_config(
+            config=config
+        )
 
-        structured_llm = llm.with_structured_output(ChainOfThought)
-        response = await structured_llm.ainvoke(messages)
-        logger.info(f"ChainOfThoughtNode: Response: {response.model_dump()}")
+        # Deserialize existing messages
+        messages = deserialize_messages(state["messages"])
 
-        state["todo_list"] = response.todo_list
+        # Add new human message
+        human_message = HumanMessage(content=state["task"])
+        messages.append(human_message)
+
+        # Get LLM response with tool calls
+        response: AIMessage = await bound_llm.ainvoke(messages)
+
+        # Serialize messages for state storage
+        serialized_messages = serialize_messages(messages)
+        serialized_messages.extend(serialize_messages([response]))
+
+        # Execute any tool calls
+        if hasattr(response, "tool_calls") and response.tool_calls:
+            tool_messages = await self.execute_tools(message=response)
+            serialized_messages.extend(serialize_messages(tool_messages))
+
+        state["messages"] = serialized_messages
         return state
 
+    async def execute_tools(
+        self, message: AIMessage, config: Dict = None
+    ) -> List[ToolMessage]:
+        """Execute tools using tool collection"""
+        tool_messages = []
 
-class ChainOfThought(BaseModel):
-    """Simple chain of thought response"""
+        for tool_call in message.tool_calls:
+            try:
+                name = tool_call["name"]
+                args = tool_call["args"]
 
-    todo_list: str = Field(
-        description="""
-    The updated Todo list for the users task.
-    Format the todo list as a series of checklist items, formatted like '- [ ] item'.  
-    As the user completes items, check them off by changing the item to '- [✓] item'."
-    """
-    )
+                if not name:
+                    raise ValueError("Tool call missing function")
+
+                # Explicitly create the tool input with config
+                result = await self.tool_collection.execute_tool(
+                    name=name,
+                    input_dict=args,
+                    config=config,
+                )
+                random_id = str(hash(str(tool_call) + str(result)))[:8]
+
+                tool_messages.append(
+                    ToolMessage(
+                        tool_name=name,
+                        content=str(result),
+                        tool_call_id=random_id,
+                    )
+                )
+            except Exception as e:
+                logger.error(f"Error executing tool {tool_call}: {str(e)}")
+                random_id = str(hash(str(tool_call) + str(result)))[:8]
+                tool_messages.append(
+                    ToolMessage(
+                        tool_name=tool_call["name"],
+                        content=str(e),
+                        tool_call_id=random_id,
+                    )
+                )
+
+        return tool_messages

@@ -17,6 +17,7 @@ google-chrome \
   --disable-dev-shm-usage \
   --disable-software-rasterizer \
   --disable-setuid-sandbox \
+  --disable-web-security \
   --no-first-run \
   --no-default-browser-check \
   --no-experiments \
