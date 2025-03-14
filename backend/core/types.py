@@ -122,7 +122,7 @@ class AgentState(TypedDict, total=False):
     todo_list: Annotated[str, last_value_reducer]
 
     # Memory and history
-    messages: Annotated[List[Dict], unique_list_reducer]  # Simplified annotation
+    messages: Annotated[List[Dict], list_extend_reducer]  # Simplified annotation
     tools_used: Annotated[List[Dict], list_extend_reducer]
     environment_output: Annotated[EnvironmentOutput, last_value_reducer]
 

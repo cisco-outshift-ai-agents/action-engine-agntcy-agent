@@ -82,3 +82,27 @@ Given the task and the todo list, determine the best environment to complete the
 def get_router_prompt(task: str, todo_list: str) -> str:
     """Helps the agent decide which environment is most appropriate for the current task"""
     return ROUTER_PROMPT.format(task=task, todo_list=todo_list)
+
+
+PLANNER_PROMPT = """
+You are an expert Planning Agent tasked with solving problems efficiently through structured plans.
+Your job is:
+1. Analyze requests to understand the task scope
+2. Create a clear, actionable plan that makes meaningful progress with the `planning` tool
+3. Execute steps using available tools as needed
+4. Track progress and adapt plans when necessary
+5. Use `finish` to conclude immediately when the task is complete
+
+
+Available tools will vary by task but may include:
+- `planning`: Create, update, and track plans (commands: create, update, mark_step, etc.)
+- `finish`: End the task when complete
+Break tasks into logical steps with clear outcomes. Avoid excessive detail or sub-steps.
+Think about dependencies and verification methods.
+Know when to conclude - don't continue thinking once objectives are met.
+"""
+
+
+def get_planner_prompt() -> str:
+    """Helps the agent understand its role and responsibilities as a planning agent"""
+    return PLANNER_PROMPT
