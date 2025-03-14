@@ -1,22 +1,44 @@
-import json
 import logging
 import os
+
+from dataclasses import dataclass
 from typing import Any, AsyncIterator, Dict, Optional
 
 from src.utils.utils import get_llm_model
-from browser_use.dom.service import DomService
-from src.browser.custom_browser import CustomBrowser
-from src.browser.custom_context import CustomBrowserContext
 from graph.environments.terminal import TerminalManager
 from graph.global_configurable import context
 from graph.nodes import create_agent_graph
 from graph.environments.browser import BrowserSession
-from core.types import create_default_agent_state, AgentConfig
+from graph.types import create_default_agent_state, GraphConfig
 from graph.environments.planning import PlanningEnvironment
 
-from .agent_runner import AgentConfig
-
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class LLMConfig:
+    provider: str
+    model_name: str
+    temperature: float
+    base_url: str
+    api_key: str
+
+
+@dataclass
+class AgentConfig:
+    use_own_browser: bool
+    keep_browser_open: bool
+    headless: bool
+    disable_security: bool
+    window_w: int
+    window_h: int
+    task: str
+    add_infos: str
+    max_steps: int
+    use_vision: bool
+    max_actions_per_step: int
+    tool_calling_method: str
+    limit_num_image_per_llm_call: Optional[int]
 
 
 class GraphRunner:
@@ -68,14 +90,14 @@ class GraphRunner:
                 raise RuntimeError("LLM not initialized")
 
             agent_state = create_default_agent_state(task)
-            config: AgentConfig = {
+            config: GraphConfig = {
                 "configurable": {
                     "llm": self.llm,
                     "browser": context.browser,
                     "browser_context": context.browser_context,
                     "dom_service": context.dom_service,
                     "terminal_manager": context.terminal_manager,
-                    "planning_environment": context.planning_environment,  # Add planning environment
+                    "planning_environment": context.planning_environment,
                 }
             }
 
@@ -174,17 +196,13 @@ class GraphRunner:
             return None
 
         return {
-            "html_content": self._get_html_content(node_state),
+            "html_content": "",
             "current_state": {
                 **brain_state,
                 "todo_list": node_state.get("todo_list") or "",
             },
             "action": actions,
         }
-
-    def _get_html_content(self, state: Dict) -> str:
-        """Get HTML content from browser state if available"""
-        return "<h1>Processing...</h1>"
 
     async def cleanup(self) -> None:
         """Cleanup global resources"""

@@ -1,5 +1,6 @@
 import json
 from typing import List
+from tools.utils import EnvironmentPromptContext
 
 
 def format_message_history(messages: list) -> str:
@@ -91,12 +92,15 @@ Your job is:
 2. Create a clear, actionable plan that makes meaningful progress with the `planning` tool
 3. Execute steps using available tools as needed
 4. Track progress and adapt plans when necessary
-5. Use `finish` to conclude immediately when the task is complete
+5. Use the `terminate` tool to conclude immediately when the task is complete
 
+Please log your responses in the requested JSON format and please always call the `planning` tool to create or update plans as necessary
 
-Available tools will vary by task but may include:
-- `planning`: Create, update, and track plans (commands: create, update, mark_step, etc.)
-- `finish`: End the task when complete
+If the task is complete, use the `terminate` tool to end the task.
+
+Available tools:
+- `planning`
+- `terminate`
 Break tasks into logical steps with clear outcomes. Avoid excessive detail or sub-steps.
 Think about dependencies and verification methods.
 Know when to conclude - don't continue thinking once objectives are met.
@@ -106,3 +110,70 @@ Know when to conclude - don't continue thinking once objectives are met.
 def get_planner_prompt() -> str:
     """Helps the agent understand its role and responsibilities as a planning agent"""
     return PLANNER_PROMPT
+
+
+ENVIRONMENT_PROMPT = """
+Your current working environment has the following state:
+
+## Date
+The current date and time.
+
+{current_date}
+
+---
+
+## Terminal windows
+The list of all terminal windows and their last performed commands.
+
+{terminal_windows}
+
+---
+
+## Browser tabs
+The list of all browser tabs
+
+{browser_tabs}
+
+---
+
+## Current browser information
+The current browser tab has this information.
+
+- **URL**: {current_url}
+- **Page Title**: {current_page_title}
+
+---
+
+## Clickable elements
+The clickable elements within the currently selected browser tab.
+
+{px_above_text}
+{clickable_elements}
+{px_below_text}
+"""
+
+
+def get_environment_prompt(context: EnvironmentPromptContext) -> str:
+    """Helps the agent understand the current state of the environment"""
+
+    px_above_text = (
+        f"\n... {context.pixels_above} pixels above - scroll or extract content to see more ..."
+        if context.pixels_above
+        else ""
+    )
+    px_below_text = (
+        f"\n... {context.pixels_below} pixels below - scroll or extract content to see more ..."
+        if context.pixels_below
+        else ""
+    )
+
+    return ENVIRONMENT_PROMPT.format(
+        current_date=context.current_date,
+        terminal_windows=context.terminal_windows,
+        clickable_elements=context.clickable_elements,
+        browser_tabs=context.browser_tabs,
+        current_url=context.current_url,
+        current_page_title=context.current_page_title,
+        px_above_text=px_above_text,
+        px_below_text=px_below_text,
+    )

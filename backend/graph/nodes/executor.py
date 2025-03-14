@@ -1,9 +1,9 @@
 import logging
 from typing import Dict, List, Any
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
-from core.types import AgentState
+from graph.types import AgentState
 from tools.tool_collection import ActionEngineToolCollection
 from tools.terminal import terminal_tool
 from tools.file_saver import file_saver_tool
@@ -12,7 +12,12 @@ from tools.google_search import google_search_tool
 from tools.python_execute import python_execute_tool
 from tools.str_replace_editor import str_replace_editor_tool
 from tools.terminate import terminate_tool
-from tools.utils import deserialize_messages, serialize_messages
+from tools.utils import (
+    deserialize_messages,
+    serialize_messages,
+    get_environment_system_prompt_context,
+)
+from graph.prompts import get_environment_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +53,14 @@ class ExecutorNode:
             logger.debug("Config not provided in ExecutorNode")
             raise ValueError("Config not provided in ExecutorNode")
 
+        environment_prompt_context = await get_environment_system_prompt_context(
+            config=config
+        )
+        if not environment_prompt_context:
+            raise ValueError("System prompt context not provided in config")
+
+        environment_prompt = get_environment_prompt(context=environment_prompt_context)
+
         llm: ChatOpenAI = config.get("configurable", {}).get("llm")
         if not llm:
             raise ValueError("LLM not provided in config")
@@ -59,6 +72,10 @@ class ExecutorNode:
 
         # Deserialize existing messages
         messages = deserialize_messages(state["messages"])
+
+        # Add environment prompt
+        environment_message = SystemMessage(content=environment_prompt)
+        messages.append(environment_message)
 
         # Add new human message
         human_message = HumanMessage(content=state["task"])

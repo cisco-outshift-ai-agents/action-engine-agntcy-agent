@@ -1,13 +1,16 @@
 import logging
+import json
 from typing import Dict, List
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
 
-from core.types import AgentState
+from graph.types import AgentState, BrainState
 
 from tools.tool_collection import ActionEngineToolCollection
 from tools.planning import planning_tool
+from tools.terminate import terminate_tool
 from tools.utils import deserialize_messages, serialize_messages
+from graph.prompts import get_planner_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +20,9 @@ class PlanningNode:
 
     def __init__(self):
         self.name = "planning"
-        self.tool_collection = ActionEngineToolCollection([planning_tool])
+        self.tool_collection = ActionEngineToolCollection(
+            [planning_tool, terminate_tool]
+        )
 
     async def __call__(self, state: AgentState, config: Dict):
         """Make node callable for LangGraph and ensure async execution"""
@@ -42,19 +47,31 @@ class PlanningNode:
             config=config
         )
 
+        bound_and_structured_llm = bound_llm.with_structured_output(BrainState)
+
         # Deserialize existing messages
         messages = deserialize_messages(state["messages"])
+
+        # Add new system message
+        environment_prompt = get_planner_prompt()
+        system_message = SystemMessage(content=environment_prompt)
+        messages.append(system_message)
 
         # Add new human message
         human_message = HumanMessage(content=state["task"])
         messages.append(human_message)
 
         # Get LLM response with tool calls
-        response: AIMessage = await bound_llm.ainvoke(messages)
+        _response = await bound_and_structured_llm.ainvoke(messages)
+        response = BrainState(**_response.dict())
+        state["thought"] = response.thought
+        state["summary"] = response.summary
+        state["brain"] = response
+        brain_state_message = AIMessage(content=json.dumps(response.model_dump()))
 
         # Serialize messages for state storage
         serialized_messages = serialize_messages(messages)
-        serialized_messages.extend(serialize_messages([response]))
+        serialized_messages.extend(serialize_messages([brain_state_message]))
 
         # Execute any tool calls
         if hasattr(response, "tool_calls") and response.tool_calls:

@@ -6,10 +6,6 @@ import time
 import logging
 import asyncio
 from typing import Dict, Any, Optional
-from browser_use.agent.views import ActionResult
-from browser_use.controller.service import Registry
-
-from src.terminal.terminal_views import TerminalCommandAction
 
 logger = logging.getLogger(__name__)
 

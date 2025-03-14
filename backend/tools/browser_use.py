@@ -5,6 +5,7 @@ from enum import Enum
 from langchain_core.runnables import RunnableConfig
 from .base import ToolResult
 from langchain_core.tools import tool
+from browser_use.controller.service import Controller
 
 logger = logging.getLogger(__name__)
 

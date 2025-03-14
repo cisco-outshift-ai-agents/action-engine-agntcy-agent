@@ -26,10 +26,8 @@ async def terminate_tool(
 ) -> ToolResult:
     """
     Terminate the interaction when the request is met OR if the assistant cannot proceed further with the task.
-    - Use for successful task completion
-    - Use for unrecoverable errors
-    - Use when all requirements are met
-    - Required to properly end execution chain
+    - Use when the user's request is met and the interaction is complete.
+    - Use when the assistant cannot proceed further with the task.
 
     Args:
         status: Completion status ("success" or "failure")

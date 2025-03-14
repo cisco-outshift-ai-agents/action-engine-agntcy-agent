@@ -133,7 +133,9 @@ class AgentState(TypedDict, total=False):
     todo_list: Annotated[str, last_value_reducer]
 
     # Memory and history
-    messages: Annotated[List[Dict], list_extend_reducer]  # Simplified annotation
+    messages: Annotated[
+        List[Dict], last_value_reducer
+    ]  # Every node responsible for cleaning the messages list
     tools_used: Annotated[List[Dict], list_extend_reducer]
     environment_output: Annotated[EnvironmentOutput, last_value_reducer]
 
@@ -169,7 +171,7 @@ def create_default_agent_state(task: str = "") -> Dict:
 
 
 @dataclass
-class AgentConfigConfigurable:
+class GraphConfigConfigurable:
     llm: ChatOpenAI
     browser: CustomBrowser
     browser_context: CustomBrowserContext
@@ -179,5 +181,5 @@ class AgentConfigConfigurable:
 
 
 @dataclass
-class AgentConfig:
-    configurable: AgentConfigConfigurable
+class GraphConfig:
+    configurable: GraphConfigConfigurable
