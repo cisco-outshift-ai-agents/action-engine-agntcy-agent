@@ -1,12 +1,11 @@
 import { Layout } from "@/components/ui/layout/page";
 import { Container } from "@magnetic/container";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import InteractiveVNC from "@/components/interactive-vnc";
 import ChatSection from "@/components/chat-section";
 import TabbedTerminalContainer from "@/components/terminal/terminal-tab";
 
 const SessionPage = () => {
-  // Terminal state
   const [terminalContent, setTerminalContent] = useState<string>("");
   const [isTerminal, setIsTerminal] = useState<boolean>(false);
   const [hasEmptyThought, setHasEmptyThought] = useState<boolean>(false);
@@ -14,31 +13,28 @@ const SessionPage = () => {
   const [terminalId, setTerminalId] = useState<string>("");
   const [workingDirectory, setWorkingDirectory] = useState<string>("");
 
-  // Function to handle terminal content updates from ChatSection
-  const handleTerminalUpdate = (
-    content: string,
-    isTerminal: boolean,
-    hasEmptyThought: boolean,
-    isDone: boolean,
-    terminalId?: string,
-    workingDirectory?: string
-  ) => {
-    console.log("Terminal update received:", {
-      content: content.substring(0, 50) + "...",
-      isTerminal,
-      hasEmptyThought,
-      isDone,
-      terminalId,
-      workingDirectory,
-    });
-
-    setTerminalContent(content);
-    setIsTerminal(isTerminal);
-    setHasEmptyThought(hasEmptyThought);
-    setIsDone(isDone);
-    setTerminalId(terminalId || "");
-    setWorkingDirectory(workingDirectory || "");
-  };
+  const handleTerminalUpdate = useCallback(
+    (
+      content: string,
+      isTerminal: boolean,
+      hasEmptyThought: boolean,
+      isDone: boolean,
+      terminalId?: string,
+      workingDirectory?: string
+    ) => {
+      setTerminalContent((prev) => (prev !== content ? content : prev));
+      setIsTerminal((prev) => (prev !== isTerminal ? isTerminal : prev));
+      setHasEmptyThought((prev) =>
+        prev !== hasEmptyThought ? hasEmptyThought : prev
+      );
+      setIsDone((prev) => (prev !== isDone ? isDone : prev));
+      setTerminalId((prev) => (prev !== terminalId ? terminalId || "" : prev));
+      setWorkingDirectory((prev) =>
+        prev !== workingDirectory ? workingDirectory || "" : prev
+      );
+    },
+    []
+  );
 
   return (
     <Layout>
@@ -47,14 +43,14 @@ const SessionPage = () => {
           <div className="w-[70%] flex flex-col gap-2">
             <div
               className="rounded-lg border border-white/10 bg-[#32363c] overflow-hidden"
-              style={{ height: "60%" }}
+              style={{ height: "70" }}
             >
               <InteractiveVNC />
             </div>
 
             <div
               className="rounded-lg overflow-hidden"
-              style={{ height: "40%" }}
+              style={{ height: "30%" }}
             >
               <TabbedTerminalContainer
                 isTerminalOutput={isTerminal}

@@ -135,7 +135,6 @@ const ChatSection: React.FC<ChatSectionProps> = ({ onTerminalUpdate }) => {
     console.log("Checking for terminal action:", terminalAction);
 
     if (terminalAction) {
-      console.log("Found terminal action:", terminalAction);
       const isTerminal = !!terminalAction.is_terminal;
       const hasEmptyThought = terminalAction.thought === "";
       const isDone = !!terminalAction.done;
