@@ -7,7 +7,7 @@ from typing import Any, AsyncIterator, Dict, Optional
 from src.utils.utils import get_llm_model
 from graph.environments.terminal import TerminalManager
 from graph.global_configurable import context
-from graph.nodes import create_agent_graph
+from graph.graph import create_agent_graph
 from graph.environments.browser import BrowserSession
 from graph.types import create_default_agent_state, GraphConfig
 from graph.environments.planning import PlanningEnvironment
