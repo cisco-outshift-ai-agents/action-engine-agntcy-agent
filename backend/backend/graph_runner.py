@@ -7,7 +7,7 @@ from typing import Any, AsyncIterator, Dict, Optional
 from src.utils.utils import get_llm_model
 from graph.environments.terminal import TerminalManager
 from graph.global_configurable import context
-from graph.graph import create_agent_graph
+from graph.graph import action_engine_graph
 from graph.environments.browser import BrowserSession
 from graph.types import create_default_agent_state, GraphConfig
 from graph.environments.planning import PlanningEnvironment
@@ -66,7 +66,7 @@ class GraphRunner:
         context.llm = self.llm
 
         # Initialize graph
-        self.graph = create_agent_graph()
+        self.graph = action_engine_graph
 
         # Initialize browser session
         await self.browser_session.initialize(

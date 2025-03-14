@@ -26,6 +26,7 @@ def create_agent_graph(config: RunnableConfig = None) -> Graph:
         lambda state: (END if state.get("exiting") else "planning"),
     )
 
-    logger.info(workflow)
-
     return workflow.compile()
+
+
+action_engine_graph = create_agent_graph()
