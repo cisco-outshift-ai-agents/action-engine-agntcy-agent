@@ -12,13 +12,14 @@ interface TerminalComponentProps {
   onContentUpdate?: (id: string, content: string) => void;
 }
 
-// Create a persistent terminal instance cache to prevent recreation
+// Create a persistent terminal instance cache
 const terminalInstances: Record<
   string,
   {
     term: XTerm;
     fitAddon: FitAddon;
     mounted: boolean;
+    processedContents: Set<string>;
   }
 > = {};
 
@@ -32,7 +33,6 @@ const TerminalSection = ({
 }: TerminalComponentProps): JSX.Element => {
   const terminalRef = useRef<HTMLDivElement>(null);
   const instanceIdRef = useRef<string>(terminalId || "unknown");
-  const previousContentRef = useRef<string>("");
   const [domReady, setDomReady] = useState(false);
   const [currentInput, setCurrentInput] = useState("");
   const cursorPosRef = useRef(0);
@@ -77,6 +77,7 @@ const TerminalSection = ({
         term,
         fitAddon,
         mounted: false,
+        processedContents: new Set(),
       };
     }
 
@@ -198,162 +199,139 @@ const TerminalSection = ({
     }
   };
 
+  // Terminal initialization
   useEffect(() => {
-    if (isVisible && terminalRef.current && domReady) {
-      const id = instanceIdRef.current;
-      console.log(`Setting up terminal ${id}`);
+    if (!isVisible || !terminalRef.current || !domReady) return;
 
-      try {
-        const instance = getTerminalInstance();
-        const { term, fitAddon } = instance;
+    const id = instanceIdRef.current;
+    console.log(`Setting up terminal ${id}`);
 
-        // Only open and setup the terminal if it's not already mounted
-        if (!instance.mounted) {
-          console.log(`Mounting terminal ${id} to DOM`);
-          term.open(terminalRef.current);
+    try {
+      const instance = getTerminalInstance();
+      const { term, fitAddon } = instance;
 
-          term.onData((data) => {
-            handleUserInput(data, term);
-          });
+      // If already mounted, just reattach
+      if (instance.mounted) {
+        if (term.element && term.element.parentNode !== terminalRef.current) {
+          console.log(`Reattaching terminal ${id} to DOM`);
+          if (terminalRef.current) {
+            terminalRef.current.innerHTML = "";
+            terminalRef.current.appendChild(term.element);
+          }
+        }
+      } else {
+        // First time initialization
+        console.log(`Mounting terminal ${id} to DOM`);
+        term.open(terminalRef.current);
 
-          if (contentBuffer) {
-            const contentLines = contentBuffer.split("\n");
-            contentLines.forEach((line, index) => {
-              term.write(`${line}`);
+        term.onData((data) => {
+          handleUserInput(data, term);
+        });
+
+        // Write initial buffer content if available
+        if (contentBuffer && contentBuffer.trim()) {
+          const contentLines = contentBuffer.split("\n");
+          contentLines.forEach((line, index) => {
+            // Extract content without timestamp if present
+            const actualLine = line.includes("_")
+              ? line.substring(0, line.lastIndexOf("_"))
+              : line;
+
+            if (actualLine.trim()) {
+              term.write(`${actualLine}`);
               if (index < contentLines.length - 1) {
                 term.write("\r\n");
               }
-            });
-
-            if (
-              terminalId &&
-              workingDirectory &&
-              !contentBuffer.endsWith("#")
-            ) {
-              term.write(`\r\nroot@${terminalId}:${workingDirectory}# `);
             }
-          } else {
-            const hostname = terminalId || "unknown";
-            const dir = workingDirectory || "~";
-            term.write(`root@${hostname}:${dir}# `);
-          }
+          });
 
-          instance.mounted = true;
+          if (terminalId && workingDirectory && !contentBuffer.endsWith("#")) {
+            term.write(`\r\nroot@${terminalId}:${workingDirectory}# `);
+          }
         } else {
-          if (term.element && term.element.parentNode !== terminalRef.current) {
-            console.log(`Reattaching terminal ${id} to DOM`);
-            if (terminalRef.current) {
-              terminalRef.current.innerHTML = "";
-              terminalRef.current.appendChild(term.element);
-            }
-          }
+          // Just write the initial prompt
+          const hostname = terminalId || "unknown";
+          const dir = workingDirectory || "~";
+          term.write(`root@${hostname}:${dir}# `);
         }
 
-        setTimeout(() => {
-          try {
-            if (fitAddon && terminalRef.current) {
-              fitAddon.fit();
-              term.scrollToBottom();
-            }
-          } catch (err) {
-            console.error("Error fitting terminal:", err);
-          }
-        }, 500);
-
-        const handleResize = () => {
-          try {
-            if (fitAddon) {
-              fitAddon.fit();
-            }
-          } catch (err) {
-            console.error("Error during resize:", err);
-          }
-        };
-
-        window.addEventListener("resize", handleResize);
-
-        return () => {
-          window.removeEventListener("resize", handleResize);
-        };
-      } catch (err) {
-        console.error("Error initializing terminal:", err);
+        instance.mounted = true;
       }
-    }
-  }, [isVisible, domReady, getTerminalInstance]);
 
-  useEffect(() => {
-    if (!content || !isVisible || !domReady) {
-      return;
+      // Fit terminal to container
+      setTimeout(() => {
+        if (fitAddon && terminalRef.current) {
+          fitAddon.fit();
+          term.scrollToBottom();
+        }
+      }, 100);
+
+      // Handle window resize
+      const handleResize = () => {
+        if (fitAddon) fitAddon.fit();
+      };
+
+      window.addEventListener("resize", handleResize);
+
+      return () => {
+        window.removeEventListener("resize", handleResize);
+      };
+    } catch (err) {
+      console.error("Error initializing terminal:", err);
     }
+  }, [
+    isVisible,
+    domReady,
+    getTerminalInstance,
+    contentBuffer,
+    terminalId,
+    workingDirectory,
+  ]);
+
+  // Process new content
+  useEffect(() => {
+    if (!content || !isVisible || !domReady) return;
 
     const instance = getTerminalInstance();
-    const { term } = instance;
+    const { term, processedContents } = instance;
 
     if (!term) return;
 
-    requestAnimationFrame(() => {
-      previousContentRef.current = content;
-      console.log("Writing content to terminal:", content);
+    // Extract actual content and create a unique key that includes the timestamp
+    const contentKey = content;
+    const actualContent = content.includes("_")
+      ? content.substring(0, content.lastIndexOf("_"))
+      : content;
 
-      // Write content to terminal
-      term.write(`\r\n${content}`);
-
-      setTimeout(() => {
-        term.scrollToBottom();
-
-        if (terminalId && workingDirectory && !content.endsWith("#")) {
-          term.write("\r\n");
-          term.write(`root@${terminalId}:${workingDirectory}# `);
-        }
-      }, 50);
-    });
-  }, [content, isVisible, domReady, getTerminalInstance]);
-
-  useEffect(() => {
-    if (isVisible && domReady) {
-      try {
-        const instance = getTerminalInstance();
-        const { fitAddon, term } = instance;
-
-        const resizeObserver = new ResizeObserver(() => {
-          if (fitAddon && term) {
-            setTimeout(() => {
-              fitAddon.fit();
-              term.scrollToBottom();
-            }, 100);
-          }
-        });
-
-        if (terminalRef.current) {
-          resizeObserver.observe(terminalRef.current);
-        }
-
-        setTimeout(() => {
-          if (fitAddon && term) {
-            fitAddon.fit();
-            term.scrollToBottom();
-          }
-        }, 100);
-
-        return () => {
-          resizeObserver.disconnect();
-        };
-      } catch (err) {
-        console.error("Error fitting terminal after size change:", err);
-      }
+    // Skip if already processed this exact content with this exact timestamp
+    if (processedContents.has(contentKey)) {
+      return;
     }
-  }, [isVisible, domReady, getTerminalInstance]);
 
-  useEffect(() => {
-    return () => {
-      if (terminalRef.current === null) {
-        const id = instanceIdRef.current;
-        console.log(
-          `Component completely unmounted, cleaning up terminal ${id}`
-        );
+    // Mark as processed
+    processedContents.add(contentKey);
+
+    // Write to terminal
+    console.log("Writing content to terminal:", actualContent);
+    term.write(`\r\n${actualContent}`);
+
+    // Add prompt if needed
+    setTimeout(() => {
+      term.scrollToBottom();
+
+      if (terminalId && workingDirectory && !actualContent.endsWith("#")) {
+        term.write("\r\n");
+        term.write(`root@${terminalId}:${workingDirectory}# `);
       }
-    };
-  }, []);
+    }, 50);
+  }, [
+    content,
+    isVisible,
+    domReady,
+    getTerminalInstance,
+    terminalId,
+    workingDirectory,
+  ]);
 
   return (
     <div className="flex flex-col h-full bg-[#1a1a1a] rounded-b-lg">
