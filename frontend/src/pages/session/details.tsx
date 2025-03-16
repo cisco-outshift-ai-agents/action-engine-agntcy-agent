@@ -20,9 +20,24 @@ const SessionPage = () => {
       hasEmptyThought: boolean,
       isDone: boolean,
       terminalId?: string,
-      workingDirectory?: string
+      newWorkingDirectory?: string
     ) => {
-      setTerminalContent(`${content}_${Date.now()}`);
+      console.log("Incoming terminal update:", {
+        content,
+        newWorkingDirectory,
+      });
+
+      setWorkingDirectory((prev) => {
+        if (prev !== newWorkingDirectory) {
+          return newWorkingDirectory || "";
+        }
+        return prev;
+      });
+
+      // Delay setting terminal content to allow workingDirectory to update
+      setTimeout(() => {
+        setTerminalContent(`${content}_${Date.now()}`);
+      }, 10);
 
       setIsTerminal((prev) => (prev !== isTerminal ? isTerminal : prev));
       setHasEmptyThought((prev) =>
@@ -30,9 +45,6 @@ const SessionPage = () => {
       );
       setIsDone((prev) => (prev !== isDone ? isDone : prev));
       setTerminalId((prev) => (prev !== terminalId ? terminalId || "" : prev));
-      setWorkingDirectory((prev) =>
-        prev !== workingDirectory ? workingDirectory || "" : prev
-      );
     },
     []
   );
