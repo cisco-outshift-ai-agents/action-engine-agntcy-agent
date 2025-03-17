@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Terminal as XTerm } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
-
+import { extractHostname } from "@/utils";
 interface TerminalComponentProps {
   content?: string;
   isVisible: boolean;
@@ -101,9 +101,8 @@ const TerminalSection = ({
         setCurrentInput("");
         cursorPosRef.current = 0;
 
-        const hostname = terminalId || "unknown";
-        const dir = workingDirectory || "~";
-        term.write(`root@${hostname}:${dir}# `);
+        const hostname = extractHostname(content || "");
+        term.write(`${hostname}:${workingDirectory}# `);
       }
     } else if (data === "\u007F") {
       if (cursorPosRef.current > 0) {
@@ -134,9 +133,8 @@ const TerminalSection = ({
         historyPosRef.current = newPos;
 
         term.write("\r");
-        term.write(
-          `root@${terminalId || "unknown"}:${workingDirectory || "~"}# `
-        );
+        const hostname = extractHostname(content || "");
+        term.write(`${hostname}:${workingDirectory}# `);
         term.write("\u001b[K");
 
         const historyCommand = commandHistoryRef.current[newPos];
@@ -153,9 +151,8 @@ const TerminalSection = ({
             : historyPosRef.current + 1;
 
         term.write("\r");
-        term.write(
-          `root@${terminalId || "unknown"}:${workingDirectory || "~"}# `
-        );
+        const hostname = extractHostname(content || "");
+        term.write(`${hostname}:${workingDirectory}# `);
         term.write("\u001b[K");
 
         if (newPos === -1) {
@@ -250,9 +247,8 @@ const TerminalSection = ({
           }
         } else {
           // Just write the initial prompt
-          const hostname = terminalId || "unknown";
-          const dir = workingDirectory || "~";
-          term.write(`root@${hostname}:${dir}# `);
+          const hostname = extractHostname(content || "");
+          term.write(`${hostname}:${workingDirectory}# `);
         }
 
         instance.mounted = true;
@@ -318,11 +314,8 @@ const TerminalSection = ({
     // Add prompt if needed
     setTimeout(() => {
       term.scrollToBottom();
-
-      if (terminalId && workingDirectory && !actualContent.endsWith("#")) {
-        term.write("\r\n");
-        term.write(`root@${terminalId}:${workingDirectory}# `);
-      }
+      const hostname = extractHostname(content || "");
+      term.write(`\r\n${hostname}:${workingDirectory || "~"}# `);
     }, 50);
   }, [
     content,

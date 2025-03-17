@@ -261,22 +261,3 @@ const TabbedTerminalContainer: React.FC<TabbedTerminalContainerProps> = ({
 };
 
 export default TabbedTerminalContainer;
-
-//   const handleContentUpdate = useCallback((id: string, content: string) => {
-//     if (content && content.trim()) {
-//       setTerminalBuffers((prev) => {
-//         if (prev[id]?.indexOf(content) === -1) {
-//           return {
-//             ...prev,
-//             [id]: (prev[id] || "") + (prev[id] ? "\n" : "") + content,
-//           };
-//         }
-//         return prev;
-//       });
-
-//       setContentTimestamps((prev) => ({
-//         ...prev,
-//         [id]: Date.now(),
-//       }));
-//     }
-//   }, []);
