@@ -1,5 +1,6 @@
 from typing import Dict, List, Literal, Optional
 from pydantic import BaseModel
+from langchain_core.messages import AIMessage
 
 
 class Plan(BaseModel):
@@ -66,7 +67,7 @@ class PlanningEnvironment:
 
     def format_plan(cls, plan: Plan) -> str:
         """Format plan for display"""
-        output = f"Plan: {plan.title} (ID: {plan.plan_id})\n"
+        output = f"The current plan: {plan.title} (ID: {plan.plan_id})\n"
         output += "=" * len(output) + "\n\n"
 
         # Calculate progress statistics
@@ -102,3 +103,12 @@ class PlanningEnvironment:
                 output += f"   Notes: {notes}\n"
 
         return output
+
+    def get_ai_message_for_current_plan(self) -> AIMessage:
+        plan = self.get_plan()
+        if not plan:
+            return AIMessage(content="No plan available")
+
+        formatted_plan = self.format_plan(plan)
+
+        return AIMessage(content=formatted_plan)

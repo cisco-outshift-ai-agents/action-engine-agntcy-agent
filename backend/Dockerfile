@@ -52,7 +52,7 @@ RUN git clone https://github.com/novnc/noVNC.git /opt/novnc \
 # Install Chrome
 RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
     && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list \
-    && apt-get update \
+    && apt-get update \ 
     && apt-get install -y google-chrome-stable
 
 # Set up working directory

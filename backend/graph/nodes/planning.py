@@ -5,12 +5,12 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
 
 from graph.types import AgentState, BrainState
-
 from tools.tool_collection import ActionEngineToolCollection
 from tools.planning import planning_tool
 from tools.terminate import terminate_tool
 from tools.utils import deserialize_messages, serialize_messages
 from graph.prompts import get_planner_prompt
+from graph.environments.planning import PlanningEnvironment
 
 logger = logging.getLogger(__name__)
 
@@ -41,13 +41,16 @@ class PlanningNode:
             logger.debug("Config not provided in PlanningNode")
             raise ValueError("Config not provided")
 
+        planning_env = config["configurable"].get("planning_environment")
+        if not isinstance(planning_env, PlanningEnvironment):
+            logger.error("No planning_environment in configurable")
+            return ValueError("Planning environment not initialized")
+
         llm: ChatOpenAI = config.get("configurable", {}).get("llm")
 
         bound_llm = llm.bind_tools(self.tool_collection.get_tools()).with_config(
             config=config
         )
-
-        bound_and_structured_llm = bound_llm.with_structured_output(BrainState)
 
         # Deserialize existing messages
         messages = deserialize_messages(state["messages"])
@@ -61,17 +64,16 @@ class PlanningNode:
         human_message = HumanMessage(content=state["task"])
         messages.append(human_message)
 
+        # Add the plan message
+        plan_msg = planning_env.get_ai_message_for_current_plan()
+        messages.append(plan_msg)
+
         # Get LLM response with tool calls
-        _response = await bound_and_structured_llm.ainvoke(messages)
-        response = BrainState(**_response.dict())
-        state["thought"] = response.thought
-        state["summary"] = response.summary
-        state["brain"] = response
-        brain_state_message = AIMessage(content=json.dumps(response.model_dump()))
+        response: AIMessage = await bound_llm.ainvoke(messages)
 
         # Serialize messages for state storage
         serialized_messages = serialize_messages(messages)
-        serialized_messages.extend(serialize_messages([brain_state_message]))
+        serialized_messages.extend(serialize_messages([response]))
 
         # Execute any tool calls
         if hasattr(response, "tool_calls") and response.tool_calls:

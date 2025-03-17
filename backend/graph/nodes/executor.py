@@ -53,14 +53,6 @@ class ExecutorNode:
             logger.debug("Config not provided in ExecutorNode")
             raise ValueError("Config not provided in ExecutorNode")
 
-        environment_prompt_context = await get_environment_system_prompt_context(
-            config=config
-        )
-        if not environment_prompt_context:
-            raise ValueError("System prompt context not provided in config")
-
-        environment_prompt = get_environment_prompt(context=environment_prompt_context)
-
         llm: ChatOpenAI = config.get("configurable", {}).get("llm")
         if not llm:
             raise ValueError("LLM not provided in config")
@@ -74,7 +66,26 @@ class ExecutorNode:
         messages = deserialize_messages(state["messages"])
 
         # Add environment prompt
-        environment_message = SystemMessage(content=environment_prompt)
+        environment_prompt_context = await get_environment_system_prompt_context(
+            config=config
+        )
+
+        if not environment_prompt_context:
+            raise ValueError("System prompt context not provided in config")
+
+        environment_prompt = get_environment_prompt(context=environment_prompt_context)
+
+        screenshot = environment_prompt_context.screenshot
+
+        environment_message = HumanMessage(
+            content=[
+                {"type": "text", "text": environment_prompt},
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/png;base64,{screenshot}"},
+                },
+            ]
+        )
         messages.append(environment_message)
 
         # Add new human message

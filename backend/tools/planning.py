@@ -1,11 +1,11 @@
 import logging
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from enum import Enum
 from langchain_core.tools import tool
 from langchain_core.runnables import RunnableConfig
 
 from .base import ToolResult
-from graph.environments.planning import Plan
+from graph.environments.planning import Plan, PlanningEnvironment
 import traceback
 
 logger = logging.getLogger(__name__)
@@ -64,9 +64,9 @@ async def planning_tool(
         return ToolResult(error="Config missing 'configurable' key")
 
     planning_env = config["configurable"].get("planning_environment")
-    if not planning_env:
-        logger.error("[PlanningTool] No planning_environment in configurable")
-        return ToolResult(error="Planning environment not initialized")
+    if not isinstance(planning_env, PlanningEnvironment):
+        logger.error("No planning_environment in configurable")
+        return ValueError("Planning environment not initialized")
 
     try:
         if command == PlanCommand.CREATE:

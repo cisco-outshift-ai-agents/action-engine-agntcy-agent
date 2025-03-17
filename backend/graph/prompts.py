@@ -1,6 +1,6 @@
 import json
-from typing import List
 from tools.utils import EnvironmentPromptContext
+from graph.types import BrainState
 
 
 def format_message_history(messages: list) -> str:
@@ -176,4 +176,34 @@ def get_environment_prompt(context: EnvironmentPromptContext) -> str:
         current_page_title=context.current_page_title,
         px_above_text=px_above_text,
         px_below_text=px_below_text,
+    )
+
+
+THINKING_PROMPT = """
+You are an agent that can generate thoughts and ideas to communicate the current state of an 
+agentic UI automation workflow to a human user.
+
+You will be provided with the current state of the environment, the state of the conversation, and a generated
+plan of how to complete the user's request.  Describe to the user what is happening in the current moment and 
+what you plan to do next.
+
+Your output will be viewed by the user, so play the role of a friendly, communicative agent which
+clearly describes what the AI is doing and why.  Make your response first-person and friendly.
+
+The previous thoughts are as follows: 
+
+{thought}
+
+"""
+
+
+def get_thinking_prompt(brainstate: BrainState) -> str:
+    """Helps the agent understand its role and responsibilities as a thinking agent"""
+    return THINKING_PROMPT.format(
+        thought=brainstate.get("thought"),
+        important_contents=brainstate.get("important_contents"),
+        task_progress=brainstate.get("task_progress"),
+        future_plans=brainstate.get("future_plans"),
+        summary=brainstate.get("summary"),
+        prev_action_evaluation=brainstate.get("prev_action_evaluation"),
     )

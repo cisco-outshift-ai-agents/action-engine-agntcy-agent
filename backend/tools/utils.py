@@ -117,6 +117,7 @@ async def get_environment_system_prompt_context(
     terminal_windows = (
         await config["configurable"].get("terminal_manager").list_terminals()
     )
+
     browser_context: CustomBrowserContext = config["configurable"].get(
         "browser_context"
     )
@@ -139,10 +140,6 @@ async def get_environment_system_prompt_context(
 
     clickable_elements = element_tree.clickable_elements_to_string()
     current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    logger.info(f"Clickable elements: {clickable_elements}")
-    logger.info(f"Browser tabs: {browser_tabs}")
-    logger.info(f"Current date: {current_date}")
 
     return EnvironmentPromptContext(
         terminal_windows=json.dumps(terminal_windows),
