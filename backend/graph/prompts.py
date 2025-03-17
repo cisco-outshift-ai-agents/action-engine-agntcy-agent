@@ -1,5 +1,5 @@
 import json
-from tools.utils import EnvironmentPromptContext
+from tools.utils import ExecutorPromptContext
 from graph.types import BrainState
 
 
@@ -22,67 +22,6 @@ def format_message_history(messages: list) -> str:
         formatted.append(f"**Action**: {json.dumps(action, indent=2)}")
 
     return "\n".join(formatted)
-
-
-CHAIN_OF_THOUGHT_PROMPT = """
-You are an agent that can think and plan ahead for a browser/code/terminal automation task.
-
-Another agent will have access to: 
-  1. A terminal
-  2. A code editor
-  3. A browser
-
-Given the following task, and context, generate a series of actions that the agent should take to complete the task.
-Format your response like a markdown TODO list.
-
-You will be given 3 pieces of information: 
-
-1. The task provided by the user to be completed
-2. The history of the agent's attempts to complete the task (optional)
-3. The existing TODO list which you can then edit, append to, or remove items from as you see fit.
-
-## Task
-{task}
-
-## Context (Optional)
-{context}
-
-## 
-{todo_list}
-"""
-
-
-def get_chain_of_thought_prompt(task: str, context: str, todo_list: str) -> str:
-    """Builds a prompt that helps the agent plan its next steps based on previous attempts"""
-    return CHAIN_OF_THOUGHT_PROMPT.format(
-        task=task, context=context, todo_list=todo_list
-    )
-
-
-ROUTER_PROMPT = """You are a router agent that helps determine the best environment for a given task.
-
-You will be provided with a todo list and a task to complete.
-Based on the task and the todo list, you will need to determine the best environment to complete the task.
-
-Available environments:
-- browser: For web automation, form filling, navigation
-- terminal: For file system operations, running commands
-- code: For code writing, editing, and execution
-- chat: For conversational tasks
-
-Given the task and the todo list, determine the best environment to complete the task and provide a reasoning for your choice.
-
-## Task
-{task}
-
-## Todo List
-{todo_list}
-"""
-
-
-def get_router_prompt(task: str, todo_list: str) -> str:
-    """Helps the agent decide which environment is most appropriate for the current task"""
-    return ROUTER_PROMPT.format(task=task, todo_list=todo_list)
 
 
 PLANNER_PROMPT = """
@@ -112,7 +51,56 @@ def get_planner_prompt() -> str:
     return PLANNER_PROMPT
 
 
-ENVIRONMENT_PROMPT = """
+EXECUTOR_PROMPT = """
+You are a precise browser automation agent that interacts with websites and terminals through structured commands. 
+Your role is to analyze the provided information and determine whether to use provided webpage elements and structure for browser or execute a command in a terminal.
+
+
+1. ENVIRONMENT DETECTION:
+    - Analyze the task and determine if it requires browser or terminal execution
+    - For file system tasks (listing files, creating directories, running local scripts), use the terminal tools
+    - For web tasks (form filling, navigation, data extraction), use the browser tool
+    - You can switch between browser and terminal as needed by the task
+    - Use the `terminate` tool to end the task when you determine that it is complete
+2. ELEMENT INTERACTION:
+       - Only use indexes that exist in the provided element list
+       - Each element has a unique index number (e.g., "33[:]<button>")
+       - Elements marked with "_[:]" are non-interactive (for context only)
+3. NAVIGATION & ERROR HANDLING:
+    - If no suitable elements exist, use other functions to complete the task
+    - If stuck, try alternative approaches
+    - Handle popups/cookies by accepting or closing them
+    - Use scroll to find elements you are looking for
+4. TASK COMPLETION:
+    - If you think all the requirements of user\'s instruction have been completed and no further operation is required, use the terminate function to terminate the operation process.
+    - Don't hallucinate actions.
+    - Don't hallucinate terminal output
+    - If the task requires specific information - make sure to include everything in the terminate function. This is what the user will see.
+    - Note that you must verify if you've truly fulfilled the user's request by examining the actual page content, not just by looking at the actions you output but also whether the action is executed successfully. Pay particular attention when errors occur during action execution.
+    - Note that you must verify if you've truly completed a terminal execution by examining the actual output, not just by looking at the actions you output but also whether the command was executed. Pay particular attention when errors occur during action execution.
+5. VISUAL CONTEXT:
+    - When an image is provided, use it to understand the page layout
+    - Bounding boxes with labels correspond to element indexes
+    - Each bounding box and its label have the same color
+    - Most often the label is inside the bounding box, on the top right
+    - Visual context helps verify element locations and relationships
+    - Sometimes labels overlap, so use the context to verify the correct element
+6. TERMINAL COMMAND EXECUTION:
+    - When working with the file system, FIRST check if working_directory is available in the terminal state - this is your current directory
+    - If working_directory is provided, use it as the basis for all relative paths
+    - ALWAYS use absolute paths (starting with '/') for system directories and common directories like /app, /etc, /var
+    - When a command fails, immediately retry with absolute paths
+    - Before listing contents of a directory, first check if it exists at both current location and root
+    - For directory listing:
+        * Use 'ls' for basic listings without extra details
+        * Use 'ls -l' only when detailed file information is needed
+        * Use 'ls -la' only when hidden files are specifically required
+    - When asked to find a directory or file, use 'find / -name targetname -type d/f' command
+    - Always check command results before proceeding to next operations
+    - If uncertain about a path, first list the contents of the parent directory
+    - If looking for specific directories like 'app', first check if they exist at root level (e.g., '/app')
+
+
 Your current working environment has the following state:
 
 ## Date
@@ -153,7 +141,7 @@ The clickable elements within the currently selected browser tab.
 """
 
 
-def get_environment_prompt(context: EnvironmentPromptContext) -> str:
+def get_executor_prompt(context: ExecutorPromptContext) -> str:
     """Helps the agent understand the current state of the environment"""
 
     px_above_text = (
@@ -167,7 +155,7 @@ def get_environment_prompt(context: EnvironmentPromptContext) -> str:
         else ""
     )
 
-    return ENVIRONMENT_PROMPT.format(
+    return EXECUTOR_PROMPT.format(
         current_date=context.current_date,
         terminal_windows=context.terminal_windows,
         clickable_elements=context.clickable_elements,
@@ -185,7 +173,8 @@ agentic UI automation workflow to a human user.
 
 You will be provided with the current state of the environment, the state of the conversation, and a generated
 plan of how to complete the user's request.  Describe to the user what is happening in the current moment and 
-what you plan to do next.
+what you will to do next.  Do not reference the plan directly, but instead explain your thought process as a human 
+would do, using the plan as a guide for your actions.
 
 Your output will be viewed by the user, so play the role of a friendly, communicative agent which
 clearly describes what the AI is doing and why.  Make your response first-person and friendly.

@@ -1,21 +1,26 @@
 import logging
 import json
-from typing import Dict, List
+from typing import Dict
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
+from langchain_core.messages import (
+    HumanMessage,
+    AIMessage,
+    SystemMessage,
+)
 
-from graph.types import AgentState, BrainState
+from graph.types import AgentState
 from tools.tool_collection import ActionEngineToolCollection
 from tools.planning import planning_tool
 from tools.terminate import terminate_tool
-from tools.utils import deserialize_messages, serialize_messages
+from tools.utils import hydrate_messages, serialize_messages
 from graph.prompts import get_planner_prompt
 from graph.environments.planning import PlanningEnvironment
+from graph.nodes.base_node import BaseNode
 
 logger = logging.getLogger(__name__)
 
 
-class PlanningNode:
+class PlanningNode(BaseNode):
     """Provides high-level guidance but doesn't control execution flow"""
 
     def __init__(self):
@@ -23,14 +28,6 @@ class PlanningNode:
         self.tool_collection = ActionEngineToolCollection(
             [planning_tool, terminate_tool]
         )
-
-    async def __call__(self, state: AgentState, config: Dict):
-        """Make node callable for LangGraph and ensure async execution"""
-        return await self.ainvoke(state, config)
-
-    def invoke(self, state: AgentState, config: Dict):
-        """Prevent sync execution"""
-        raise NotImplementedError("Chain of thought requires async execution")
 
     async def ainvoke(self, state: AgentState, config: Dict = None) -> AgentState:
         if "messages" not in state:
@@ -52,75 +49,52 @@ class PlanningNode:
             config=config
         )
 
-        # Deserialize existing messages
-        messages = deserialize_messages(state["messages"])
+        ## Manage two running states of messages:
+        ## 1. Local messages: Messages that are only relevant to the current node, pruned from global message state
+        ##      and are sent to the LLM
+        ## 2. Global messages: Long term message store that is relevant to the entire conversation and are
+        ##      stored in the global state
 
-        # Add new system message
-        environment_prompt = get_planner_prompt()
-        system_message = SystemMessage(content=environment_prompt)
-        messages.append(system_message)
+        # Hydrate existing messages
+        local_messages = hydrate_messages(state["messages"])
+        local_messages = self.prune_messages(local_messages)
 
-        # Add new human message
+        # Add new human message with the task
         human_message = HumanMessage(content=state["task"])
-        messages.append(human_message)
+        local_messages.append(human_message)
 
-        # Add the plan message
+        # Add new system message for this node
+        planner_prompt = get_planner_prompt()
+        system_message = SystemMessage(content=planner_prompt)
+        local_messages.append(system_message)
+
+        # Add the current plan message
         plan_msg = planning_env.get_ai_message_for_current_plan()
-        messages.append(plan_msg)
+        local_messages.append(plan_msg)
 
         # Get LLM response with tool calls
-        response: AIMessage = await bound_llm.ainvoke(messages)
+        response: AIMessage = await bound_llm.ainvoke(local_messages)
 
-        # Serialize messages for state storage
-        serialized_messages = serialize_messages(messages)
-        serialized_messages.extend(serialize_messages([response]))
+        # First hydrate any existing messages before serializing
+        existing_messages = hydrate_messages(state["messages"])
+        global_messages = serialize_messages(existing_messages)
+        global_messages.extend(
+            serialize_messages([human_message, system_message, plan_msg, response])
+        )
 
-        # Execute any tool calls
+        # Execute any tool calls and add the tool messages to the global state
         if hasattr(response, "tool_calls") and response.tool_calls:
             tool_messages = await self.execute_tools(message=response)
-            serialized_messages.extend(serialize_messages(tool_messages))
+            global_messages.extend(serialize_messages(tool_messages))
 
-        state["messages"] = serialized_messages
+        # Check for and handle termination tool call
+        termination_tool_call = next(
+            (tc for tc in response.tool_calls if tc["name"] == "terminate"), None
+        )
+        if termination_tool_call:
+            state["exiting"] = True
+            state["thought"] = termination_tool_call["reason"]
+
+        # Update the global state with the new messages
+        state["messages"] = global_messages
         return state
-
-    async def execute_tools(
-        self, message: AIMessage, config: Dict = None
-    ) -> List[ToolMessage]:
-        """Execute tools using tool collection"""
-        tool_messages = []
-
-        for tool_call in message.tool_calls:
-            try:
-                name = tool_call["name"]
-                args = tool_call["args"]
-
-                if not name:
-                    raise ValueError("Tool call missing function")
-
-                # Explicitly create the tool input with config
-                result = await self.tool_collection.execute_tool(
-                    name=name,
-                    input_dict=args,
-                    config=config,
-                )
-                random_id = str(hash(str(tool_call) + str(result)))[:8]
-
-                tool_messages.append(
-                    ToolMessage(
-                        tool_name=name,
-                        content=str(result),
-                        tool_call_id=random_id,
-                    )
-                )
-            except Exception as e:
-                logger.error(f"Error executing tool {tool_call}: {str(e)}")
-                random_id = str(hash(str(tool_call) + str(result)))[:8]
-                tool_messages.append(
-                    ToolMessage(
-                        tool_name=tool_call["name"],
-                        content=str(e),
-                        tool_call_id=random_id,
-                    )
-                )
-
-        return tool_messages

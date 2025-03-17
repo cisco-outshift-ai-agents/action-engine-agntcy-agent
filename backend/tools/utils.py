@@ -20,9 +20,9 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 
 
-def deserialize_message(message: Dict[str, Any]) -> BaseMessage:
+def hydrate_message(message: Dict[str, Any]) -> BaseMessage:
     """
-    Deserialize a message dictionary into a LangChain message object.
+    Hydrate a message dictionary into a LangChain message object.
 
     Args:
         message: Message dictionary with 'type' and 'content' fields
@@ -49,18 +49,17 @@ def deserialize_message(message: Dict[str, Any]) -> BaseMessage:
         return message
 
 
-def deserialize_messages(messages: List[Dict[str, Any]]) -> List[BaseMessage]:
+def hydrate_messages(messages: List[Dict[str, Any]]) -> List[BaseMessage]:
     """
-    Deserialize a list of message dictionaries into LangChain message objects.
+    Hydrate a list of message dictionaries into LangChain message objects.
 
     Args:
         messages: List of message dictionaries with 'type' and 'content' fields
 
     Returns:
-        List of LangChain message objects (HumanMessage, AIMessage, ToolMessage)
+        List of LangChain message objects
     """
-
-    return [deserialize_message(m) for m in messages]
+    return [hydrate_message(m) for m in messages]
 
 
 def serialize_message(message: BaseMessage) -> Dict[str, Any]:
@@ -94,7 +93,7 @@ def serialize_messages(messages: List[BaseMessage]) -> List[Dict[str, Any]]:
 
 
 @dataclass
-class EnvironmentPromptContext:
+class ExecutorPromptContext:
     terminal_windows: str
     clickable_elements: str
     browser_tabs: str
@@ -106,9 +105,9 @@ class EnvironmentPromptContext:
     current_page_title: str
 
 
-async def get_environment_system_prompt_context(
+async def get_executor_system_prompt_context(
     config: GraphConfig,
-) -> EnvironmentPromptContext:
+) -> ExecutorPromptContext:
     """
     Given the current state of all the systems, generate the prompt which contains the
     sum of all of the context that the agent needs to take action in its environments
@@ -141,7 +140,7 @@ async def get_environment_system_prompt_context(
     clickable_elements = element_tree.clickable_elements_to_string()
     current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    return EnvironmentPromptContext(
+    return ExecutorPromptContext(
         terminal_windows=json.dumps(terminal_windows),
         clickable_elements=str(clickable_elements),
         browser_tabs=str(browser_tabs),

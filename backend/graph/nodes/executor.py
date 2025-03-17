@@ -1,6 +1,12 @@
 import logging
 from typing import Dict, List, Any
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
+from langchain_core.messages import (
+    HumanMessage,
+    AIMessage,
+    ToolMessage,
+    BaseMessage,
+    SystemMessage,
+)
 from langchain_openai import ChatOpenAI
 
 from graph.types import AgentState
@@ -13,16 +19,17 @@ from tools.python_execute import python_execute_tool
 from tools.str_replace_editor import str_replace_editor_tool
 from tools.terminate import terminate_tool
 from tools.utils import (
-    deserialize_messages,
     serialize_messages,
-    get_environment_system_prompt_context,
+    get_executor_system_prompt_context,
+    hydrate_messages,
 )
-from graph.prompts import get_environment_prompt
+from graph.prompts import get_executor_prompt
+from graph.nodes.base_node import BaseNode
 
 logger = logging.getLogger(__name__)
 
 
-class ExecutorNode:
+class ExecutorNode(BaseNode):
     """Executes tools in a LangGraph workflow"""
 
     def __init__(self):
@@ -38,10 +45,6 @@ class ExecutorNode:
                 terminate_tool,
             ]
         )
-
-    async def __call__(self, state: AgentState, config: Dict):
-        """Make node callable for LangGraph and ensure async execution"""
-        return await self.ainvoke(state, config)
 
     async def ainvoke(self, state: AgentState, config: Dict) -> Dict:
         """Async invocation with direct tool execution"""
@@ -62,48 +65,49 @@ class ExecutorNode:
             config=config
         )
 
-        # Deserialize existing messages
-        messages = deserialize_messages(state["messages"])
+        # Hydrate existing messages
+        local_messages = hydrate_messages(state["messages"])
+        local_messages = self.prune_messages(local_messages)
+
+        # Add new human message with the task
+        human_message = HumanMessage(content=state["task"])
+        local_messages.append(human_message)
 
         # Add environment prompt
-        environment_prompt_context = await get_environment_system_prompt_context(
+        executor_prompt_context = await get_executor_system_prompt_context(
             config=config
         )
-
-        if not environment_prompt_context:
+        if not executor_prompt_context:
             raise ValueError("System prompt context not provided in config")
-
-        environment_prompt = get_environment_prompt(context=environment_prompt_context)
-
-        screenshot = environment_prompt_context.screenshot
-
-        environment_message = HumanMessage(
+        executor_prompt = get_executor_prompt(context=executor_prompt_context)
+        screenshot = executor_prompt_context.screenshot
+        executor_message = SystemMessage(
             content=[
-                {"type": "text", "text": environment_prompt},
+                {"type": "text", "text": executor_prompt},
                 {
                     "type": "image_url",
                     "image_url": {"url": f"data:image/png;base64,{screenshot}"},
                 },
             ]
         )
-        messages.append(environment_message)
-
-        # Add new human message
-        human_message = HumanMessage(content=state["task"])
-        messages.append(human_message)
+        local_messages.append(executor_message)
 
         # Get LLM response with tool calls
-        response: AIMessage = await bound_llm.ainvoke(messages)
+        response: AIMessage = await bound_llm.ainvoke(local_messages)
 
-        # Serialize messages for state storage
-        serialized_messages = serialize_messages(messages)
-        serialized_messages.extend(serialize_messages([response]))
+        # First hydrate any existing messages before serializing
+        existing_messages = hydrate_messages(state["messages"])
+        global_messages = serialize_messages(existing_messages)
+        global_messages.extend(
+            serialize_messages([human_message, executor_message, response])
+        )
 
         # Execute any tool calls
         if hasattr(response, "tool_calls") and response.tool_calls:
             tool_messages = await self.execute_tools(message=response, config=config)
-            serialized_messages.extend(serialize_messages(tool_messages))
+            global_messages.extend(serialize_messages(tool_messages))
 
+        # Check for and handle termination tool call
         termination_tool_call = next(
             (tc for tc in response.tool_calls if tc["name"] == "terminate"), None
         )
@@ -111,46 +115,6 @@ class ExecutorNode:
             state["exiting"] = True
             state["thought"] = termination_tool_call["reason"]
 
-        state["messages"] = serialized_messages
+        # Update the global state with the new messages
+        state["messages"] = global_messages
         return state
-
-    async def execute_tools(
-        self, message: AIMessage, config: Dict = None
-    ) -> List[ToolMessage]:
-        """Execute tools using tool collection"""
-        tool_messages = []
-
-        for tool_call in message.tool_calls:
-            try:
-                name = tool_call["name"]
-                args = tool_call["args"]
-
-                if not name:
-                    raise ValueError("Tool call missing function")
-
-                # Pass the config separately - let tool_collection handle merging
-                result = await self.tool_collection.execute_tool(
-                    name=name,
-                    input_dict=args,
-                    config=config,
-                )
-                random_id = str(hash(str(tool_call) + str(result)))[:8]
-
-                tool_messages.append(
-                    ToolMessage(
-                        tool_name=name,
-                        content=str(result),
-                        tool_call_id=random_id,
-                    )
-                )
-            except Exception as e:
-                logger.error(f"Error executing tool {tool_call}: {str(e)}")
-                tool_messages.append(
-                    ToolMessage(
-                        tool_name=tool_call.function.name,
-                        content=str(e),
-                        tool_call_id=tool_call.id,
-                    )
-                )
-
-        return tool_messages

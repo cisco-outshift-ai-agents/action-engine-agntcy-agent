@@ -2,33 +2,30 @@ import logging
 import json
 from typing import Dict, List
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage, SystemMessage
+from langchain_core.messages import (
+    HumanMessage,
+    AIMessage,
+    ToolMessage,
+    SystemMessage,
+    BaseMessage,
+)
 
 from graph.types import AgentState, BrainState
 
-from tools.tool_collection import ActionEngineToolCollection
-from tools.terminate import terminate_tool
-from tools.utils import deserialize_messages, serialize_messages
+from tools.utils import hydrate_messages, serialize_messages
 from graph.prompts import get_thinking_prompt
 from graph.environments.planning import PlanningEnvironment
+from graph.nodes.base_node import BaseNode
 
 logger = logging.getLogger(__name__)
 
 
-class ThinkingNode:
+class ThinkingNode(BaseNode):
     """Prepares the user-centric thoughts and responses given the brain
     state"""
 
     def __init__(self):
         self.name = "thinking"
-
-    async def __call__(self, state: AgentState, config: Dict):
-        """Make node callable for LangGraph and ensure async execution"""
-        return await self.ainvoke(state, config)
-
-    def invoke(self, state: AgentState, config: Dict):
-        """Prevent sync execution"""
-        raise NotImplementedError("Chain of thought requires async execution")
 
     async def ainvoke(self, state: AgentState, config: Dict = None) -> AgentState:
 
@@ -49,33 +46,40 @@ class ThinkingNode:
 
         structured_llm = llm.with_structured_output(BrainState)
 
-        # Deserialize existing messages
-        messages = deserialize_messages(state["messages"])
+        # Hydrate existing messages
+        local_messages = hydrate_messages(state["messages"])
+        local_messages = self.prune_messages(local_messages)
 
-        # Add new system message
+        # Add new human message with the task
+        human_message = HumanMessage(content=state["task"])
+        local_messages.append(human_message)
+
+        # Add new system message for this node
         thinking_prompt = get_thinking_prompt(state["brain"])
         system_message = SystemMessage(content=thinking_prompt)
-        messages.append(system_message)
+        local_messages.append(system_message)
 
-        # Add new human message
-        human_message = HumanMessage(content=state["task"])
-        messages.append(human_message)
-
-        # Add the plan message
+        # Add the current plan message
         plan_msg = planning_env.get_ai_message_for_current_plan()
-        messages.append(plan_msg)
+        local_messages.append(plan_msg)
 
-        # Get LLM response
-        _response = await structured_llm.ainvoke(messages)
+        # Get LLM response and structured output
+        _response = await structured_llm.ainvoke(local_messages)
         response = BrainState(**_response.dict())
         state["thought"] = response.thought
         state["summary"] = response.summary
         state["brain"] = response
         brain_state_message = AIMessage(content=json.dumps(response.model_dump()))
 
-        # Serialize messages for state storage
-        serialized_messages = serialize_messages(messages)
-        serialized_messages.extend(serialize_messages([brain_state_message]))
+        # First hydrate any existing messages before serializing
+        existing_messages = hydrate_messages(state["messages"])
+        global_messages = serialize_messages(existing_messages)
+        global_messages.extend(
+            serialize_messages(
+                [human_message, system_message, plan_msg, brain_state_message]
+            )
+        )
 
-        state["messages"] = serialized_messages
+        # Update the global state with the new messages
+        state["messages"] = global_messages
         return state
