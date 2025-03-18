@@ -107,27 +107,27 @@ const TerminalSection = ({
         const hostname = extractHostname(content || "");
         term.write(`${hostname}:${workingDirectory}# `);
       }
+      // Backspace key
     } else if (data === "\u007F") {
       if (cursorPosRef.current > 0) {
         const newInput =
           currentInputRef.current.substring(0, cursorPosRef.current - 1) +
           currentInputRef.current.substring(cursorPosRef.current);
         currentInputRef.current = newInput;
+        cursorPosRef.current--;
 
-        term.write("\b");
+        term.write("\b \b");
 
         term.write("\u001b[K");
-        term.write(newInput.substring(cursorPosRef.current - 1));
+        term.write(newInput.substring(cursorPosRef.current));
 
-        const moveBack = newInput.length - cursorPosRef.current + 1;
+        const moveBack = newInput.length - cursorPosRef.current;
         if (moveBack > 0) {
           term.write(`\u001b[${moveBack}D`);
         }
-
-        cursorPosRef.current--;
       }
-    } else if (data === "\u001b[A") {
       // Up Arrow Key
+    } else if (data === "\u001b[A") {
       if (commandHistoryRef.current.length > 0) {
         const newPos =
           historyPosRef.current === -1
@@ -140,9 +140,11 @@ const TerminalSection = ({
         term.write("\u001b[2K\r");
         const hostname = extractHostname(content || "");
         term.write(`${hostname}:${workingDirectory}# ` + historyCommand);
+        currentInputRef.current = historyCommand;
 
         cursorPosRef.current = historyCommand.length;
       }
+      // Down Arrow Key
     } else if (data === "\u001b[B") {
       if (commandHistoryRef.current.length > 0 && historyPosRef.current >= 0) {
         const newPos =
@@ -156,32 +158,33 @@ const TerminalSection = ({
         term.write("\u001b[K");
 
         if (newPos === -1) {
+          currentInputRef.current = "";
           cursorPosRef.current = 0;
         } else {
           const historyCommand = commandHistoryRef.current[newPos];
           term.write(historyCommand);
+          currentInputRef.current = historyCommand;
 
           cursorPosRef.current = historyCommand.length;
         }
 
         historyPosRef.current = newPos;
       }
+      // Right Arrow Key
     } else if (data === "\u001b[C") {
       if (cursorPosRef.current < currentInputRef.current.length) {
-        console.log(
-          "Moving cursor right:",
-          currentInputRef.current[cursorPosRef.current]
-        );
         term.write("\u001b[C");
         cursorPosRef.current++;
       } else {
         console.warn("Cursor at the end, cannot move right!");
       }
+      //Left Arrow Key
     } else if (data === "\u001b[D") {
       if (cursorPosRef.current > 0) {
         term.write("\u001b[D");
         cursorPosRef.current--;
       }
+      // Character input
     } else if (data >= " " && data <= "~") {
       const newInput =
         currentInputRef.current.substring(0, cursorPosRef.current) +
@@ -189,8 +192,13 @@ const TerminalSection = ({
         currentInputRef.current.substring(cursorPosRef.current);
 
       currentInputRef.current = newInput;
+      term.write("\u001b[K");
+      term.write(newInput.substring(cursorPosRef.current));
 
-      term.write(data);
+      const moveBack = newInput.length - cursorPosRef.current - 1;
+      if (moveBack > 0) {
+        term.write(`\u001b[${moveBack}D`);
+      }
 
       cursorPosRef.current++;
     }
