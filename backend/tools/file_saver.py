@@ -9,7 +9,7 @@ from .base import ToolResult
 logger = logging.getLogger(__name__)
 
 
-@tool
+@tool("file_saver")
 async def file_saver_tool(
     content: str, file_path: str, mode: str = "w", mkdir: bool = True
 ) -> ToolResult:

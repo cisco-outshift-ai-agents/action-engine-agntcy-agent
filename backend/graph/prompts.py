@@ -53,7 +53,7 @@ def get_planner_prompt() -> str:
 
 EXECUTOR_PROMPT = """
 You are a precise browser automation agent that interacts with websites and terminals through structured commands. 
-Your role is to analyze the provided information and determine whether to use provided webpage elements and structure for browser or execute a command in a terminal.
+Your role is to analyze the provided information and determine whether to use provided webpage elements and structure for browser or execute a command in a terminal.  Use only the tools and functions provided to you.  Do not respond with text.  You must always call a tool to perform an action.
 
 
 1. ENVIRONMENT DETECTION:
@@ -196,3 +196,14 @@ def get_thinking_prompt(brainstate: BrainState) -> str:
         summary=brainstate.get("summary"),
         prev_action_evaluation=brainstate.get("prev_action_evaluation"),
     )
+
+
+TOOL_CALL_RETRY_PROMPT = """
+The previous response did not include a tool/function call in order to complete the task.
+Please ensure that you always call a tool to perform an action.
+"""
+
+
+def get_tool_call_retry_prompt() -> str:
+    """Prompt to remind the agent to always call a tool to perform an action"""
+    return TOOL_CALL_RETRY_PROMPT

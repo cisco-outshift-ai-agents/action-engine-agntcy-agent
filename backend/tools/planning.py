@@ -32,7 +32,7 @@ class StepStatus(str, Enum):
     BLOCKED = "blocked"
 
 
-@tool
+@tool("planning")
 async def planning_tool(
     command: PlanCommand,
     plan_id: Optional[str] = None,

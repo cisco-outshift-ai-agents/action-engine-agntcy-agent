@@ -37,17 +37,19 @@ class ExecutorNode(BaseNode):
         self.tool_collection = ActionEngineToolCollection(
             [
                 terminal_tool,
-                file_saver_tool,
+                # file_saver_tool,
                 browser_use_tool,
-                google_search_tool,
-                python_execute_tool,
-                str_replace_editor_tool,
+                # google_search_tool,
+                # python_execute_tool,
+                # str_replace_editor_tool,
                 terminate_tool,
             ]
         )
 
     async def ainvoke(self, state: AgentState, config: Dict) -> Dict:
         """Async invocation with direct tool execution"""
+        logger.info("ExecutorNode invoked")
+
         if "messages" not in state:
             state["messages"] = []
             logger.debug("Initialized empty messages list in state")
@@ -61,9 +63,9 @@ class ExecutorNode(BaseNode):
             raise ValueError("LLM not provided in config")
 
         # Bind tools to LLM
-        bound_llm = llm.bind_tools(self.tool_collection.get_tools()).with_config(
-            config=config
-        )
+        bound_llm = llm.bind_tools(
+            self.tool_collection.get_tools(), tool_choice="auto"
+        ).with_config(config=config)
 
         # Hydrate existing messages
         local_messages = hydrate_messages(state["messages"])
@@ -79,6 +81,7 @@ class ExecutorNode(BaseNode):
         )
         if not executor_prompt_context:
             raise ValueError("System prompt context not provided in config")
+
         executor_prompt = get_executor_prompt(context=executor_prompt_context)
         screenshot = executor_prompt_context.screenshot
         executor_message = SystemMessage(
@@ -93,17 +96,23 @@ class ExecutorNode(BaseNode):
         local_messages.append(executor_message)
 
         # Get LLM response with tool calls
-        response: AIMessage = await bound_llm.ainvoke(local_messages)
+        response: AIMessage = await self.call_model_with_tool_retry(
+            llm=bound_llm, messages=local_messages
+        )
+        if not response:
+            raise ValueError("LLM response not provided")
 
         # First hydrate any existing messages before serializing
         existing_messages = hydrate_messages(state["messages"])
         global_messages = serialize_messages(existing_messages)
         global_messages.extend(
-            serialize_messages([human_message, executor_message, response])
+            # serialize_messages([human_message, executor_message, response])
+            serialize_messages([response])
         )
 
         # Execute any tool calls
         if hasattr(response, "tool_calls") and response.tool_calls:
+            logger.info(f"Executing tool calls: {response.tool_calls}")
             tool_messages = await self.execute_tools(message=response, config=config)
             global_messages.extend(serialize_messages(tool_messages))
 

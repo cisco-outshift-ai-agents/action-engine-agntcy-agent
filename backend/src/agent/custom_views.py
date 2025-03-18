@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Type
 
 from browser_use.agent.views import AgentOutput

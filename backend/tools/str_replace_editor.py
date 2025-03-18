@@ -115,7 +115,7 @@ class EditorInput(BaseModel):
     )
 
 
-@tool
+@tool("str_replace_editor")
 async def str_replace_editor_tool(
     command: EditorCommand,
     path: str,

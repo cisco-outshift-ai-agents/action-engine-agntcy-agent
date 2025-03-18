@@ -23,7 +23,7 @@ class TerminateInput(BaseModel):
     reason: Optional[str] = Field(None, description="Explanation for termination")
 
 
-@tool
+@tool("terminate")
 async def terminate_tool(
     status: TerminationStatus, reason: Optional[str] = None
 ) -> ToolResult:

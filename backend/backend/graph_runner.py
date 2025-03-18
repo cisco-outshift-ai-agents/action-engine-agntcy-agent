@@ -143,10 +143,9 @@ class GraphRunner:
             return None
 
         brain_state = node_state.get("brain", {})
-        environment_output = node_state.get("environment_output", {})
 
         # Skip if no meaningful state to send
-        if not brain_state and not environment_output:
+        if not brain_state:
             return None
 
         # Format actions array
@@ -164,34 +163,6 @@ class GraphRunner:
         if any(brain_action.values()):
             actions.append(brain_action)
 
-        # Add latest environment action if present
-        if environment_output and environment_output.get("result", {}).get(
-            "action_results"
-        ):
-            latest_action = environment_output["result"]["action_results"][-1]
-            if latest_action:
-                actions.append(
-                    {
-                        **latest_action["action"],
-                        "is_done": environment_output.get("is_done", False),
-                    }
-                )
-
-        # Add completion marker if environment reports done
-        if environment_output.get("is_done"):
-            actions.append(
-                {
-                    "done": True,
-                    "thought": brain_state.get(
-                        "thought",
-                        "I have completed the requested task! Let me know if you need anything else.",
-                    ),
-                    "summary": brain_state.get(
-                        "summary", "Task completed successfully"
-                    ),
-                }
-            )
-
         if not actions:
             return None
 
@@ -199,7 +170,6 @@ class GraphRunner:
             "html_content": "",
             "current_state": {
                 **brain_state,
-                "todo_list": node_state.get("todo_list") or "",
             },
             "action": actions,
         }

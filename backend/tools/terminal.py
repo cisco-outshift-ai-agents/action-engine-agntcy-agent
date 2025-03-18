@@ -15,7 +15,7 @@ class TerminalCommandAction(BaseModel):
     command: str = Field(..., description="The command to execute in the terminal")
 
 
-@tool
+@tool("terminal")
 async def terminal_tool(command: str, config: RunnableConfig) -> ToolResult:
     """Execute terminal commands with persistent session state.
     Features:

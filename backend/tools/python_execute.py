@@ -52,7 +52,7 @@ class PythonExecuteInput(BaseModel):
     timeout: int = Field(default=5, description="Maximum execution time in seconds")
 
 
-@tool
+@tool("python_execute")
 async def python_execute_tool(code: str, timeout: int = 5) -> ToolResult:
     """
     Execute Python code in a safe environment with timeout protection.

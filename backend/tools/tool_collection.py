@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 from langchain.tools import BaseTool
 from langchain_core.messages import AIMessage
 from .base import ToolResult
+from graph.types import WorkableToolCall
 
 logger = logging.getLogger(__name__)
 
@@ -87,8 +88,11 @@ class ActionEngineToolCollection:
                 schemas.append(tool.metadata)
         return schemas
 
-    def validate_tool_calls(self, tool_calls: AIMessage["tool_calls"]) -> bool:
+    def validate_workable_tool_calls(self, tool_calls: List[WorkableToolCall]) -> bool:
         """Validate tool calls against available tools"""
+        logger.info(f"Validating tool calls: {tool_calls}")
+        logger.info(f"Available tools: {self.tool_map}")
+
         for tool_call in tool_calls:
             if tool_call.name not in self.tool_map:
                 return False

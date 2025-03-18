@@ -23,7 +23,7 @@ class GoogleSearchInput(BaseModel):
     safe: bool = Field(default=True, description="Enable safe search filtering")
 
 
-@tool
+@tool("google_search")
 async def google_search_tool(
     query: str, num_results: int = 10, lang: str = "en", safe: bool = True
 ) -> ToolResult:

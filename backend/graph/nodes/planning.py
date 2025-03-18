@@ -30,6 +30,7 @@ class PlanningNode(BaseNode):
         )
 
     async def ainvoke(self, state: AgentState, config: Dict = None) -> AgentState:
+        logger.info("PlanningNode invoked")
         if "messages" not in state:
             state["messages"] = []
             logger.debug("Initialized empty messages list in state")
@@ -45,15 +46,9 @@ class PlanningNode(BaseNode):
 
         llm: ChatOpenAI = config.get("configurable", {}).get("llm")
 
-        bound_llm = llm.bind_tools(self.tool_collection.get_tools()).with_config(
-            config=config
-        )
-
-        ## Manage two running states of messages:
-        ## 1. Local messages: Messages that are only relevant to the current node, pruned from global message state
-        ##      and are sent to the LLM
-        ## 2. Global messages: Long term message store that is relevant to the entire conversation and are
-        ##      stored in the global state
+        bound_llm = llm.bind_tools(
+            self.tool_collection.get_tools(), tool_choice="auto"
+        ).with_config(config=config)
 
         # Hydrate existing messages
         local_messages = hydrate_messages(state["messages"])
@@ -73,17 +68,23 @@ class PlanningNode(BaseNode):
         local_messages.append(plan_msg)
 
         # Get LLM response with tool calls
-        response: AIMessage = await bound_llm.ainvoke(local_messages)
+        response: AIMessage = await self.call_model_with_tool_retry(
+            llm=bound_llm, messages=local_messages
+        )
+        if not response:
+            raise ValueError("LLM response not provided")
 
         # First hydrate any existing messages before serializing
         existing_messages = hydrate_messages(state["messages"])
         global_messages = serialize_messages(existing_messages)
         global_messages.extend(
-            serialize_messages([human_message, system_message, plan_msg, response])
+            # serialize_messages([human_message, system_message, plan_msg, response])
+            serialize_messages([response])
         )
 
         # Execute any tool calls and add the tool messages to the global state
         if hasattr(response, "tool_calls") and response.tool_calls:
+            logger.info(f"Executing tool calls: {response.tool_calls}")
             tool_messages = await self.execute_tools(message=response)
             global_messages.extend(serialize_messages(tool_messages))
 

@@ -28,6 +28,7 @@ class ThinkingNode(BaseNode):
         self.name = "thinking"
 
     async def ainvoke(self, state: AgentState, config: Dict = None) -> AgentState:
+        logger.info("ThinkingNode invoked")
 
         if "messages" not in state:
             state["messages"] = []
@@ -76,7 +77,8 @@ class ThinkingNode(BaseNode):
         global_messages = serialize_messages(existing_messages)
         global_messages.extend(
             serialize_messages(
-                [human_message, system_message, plan_msg, brain_state_message]
+                # [human_message, system_message, plan_msg, brain_state_message]
+                [brain_state_message]
             )
         )
 

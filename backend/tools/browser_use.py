@@ -70,7 +70,7 @@ class BrowserToolInput(BaseModel):
     }
 
 
-@tool
+@tool("browser_use")
 async def browser_use_tool(
     action: BrowserAction,
     url: Optional[str] = None,
