@@ -53,7 +53,6 @@ const TerminalSection = ({
   const getTerminalInstance = useCallback(() => {
     const id = instanceIdRef.current;
     if (!terminalInstances[id]) {
-      console.log(`Creating new terminal instance for ${id}`);
       const term = new XTerm({
         cursorBlink: true,
         scrollback: 10000,
@@ -83,8 +82,6 @@ const TerminalSection = ({
 
     return terminalInstances[id];
   }, []);
-
-  console.log("Updated currentInput:", currentInputRef.current);
 
   // Handle user input and special keys and history management
   const handleUserInput = (data: string, term: XTerm) => {
@@ -218,7 +215,6 @@ const TerminalSection = ({
       // If already mounted, just reattach
       if (instance.mounted) {
         if (term.element && term.element.parentNode !== terminalRef.current) {
-          console.log(`Reattaching terminal ${id} to DOM`);
           if (terminalRef.current) {
             terminalRef.current.innerHTML = "";
             terminalRef.current.appendChild(term.element);
@@ -226,7 +222,6 @@ const TerminalSection = ({
         }
       } else {
         // First time initialization
-        console.log(`Mounting terminal ${id} to DOM`);
         term.open(terminalRef.current);
 
         term.onData((data) => {
@@ -316,7 +311,6 @@ const TerminalSection = ({
     processedContents.add(contentKey);
 
     // Write to terminal
-    console.log("Writing content to terminal:", actualContent);
     term.write(`\r\n${actualContent}`);
 
     // Add prompt if needed
