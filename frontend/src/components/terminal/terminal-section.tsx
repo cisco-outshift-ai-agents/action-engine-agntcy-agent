@@ -34,7 +34,7 @@ const TerminalSection = ({
   const terminalRef = useRef<HTMLDivElement>(null);
   const instanceIdRef = useRef<string>(terminalId || "unknown");
   const [domReady, setDomReady] = useState(false);
-  const [currentInput, setCurrentInput] = useState("");
+  const currentInputRef = useRef("");
   const cursorPosRef = useRef(0);
   const commandHistoryRef = useRef<string[]>([]);
   const historyPosRef = useRef(-1);
@@ -84,11 +84,13 @@ const TerminalSection = ({
     return terminalInstances[id];
   }, []);
 
+  console.log("Updated currentInput:", currentInputRef.current);
+
   // Handle user input and special keys and history management
   const handleUserInput = (data: string, term: XTerm) => {
     if (data === "\r") {
-      const command = currentInput;
-      if (command.trim()) {
+      const command = currentInputRef.current.trim();
+      if (command.length > 0) {
         commandHistoryRef.current.push(command);
         historyPosRef.current = -1;
 
@@ -98,7 +100,8 @@ const TerminalSection = ({
         if (onContentUpdate) {
           onContentUpdate(terminalId || "terminal", command);
         }
-        setCurrentInput("");
+        currentInputRef.current = "";
+
         cursorPosRef.current = 0;
 
         const hostname = extractHostname(content || "");
@@ -107,8 +110,9 @@ const TerminalSection = ({
     } else if (data === "\u007F") {
       if (cursorPosRef.current > 0) {
         const newInput =
-          currentInput.substring(0, cursorPosRef.current - 1) +
-          currentInput.substring(cursorPosRef.current);
+          currentInputRef.current.substring(0, cursorPosRef.current - 1) +
+          currentInputRef.current.substring(cursorPosRef.current);
+        currentInputRef.current = newInput;
 
         term.write("\b");
 
@@ -120,10 +124,10 @@ const TerminalSection = ({
           term.write(`\u001b[${moveBack}D`);
         }
 
-        setCurrentInput(newInput);
         cursorPosRef.current--;
       }
     } else if (data === "\u001b[A") {
+      // Up Arrow Key
       if (commandHistoryRef.current.length > 0) {
         const newPos =
           historyPosRef.current === -1
@@ -131,16 +135,12 @@ const TerminalSection = ({
             : Math.max(0, historyPosRef.current - 1);
 
         historyPosRef.current = newPos;
-
-        term.write("\r");
-        const hostname = extractHostname(content || "");
-        term.write(`${hostname}:${workingDirectory}# `);
-        term.write("\u001b[K");
-
         const historyCommand = commandHistoryRef.current[newPos];
-        term.write(historyCommand);
 
-        setCurrentInput(historyCommand);
+        term.write("\u001b[2K\r");
+        const hostname = extractHostname(content || "");
+        term.write(`${hostname}:${workingDirectory}# ` + historyCommand);
+
         cursorPosRef.current = historyCommand.length;
       }
     } else if (data === "\u001b[B") {
@@ -156,21 +156,26 @@ const TerminalSection = ({
         term.write("\u001b[K");
 
         if (newPos === -1) {
-          setCurrentInput("");
           cursorPosRef.current = 0;
         } else {
           const historyCommand = commandHistoryRef.current[newPos];
           term.write(historyCommand);
-          setCurrentInput(historyCommand);
+
           cursorPosRef.current = historyCommand.length;
         }
 
         historyPosRef.current = newPos;
       }
     } else if (data === "\u001b[C") {
-      if (cursorPosRef.current < currentInput.length) {
+      if (cursorPosRef.current < currentInputRef.current.length) {
+        console.log(
+          "Moving cursor right:",
+          currentInputRef.current[cursorPosRef.current]
+        );
         term.write("\u001b[C");
         cursorPosRef.current++;
+      } else {
+        console.warn("Cursor at the end, cannot move right!");
       }
     } else if (data === "\u001b[D") {
       if (cursorPosRef.current > 0) {
@@ -179,19 +184,14 @@ const TerminalSection = ({
       }
     } else if (data >= " " && data <= "~") {
       const newInput =
-        currentInput.substring(0, cursorPosRef.current) +
+        currentInputRef.current.substring(0, cursorPosRef.current) +
         data +
-        currentInput.substring(cursorPosRef.current);
+        currentInputRef.current.substring(cursorPosRef.current);
+
+      currentInputRef.current = newInput;
 
       term.write(data);
-      term.write(currentInput.substring(cursorPosRef.current));
 
-      const moveBack = currentInput.length - cursorPosRef.current;
-      if (moveBack > 0) {
-        term.write(`\u001b[${moveBack}D`);
-      }
-
-      setCurrentInput(newInput);
       cursorPosRef.current++;
     }
   };
