@@ -58,6 +58,7 @@ async def planning_tool(
         step_status: Status to set for a step
         step_notes: Notes to add to a step
     """
+    logger.info(f"Planning tool invoked with command: {command}")
 
     if not config or "configurable" not in config:
         logger.error("[PlanningTool] No configurable in config")

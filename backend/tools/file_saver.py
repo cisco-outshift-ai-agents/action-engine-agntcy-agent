@@ -1,9 +1,12 @@
 import os
+import logging
 from typing import Union, Dict
 from langchain_core.tools import tool
 import aiofiles
 
 from .base import ToolResult
+
+logger = logging.getLogger(__name__)
 
 
 @tool
@@ -20,6 +23,8 @@ async def file_saver_tool(
         mode (str, optional): The file opening mode. Use 'w' for write or 'a' for append. Defaults to 'w'.
         mkdir (bool, optional): Create parent directories if they don't exist. Defaults to True.
     """
+    logger.info(f"File saver tool invoked with file_path: {file_path}")
+
     try:
         if not file_path:
             return ToolResult(error="file_path is required")

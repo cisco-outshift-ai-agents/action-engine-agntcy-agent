@@ -28,6 +28,8 @@ async def terminal_tool(command: str, config: RunnableConfig) -> ToolResult:
     Args:
         command (str): The terminal command to execute
     """
+    logger.info(f"Terminal tool called with command: {command}")
+
     try:
         if not command:
             return ToolResult(error="Command is required")

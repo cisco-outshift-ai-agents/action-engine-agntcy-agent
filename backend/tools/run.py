@@ -1,5 +1,6 @@
 import asyncio
-from typing import Optional, Tuple
+import logging
+from typing import Optional
 
 from .base import ToolResult
 
@@ -9,6 +10,8 @@ TRUNCATED_MESSAGE: str = (
     "<response clipped>"
     "<NOTE>To save on context only part of this response has been shown.</NOTE>"
 )
+
+logger = logging.getLogger(__name__)
 
 
 def maybe_truncate(
@@ -22,7 +25,7 @@ def maybe_truncate(
 
 async def run_command(
     cmd: str,
-    cwd: Optional[str] = None,  # Add cwd parameter
+    cwd: Optional[str] = None,
     timeout: float = 120.0,
     truncate_after: Optional[int] = MAX_RESPONSE_LEN,
 ) -> ToolResult:
@@ -37,6 +40,8 @@ async def run_command(
     Returns:
         ToolResult containing command output or error
     """
+    logger.info(f"Run command called with command: {cmd}")
+
     try:
         process = await asyncio.create_subprocess_shell(
             cmd,

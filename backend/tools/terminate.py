@@ -1,9 +1,12 @@
+import logging
 from enum import Enum
 from typing import Optional
 from pydantic import BaseModel, Field
 
 from .base import ToolResult
 from langchain_core.tools import tool
+
+logger = logging.getLogger(__name__)
 
 
 class TerminationStatus(str, Enum):
@@ -33,6 +36,8 @@ async def terminate_tool(
         status: Completion status ("success" or "failure")
         reason: Optional explanation for termination
     """
+    logger.info(f"Termination tool called with status: {status}")
+
     message = f"Interaction terminated with status: {status}"
     if reason:
         message += f"\nReason: {reason}"

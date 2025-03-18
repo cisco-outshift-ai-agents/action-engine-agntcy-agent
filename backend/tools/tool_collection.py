@@ -2,6 +2,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from langchain.tools import BaseTool
+from langchain_core.messages import AIMessage
 from .base import ToolResult
 
 logger = logging.getLogger(__name__)
@@ -85,3 +86,10 @@ class ActionEngineToolCollection:
                 # Handle LangChain tools
                 schemas.append(tool.metadata)
         return schemas
+
+    def validate_tool_calls(self, tool_calls: AIMessage["tool_calls"]) -> bool:
+        """Validate tool calls against available tools"""
+        for tool_call in tool_calls:
+            if tool_call.name not in self.tool_map:
+                return False
+        return True

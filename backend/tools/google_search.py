@@ -1,9 +1,12 @@
 import asyncio
+import logging
 from pydantic import BaseModel, Field
 from googlesearch import search
 
 from .base import ToolResult
 from langchain_core.tools import tool
+
+logger = logging.getLogger(__name__)
 
 
 class GoogleSearchInput(BaseModel):
@@ -38,6 +41,8 @@ async def google_search_tool(
         lang: Language code for search results (default: "en")
         safe: Enable safe search filtering (default: True)
     """
+    logger.info(f"Google search tool invoked with query: {query}")
+
     try:
         # Run search in thread pool to prevent blocking
         loop = asyncio.get_event_loop()

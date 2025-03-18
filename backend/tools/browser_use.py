@@ -37,7 +37,8 @@ class BrowserToolInput(BaseModel):
         None, description="URL for 'navigate' or 'new_tab' actions"
     )
     index: Optional[int] = Field(
-        None, description="Element index for 'click' or 'input_text' actions"
+        None,
+        description="Element index for 'click' or 'input_text' actions. (e.g. for 33[:]<button>, the index is 33)",
     )
     text: Optional[str] = Field(None, description="Text for 'input_text' action")
     script: Optional[str] = Field(
@@ -94,6 +95,8 @@ async def browser_use_tool(
         scroll_amount: Pixels to scroll (positive for down, negative for up)
         tab_id: Tab ID for 'switch_tab' action
     """
+    logger.info(f"Browser tool invoked with action: {action}")
+
     try:
         if not config or "configurable" not in config:
             return ToolResult(error="Config is required")

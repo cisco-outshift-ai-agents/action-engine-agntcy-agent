@@ -1,11 +1,14 @@
 import threading
 import sys
+import logging
 from io import StringIO
-from typing import Dict, Optional
+from typing import Dict
 from pydantic import BaseModel, Field
 
 from .base import ToolResult
 from langchain_core.tools import tool
+
+logger = logging.getLogger(__name__)
 
 
 class CodeExecutor:
@@ -63,6 +66,8 @@ async def python_execute_tool(code: str, timeout: int = 5) -> ToolResult:
         code: The Python code to execute
         timeout: Maximum execution time in seconds (default: 5)
     """
+    logger.info("Python execute tool invoked")
+
     if not code:
         return ToolResult(error="Code is required")
 

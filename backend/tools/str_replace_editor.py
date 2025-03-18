@@ -1,7 +1,9 @@
+import logging
+import asyncio
+
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional, Union
-import asyncio
+from typing import Dict, List, Optional
 from enum import Enum
 from pydantic import BaseModel, Field
 
@@ -16,6 +18,8 @@ TRUNCATED_MESSAGE: str = (
     "You should retry this tool after you have searched inside the file with `grep -n` "
     "in order to find the line numbers of what you are looking for.</NOTE>"
 )
+
+logger = logging.getLogger(__name__)
 
 
 class FileHistoryManager:
@@ -140,6 +144,8 @@ async def str_replace_editor_tool(
         insert_line: Line number for insertion
         view_range: Optional line range to view [start, end]
     """
+    logger.info(f"Str replace editor tool invoked with command: {command}")
+
     try:
         # Convert path to absolute Path object
         path_obj = Path(path)
