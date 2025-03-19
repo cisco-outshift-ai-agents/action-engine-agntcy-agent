@@ -99,6 +99,19 @@ async def planning_tool(
                 updates["steps"] = steps
                 updates["step_statuses"] = ["not_started"] * len(steps)
                 updates["step_notes"] = [""] * len(steps)
+            elif step_index is not None:
+                plan = planning_env.get_plan(plan_id)
+                if not plan:
+                    return ToolResult(error=f"No plan found with ID: {plan_id}")
+
+                step_updates = plan.model_dump()
+                if step_status:
+                    step_updates["step_statuses"] = list(plan.step_statuses)
+                    step_updates["step_statuses"][step_index] = step_status
+                if step_notes:
+                    step_updates["step_notes"] = list(plan.step_notes)
+                    step_updates["step_notes"][step_index] = step_notes
+                updates.update(step_updates)
 
             planning_env.update_plan(plan_id, updates)
 
@@ -162,6 +175,9 @@ async def planning_tool(
 
             if step_notes:
                 plan.step_notes[step_index] = step_notes
+
+            # Persist the changes
+            planning_env._plans[plan_id] = plan
 
         elif command == PlanCommand.DELETE:
             plan_id = plan_id

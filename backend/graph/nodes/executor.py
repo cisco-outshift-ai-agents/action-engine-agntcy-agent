@@ -25,7 +25,7 @@ from tools.utils import (
     get_executor_system_prompt_context,
     hydrate_messages,
 )
-from graph.prompts import get_executor_prompt, get_previous_executor_tool_calls_prompt
+from graph.prompts import get_executor_prompt, get_previous_tool_calls_prompt
 from graph.nodes.base_node import BaseNode
 from graph.environments.planning import PlanningEnvironment
 
@@ -76,21 +76,13 @@ class ExecutorNode(BaseNode):
         ).with_config(config=config)
 
         # Hydrate existing messages
-        # local_messages = hydrate_messages(state["messages"])
-        # local_messages = self.prune_messages(local_messages)
         local_messages = []
-
-        # Add new human message with the task
-        human_message = HumanMessage(content=state["task"])
-        local_messages.append(human_message)
-
         # Add environment prompt
         executor_prompt_context = await get_executor_system_prompt_context(
             config=config
         )
         if not executor_prompt_context:
             raise ValueError("System prompt context not provided in config")
-
         executor_prompt = get_executor_prompt(context=executor_prompt_context)
         screenshot = executor_prompt_context.screenshot
         executor_message = SystemMessage(
@@ -104,14 +96,16 @@ class ExecutorNode(BaseNode):
         )
         local_messages.append(executor_message)
 
+        # Add new human message with the task
+        human_message = HumanMessage(content=state["task"])
+        local_messages.append(human_message)
+
         # Add the current plan message
         plan_msg = planning_env.get_message_for_current_plan()
         local_messages.append(plan_msg)
 
         # Add the previous executor tool calls message
-        previous_tool_calls_message = (
-            self.get_previous_executor_tool_calls_as_ai_message(state)
-        )
+        previous_tool_calls_message = self.get_previous_tool_calls_as_message(state)
         local_messages.append(previous_tool_calls_message)
 
         # Get LLM response with tool calls
@@ -144,27 +138,35 @@ class ExecutorNode(BaseNode):
         state["messages"] = global_messages
         return state
 
-    def get_previous_executor_tool_calls_as_ai_message(
-        self, state: AgentState
-    ) -> AIMessage:
+    def get_previous_tool_calls_as_message(self, state: AgentState) -> AIMessage:
         """Given the sum of all previous messages, return the tool calls in a prompt format"""
         messages = hydrate_messages(state["messages"])
         tool_calls_str = ""
 
         # Loop over all the messages in state
         for i, message in enumerate(messages):
-            if not isinstance(message, AIMessage):
+            logger.info("Trying to get information out of :")
+            logger.info(message)
+
+            if not isinstance(message, AIMessage) or not isinstance(
+                message, ToolMessage
+            ):
                 continue
-            # Find the tool_calls within the objects
-            workable_tool_calls = self.get_workable_tool_calls(message)
-            for j, tool_call in enumerate(workable_tool_calls):
-                # Append the tool call to the string
-                tool_calls_str += f"{i}: {tool_call.name}({tool_call.args})"
-                if j < len(workable_tool_calls) - 1:
-                    tool_calls_str += ", "
 
-                tool_calls_str += "\n\n"
+            if isinstance(message, ToolMessage):
+                tool_calls_str += (
+                    f"Tool response: {message.tool_call_id}: {message.content})\n\n"
+                )
 
-        return AIMessage(
-            content=get_previous_executor_tool_calls_prompt(tool_calls_str)
-        )
+            if isinstance(message, AIMessage):
+                # Find the tool_calls within the objects
+                workable_tool_calls = self.get_workable_tool_calls(message)
+                for j, tool_call in enumerate(workable_tool_calls):
+                    # Append the tool call to the string
+                    tool_calls_str += f"{i}: {tool_call.name}({tool_call.args})"
+                    if j < len(workable_tool_calls) - 1:
+                        tool_calls_str += ", "
+
+                    tool_calls_str += "\n\n"
+
+        return HumanMessage(content=get_previous_tool_calls_prompt(tool_calls_str))

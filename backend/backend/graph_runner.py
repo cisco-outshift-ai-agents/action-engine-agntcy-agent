@@ -1,15 +1,17 @@
 import logging
 import os
+import json
 
 from dataclasses import dataclass
 from typing import Any, AsyncIterator, Dict, Optional
+from pydantic import BaseModel
 
 from src.utils.utils import get_llm_model
 from graph.environments.terminal import TerminalManager
 from graph.global_configurable import context
 from graph.graph import action_engine_graph
 from graph.environments.browser import BrowserSession
-from graph.types import create_default_agent_state, GraphConfig
+from graph.types import create_default_agent_state, GraphConfig, AgentState, BrainState
 from graph.environments.planning import PlanningEnvironment
 
 logger = logging.getLogger(__name__)
@@ -103,13 +105,16 @@ class GraphRunner:
 
             # Use astream and properly await the async generator
             async for step_output in self.graph.astream(agent_state, config):
-                # logger.info(f"Stream output: {json.dumps(step_output, indent=2)}")
-                # Skip empty states
-                if not step_output:
-                    continue
-                response = self._format_state_for_ui(step_output)
-                if response:  # Only yield non-None responses
-                    yield response
+                step_output: Dict[str, AgentState]
+                keys = ["planning", "thinking", "executor"]
+
+                agent_state: AgentState = None
+                for key in keys:
+                    if key in step_output:
+                        agent_state = step_output[key].copy()
+                        break
+
+                yield json.dumps(serialize_graph_response(agent_state), indent=2)
 
         except Exception as e:
             logger.error(f"Graph execution error: {str(e)}", exc_info=True)
@@ -131,49 +136,6 @@ class GraphRunner:
             logger.error(error_msg)
             return {"error": error_msg}
 
-    def _format_state_for_ui(self, state: Dict) -> Dict[str, Any]:
-        """Enhanced state formatting for UI with streaming support"""
-        # Only process browser_env node outputs
-        if isinstance(state, dict) and len(state) == 1:
-            node_name, node_value = next(iter(state.items()))
-            if node_name != "browser_env" or node_value is None:
-                return None
-            node_state = node_value
-        else:
-            return None
-
-        brain_state = node_state.get("brain", {})
-
-        # Skip if no meaningful state to send
-        if not brain_state:
-            return None
-
-        # Format actions array
-        actions = []
-
-        # Add brain state action if it has content
-        brain_action = {
-            "thought": brain_state.get("thought", ""),
-            "summary": brain_state.get("summary", ""),
-            "task_progress": brain_state.get("task_progress", ""),
-            "future_plans": brain_state.get("future_plans", ""),
-            "important_contents": brain_state.get("important_contents", ""),
-            "prev_action_evaluation": brain_state.get("prev_action_evaluation", ""),
-        }
-        if any(brain_action.values()):
-            actions.append(brain_action)
-
-        if not actions:
-            return None
-
-        return {
-            "html_content": "",
-            "current_state": {
-                **brain_state,
-            },
-            "action": actions,
-        }
-
     async def cleanup(self) -> None:
         """Cleanup global resources"""
         await self.browser_session.cleanup()
@@ -185,3 +147,18 @@ class GraphRunner:
         context.dom_service = None
         context.terminal_manager = None
         context.planning_environment = None
+
+
+def serialize_graph_response(data: dict[str, Any]) -> dict[str, Any]:
+    """Convert pydantic models to dict for serialization"""
+
+    if isinstance(data, BaseModel):
+        return data.model_dump()
+
+    elif isinstance(data, dict):
+        return {key: serialize_graph_response(value) for key, value in data.items()}
+
+    elif isinstance(data, list):
+        return [serialize_graph_response(item) for item in data]
+
+    return data

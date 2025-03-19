@@ -35,8 +35,6 @@ class BaseNode:
     ) -> List[ToolMessage]:
         """Execute tools using tool collection"""
         tool_messages = []
-        logger.info(f"Executing tools from message: {message}")
-
         if not hasattr(message, "tool_calls") or not message.tool_calls:
             logger.warning("No tool_calls found in message")
             return tool_messages
@@ -54,7 +52,7 @@ class BaseNode:
                 if not name:
                     raise ValueError("Tool call missing function name")
 
-                logger.info(f"Executing tool {name} with args: {args}")
+                logger.info(f"Executing tool {name}")
 
                 # Convert string args to dict if needed
                 if isinstance(args, str):
@@ -222,17 +220,20 @@ class BaseNode:
         """
         Extract a tool call from a vLLM string
         """
+        if not string or not isinstance(string, str):
+            return None
 
         # Remove <tool_call> tags
         string = string.replace("<tool_call>", "").replace("</tool_call>", "")
 
         try:
             parsed_tool_call = json.loads(string)
-            return WorkableToolCall(
-                name=parsed_tool_call.get("name"),
-                args=parsed_tool_call.get("args"),
-                call_id=parsed_tool_call.get("id"),
-            )
+            if isinstance(parsed_tool_call, dict) and "name" in parsed_tool_call:
+                return WorkableToolCall(
+                    name=parsed_tool_call.get("name"),
+                    args=parsed_tool_call.get("args"),
+                    call_id=parsed_tool_call.get("id"),
+                )
         except Exception as e:
-            logger.error(f"Error parsing tool call from message: {str(e)}")
+            logger.debug(f"Error parsing tool call from message: {str(e)}")
             return None

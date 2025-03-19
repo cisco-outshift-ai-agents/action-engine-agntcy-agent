@@ -1,28 +1,5 @@
-import json
 from tools.utils import ExecutorPromptContext
 from graph.types import BrainState
-from tools.tool_collection import ActionEngineToolCollection
-
-
-def format_message_history(messages: list) -> str:
-    """Creates a narrative of previous actions to help the LLM understand context and avoid loops"""
-    if not messages:
-        return ""
-
-    formatted = [
-        "Here is the summary of all previous actions taken by AI agents before you:"
-    ]
-
-    for i, msg in enumerate(messages, 1):
-        state = msg.get("current_state", {})
-        # Get action from the state itself since it's stored in response.action
-        action = state.get("action", [{}])[0] if state.get("action") else {}
-
-        formatted.append(f"\n## Run {i}")
-        formatted.append(f"**Thought**: \"{state.get('thought', '')}\"")
-        formatted.append(f"**Action**: {json.dumps(action, indent=2)}")
-
-    return "\n".join(formatted)
 
 
 PLANNER_PROMPT = """
@@ -226,13 +203,13 @@ def get_tool_call_retry_prompt(tools_str: str) -> str:
     )
 
 
-PREVIOUS_EXECUTOR_TOOL_CALLS_PROMPT = """
-The agent before you performed these actions: 
+PREVIOUS_TOOL_CALLS_PROMPT = """
+The agents before you have called the following tools:
 
 {tool_calls}
 """
 
 
-def get_previous_executor_tool_calls_prompt(tool_calls: str) -> str:
+def get_previous_tool_calls_prompt(tool_calls: str) -> str:
     """Prompt to inform the agent about the actions taken in previous steps"""
-    return PREVIOUS_EXECUTOR_TOOL_CALLS_PROMPT.format(tool_calls=tool_calls)
+    return PREVIOUS_TOOL_CALLS_PROMPT.format(tool_calls=tool_calls)

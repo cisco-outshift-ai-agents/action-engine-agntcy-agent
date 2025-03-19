@@ -50,18 +50,20 @@ class PlanningNode(BaseNode):
             self.tool_collection.get_tools(), tool_choice="auto"
         ).with_config(config=config)
 
+        # Add system message first
+        local_messages = []
+        planner_prompt = get_planner_prompt()
+        system_message = SystemMessage(content=planner_prompt)
+        local_messages.append(system_message)
+
         # Hydrate existing messages
-        local_messages = hydrate_messages(state["messages"])
-        local_messages = self.prune_messages(local_messages)
+        hydrated = hydrate_messages(state["messages"])
+        hydrated = self.prune_messages(hydrated)
+        local_messages.extend(hydrated)
 
         # Add new human message with the task
         human_message = HumanMessage(content=state["task"])
         local_messages.append(human_message)
-
-        # Add new system message for this node
-        planner_prompt = get_planner_prompt()
-        system_message = SystemMessage(content=planner_prompt)
-        local_messages.append(system_message)
 
         # Add the current plan message
         plan_msg = planning_env.get_message_for_current_plan()

@@ -78,10 +78,12 @@ class CustomBrowserContext(BrowserContext):
         """Update and return state."""
         session = await self.get_session()
         # Check if current page is still valid, if not switch to another available page
+        logger.info("a")
         try:
             page = await self.get_current_page()
-            # Test if page is still accessible
-            await page.evaluate("1")
+            logger.info("b")
+            await page.evaluate("console.log('evaluated')")
+            logger.info("evaluated")
         except Exception as e:
             logger.debug(f"Current page is no longer accessible: {str(e)}")
             # Get all available pages
@@ -89,13 +91,15 @@ class CustomBrowserContext(BrowserContext):
             if pages:
                 session.current_page = pages[-1]
                 page = session.current_page
-                logger.debug(f"Switched to page: {await page.title()}")
+                logger.debug(f"Switched to page: {await self._get_page_title(page)}")
             else:
                 raise BrowserError("Browser closed: no valid pages available")
-
+        logger.info("c")
         try:
             await self.remove_highlights()
+            logger.info("d")
             dom_service = DomService(page)
+            logger.info("e")
             content = await dom_service.get_clickable_elements(
                 focus_element=focus_element,
                 viewport_expansion=self.config.viewport_expansion,
@@ -103,13 +107,20 @@ class CustomBrowserContext(BrowserContext):
             )
 
             screenshot_b64 = None
+            logger.info("f")
             if use_vision:
+                logger.info("g")
                 screenshot_b64 = await self.take_screenshot()
+                logger.info("h")
+
             pixels_above, pixels_below = await self.get_scroll_info(page)
 
-            title = await page.title()
+            logger.info("i")
+            title = await self._get_page_title(page)
+            logger.info("j")
 
             tabs = await self.get_tabs_info()
+            logger.info("k")
 
             self.current_state = BrowserState(
                 element_tree=content.element_tree,
@@ -140,11 +151,7 @@ class CustomBrowserContext(BrowserContext):
             tab_info = TabInfo(page_id=page_id, url=page.url, title="")
 
             # Get title with timeout protection
-            try:
-                title = await asyncio.wait_for(page.title(), timeout=1.0)
-                tab_info.title = title
-            except Exception:
-                tab_info.title = "Loading..."
+            tab_info.title = await self._get_page_title(page)
 
             tabs_info.append(tab_info)
 
@@ -155,3 +162,10 @@ class CustomBrowserContext(BrowserContext):
         if self.session is None:
             return await self._initialize_session()
         return self.session
+
+    async def _get_page_title(self, page: Page) -> str:
+        """The page title tends to stall out, so we need to wrap it in a timeout"""
+        try:
+            return await asyncio.wait_for(page.title(), timeout=1.0)
+        except asyncio.TimeoutError:
+            return "Loading..."

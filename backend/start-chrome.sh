@@ -23,6 +23,5 @@ google-chrome \
   --no-experiments \
   --ignore-certificate-errors \
   --remote-debugging-port=${CHROME_DEBUGGING_PORT} \
-  --remote-debugging-address=${CHROME_DEBUGGING_HOST} \
-  "https://outshift.com"
+  --remote-debugging-address=${CHROME_DEBUGGING_HOST}
   # --disable-gpu \

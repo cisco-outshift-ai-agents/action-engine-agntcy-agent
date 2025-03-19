@@ -47,18 +47,24 @@ class ThinkingNode(BaseNode):
 
         structured_llm = llm.with_structured_output(BrainState)
 
-        # Hydrate existing messages
-        local_messages = hydrate_messages(state["messages"])
-        local_messages = self.prune_messages(local_messages)
+        # Add system message first
+        local_messages = []
+        thinking_prompt = get_thinking_prompt(state["brain"])
+        system_message = SystemMessage(content=thinking_prompt)
+        local_messages.append(system_message)
+
+        hydrated = hydrate_messages(state["messages"])
+        hydrated = [
+            msg
+            for msg in hydrated
+            if not isinstance(msg, SystemMessage) and not isinstance(msg, HumanMessage)
+        ]
+        hydrated = hydrated[-20:]
+        local_messages.extend(hydrated)
 
         # Add new human message with the task
         human_message = HumanMessage(content=state["task"])
         local_messages.append(human_message)
-
-        # Add new system message for this node
-        thinking_prompt = get_thinking_prompt(state["brain"])
-        system_message = SystemMessage(content=thinking_prompt)
-        local_messages.append(system_message)
 
         # Add the current plan message
         plan_msg = planning_env.get_message_for_current_plan()
@@ -75,12 +81,7 @@ class ThinkingNode(BaseNode):
         # First hydrate any existing messages before serializing
         existing_messages = hydrate_messages(state["messages"])
         global_messages = serialize_messages(existing_messages)
-        global_messages.extend(
-            serialize_messages(
-                # [human_message, system_message, plan_msg, brain_state_message]
-                [brain_state_message]
-            )
-        )
+        global_messages.extend(serialize_messages([brain_state_message]))
 
         # Update the global state with the new messages
         state["messages"] = global_messages

@@ -1,8 +1,10 @@
 import json
 import datetime
 import logging
+import asyncio
 from dataclasses import dataclass
-from typing import Any, Dict, TypeVar, List
+from functools import wraps
+from typing import Any, Dict, TypeVar, List, Callable
 from pydantic import BaseModel
 from langchain_core.messages import (
     HumanMessage,
@@ -37,7 +39,12 @@ def hydrate_message(message: Dict[str, Any]) -> BaseMessage:
     elif message["type"] == "SystemMessage":
         return SystemMessage(content=message["content"])
     elif message["type"] == "AIMessage":
-        return AIMessage(content=message["content"])
+        return AIMessage(
+            content=message["content"],
+            tool_calls=message.get("tool_calls", []),
+            invalid_tool_calls=message.get("invalid_tool_calls", []),
+            usage_metadata=message.get("usage_metadata"),
+        )
     elif message["type"] == "ToolMessage":
         return ToolMessage(
             content=message["content"],
@@ -75,6 +82,14 @@ def serialize_message(message: BaseMessage) -> Dict[str, Any]:
                 "tool_name": message.tool_name,
             }
         )
+    elif isinstance(message, AIMessage):
+        if hasattr(message, "tool_calls") and message.tool_calls:
+            base["tool_calls"] = message.tool_calls
+        if hasattr(message, "invalid_tool_calls") and message.invalid_tool_calls:
+            base["invalid_tool_calls"] = message.invalid_tool_calls
+        if hasattr(message, "usage_metadata") and message.usage_metadata:
+            base["usage_metadata"] = message.usage_metadata
+
     return base
 
 
@@ -104,6 +119,38 @@ class ExecutorPromptContext:
     current_page_title: str
 
 
+def with_retries(num_retries: int = 3, try_timeout: int = 30):
+    def decorator(func: Callable):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            last_error = None
+            for attempt in range(num_retries):
+                try:
+                    return await asyncio.wait_for(
+                        func(*args, **kwargs), timeout=try_timeout
+                    )
+                except asyncio.TimeoutError as e:
+                    last_error = e
+                    logger.warning(
+                        f"Attempt {attempt + 1}/{num_retries} timed out after {try_timeout}s"
+                    )
+                except Exception as e:
+                    last_error = e
+                    logger.warning(
+                        f"Attempt {attempt + 1}/{num_retries} failed with error: {str(e)}"
+                    )
+
+                if attempt < num_retries - 1:
+                    await asyncio.sleep(1)  # Add small delay between retries
+
+            raise last_error or Exception("All retry attempts failed")
+
+        return wrapper
+
+    return decorator
+
+
+@with_retries(num_retries=3, try_timeout=10)
 async def get_executor_system_prompt_context(
     config,
 ) -> ExecutorPromptContext:
@@ -134,7 +181,9 @@ async def get_executor_system_prompt_context(
     current_url = browser_state.url
     current_page_title = browser_state.title
 
-    clickable_elements = browser_context.get_semantic_elements_string(element_tree)
+    clickable_elements = await browser_context.get_semantic_elements_string(
+        element_tree
+    )
     current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     return ExecutorPromptContext(

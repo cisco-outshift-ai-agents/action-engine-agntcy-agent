@@ -20,23 +20,23 @@ def create_agent_graph(config: RunnableConfig = None) -> Graph:
     workflow.add_node("planning", PlanningNode())
     workflow.add_node("thinking", ThinkingNode())
 
-    workflow.add_edge(START, "planning")
-    workflow.add_edge("planning", "thinking")
-    workflow.add_edge("thinking", "executor")
+    workflow.add_edge(START, "thinking")
+    workflow.add_edge("thinking", "planning")
+    workflow.add_edge("planning", "executor")
 
     workflow.add_conditional_edges(
-        "executor",
+        "thinking",
         lambda state: (END if state.get("exiting") else "planning"),
     )
 
     workflow.add_conditional_edges(
         "planning",
-        lambda state: (END if state.get("exiting") else "thinking"),
+        lambda state: (END if state.get("exiting") else "executor"),
     )
 
     workflow.add_conditional_edges(
-        "thinking",
-        lambda state: (END if state.get("exiting") else "executor"),
+        "executor",
+        lambda state: (END if state.get("exiting") else "thinking"),
     )
 
     return workflow.compile()

@@ -3,7 +3,7 @@ import logging
 import uvicorn
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Dict
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -122,28 +122,13 @@ async def chat_endpoint(websocket: WebSocket):
 
                 async for update in graph_runner.execute(task):
                     logger.debug("Received update from graph runner")
-                    logger.debug(f"Update type: {type(update)}")
-                    logger.debug(f"Update content: {json.dumps(update, indent=2)}")
-
                     try:
                         # Skip None updates from graph runner
                         if update is None:
                             logger.debug("Skipping None update from graph runner")
                             continue
 
-                        response_data = {
-                            "html_content": update.get("html_content", ""),
-                            "current_state": update.get("current_state") or {},
-                            "action": update.get("action", []),
-                        }
-
-                        # Only send non-empty responses
-                        if response_data["action"] or response_data["current_state"]:
-                            logger.info(
-                                f"Prepared response: {json.dumps(response_data, indent=2)}"
-                            )
-                            await websocket.send_text(json.dumps(response_data))
-                            logger.info("Successfully sent response to client")
+                        await websocket.send_text(update)
 
                     except Exception as serialize_error:
                         logger.error(
