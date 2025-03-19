@@ -64,6 +64,7 @@ class BrowserSession:
                     browser_window_size=BrowserContextWindowSize(
                         width=window_w, height=window_h
                     ),
+                    disable_security=True,
                 )
             )
 
