@@ -2,7 +2,7 @@ import json
 import datetime
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, Type, TypeVar, Union, List
+from typing import Any, Dict, TypeVar, List
 from pydantic import BaseModel
 from langchain_core.messages import (
     HumanMessage,
@@ -11,11 +11,8 @@ from langchain_core.messages import (
     BaseMessage,
     SystemMessage,
 )
-from graph.types import GraphConfig
 from browser_use.browser.views import BrowserState
-from src.browser.custom_context import CustomBrowserContext
 from browser_use.dom.views import DOMElementNode
-
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +105,7 @@ class ExecutorPromptContext:
 
 
 async def get_executor_system_prompt_context(
-    config: GraphConfig,
+    config,
 ) -> ExecutorPromptContext:
     """
     Given the current state of all the systems, generate the prompt which contains the
@@ -119,10 +116,8 @@ async def get_executor_system_prompt_context(
         await config["configurable"].get("terminal_manager").list_terminals()
     )
 
-    browser_context: CustomBrowserContext = config["configurable"].get(
-        "browser_context"
-    )
-    if not isinstance(browser_context, CustomBrowserContext):
+    browser_context = config["configurable"].get("browser_context")
+    if not browser_context:
         logger.info(f"Browser context: {browser_context}")
         raise TypeError("Browser context is not an instance of CustomBrowserContext")
 
@@ -140,7 +135,6 @@ async def get_executor_system_prompt_context(
     current_page_title = browser_state.title
 
     clickable_elements = browser_context.get_semantic_elements_string(element_tree)
-    # clickable_elements = element_tree.clickable_elements_to_string()
     current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     return ExecutorPromptContext(
@@ -180,14 +174,10 @@ def stringify_dom_element_node(dom_element_node: DOMElementNode) -> str:
     placeholder = dom_element_node.attributes.get("placeholder")
     title = dom_element_node.attributes.get("title")
     href = dom_element_node.attributes.get("href")
-    value = dom_element_node.attributes.get(
-        "value"
-    )  # Note: In JS this was element.value
-    label = (
-        dom_element_node.attributes.get("aria-label")
-        or dom_element_node.attributes.get("label")
-        # Note: closest('label') functionality not directly translatable
-    )
+    value = dom_element_node.attributes.get("value")
+    label = dom_element_node.attributes.get(
+        "aria-label"
+    ) or dom_element_node.attributes.get("label")
 
     semantic_parts = []
 
@@ -196,6 +186,9 @@ def stringify_dom_element_node(dom_element_node: DOMElementNode) -> str:
         semantic_parts.append(f"{role}")
     else:
         semantic_parts.append(tag)
+
+    if title:
+        semantic_parts.append(f"title={title}")
 
     # Add identifier if present
     if id:

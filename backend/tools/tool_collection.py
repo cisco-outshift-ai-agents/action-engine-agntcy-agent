@@ -2,7 +2,6 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from langchain.tools import BaseTool
-from langchain_core.messages import AIMessage
 from .base import ToolResult
 from graph.types import WorkableToolCall
 

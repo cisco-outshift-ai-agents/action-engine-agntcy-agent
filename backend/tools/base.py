@@ -1,7 +1,5 @@
 from abc import ABC
-from typing import Any, Dict, Optional, Callable, Awaitable, TypeVar
-
-from langchain.tools import Tool, BaseTool as LangChainBaseTool
+from typing import Any, Optional, Callable, Awaitable, TypeVar
 from pydantic import BaseModel, Field
 
 

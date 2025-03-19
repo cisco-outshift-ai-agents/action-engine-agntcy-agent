@@ -1,12 +1,9 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
 
 from langchain_openai import ChatOpenAI
 from browser_use.dom.service import DomService
-from src.browser.custom_browser import CustomBrowser
-from src.browser.custom_context import CustomBrowserContext
 from graph.environments.terminal import TerminalManager
 from graph.environments.planning import PlanningEnvironment
-
 
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -14,6 +11,11 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel, Field
 from typing_extensions import Annotated, TypedDict
+
+# Avoids circular imports
+if TYPE_CHECKING:
+    from src.browser.custom_browser import CustomBrowser
+    from src.browser.custom_context import CustomBrowserContext
 
 
 # Reducer functions
@@ -153,8 +155,8 @@ def create_default_agent_state(task: str = "") -> Dict:
 @dataclass
 class GraphConfigConfigurable:
     llm: ChatOpenAI
-    browser: CustomBrowser
-    browser_context: CustomBrowserContext
+    browser: "CustomBrowser"
+    browser_context: "CustomBrowserContext"
     dom_service: DomService
     terminal_manager: TerminalManager
     planning_environment: PlanningEnvironment

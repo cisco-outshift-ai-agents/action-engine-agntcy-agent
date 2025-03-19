@@ -1,12 +1,12 @@
 import json
 import logging
-from contextlib import asynccontextmanager
-
 import uvicorn
+
+from dataclasses import dataclass
+from typing import Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.agent_runner import AgentConfig
 from backend.graph_runner import GraphRunner
 from src.utils.default_config_settings import default_config
 
@@ -32,6 +32,41 @@ DEFAULT_CONFIG = default_config()
 
 # Create a global GraphRunner instance
 graph_runner = GraphRunner()
+
+
+@dataclass
+class LLMConfig:
+    provider: str
+    model_name: str
+    temperature: float
+    base_url: str
+    api_key: str
+
+
+@dataclass
+class AgentConfig:
+    use_own_browser: bool
+    keep_browser_open: bool
+    headless: bool
+    disable_security: bool
+    window_w: int
+    window_h: int
+    task: str
+    add_infos: str
+    max_steps: int
+    use_vision: bool
+    max_actions_per_step: int
+    tool_calling_method: str
+    limit_num_image_per_llm_call: Optional[int]
+
+
+@dataclass
+class AgentResult:
+    final_result: str
+    errors: str
+    model_actions: str
+    model_thoughts: str
+    latest_video: Optional[str]
 
 
 @app.get("/status")
@@ -157,9 +192,7 @@ async def stop_endpoint(websocket: WebSocket):
                 # handle stop request
                 if task == "stop":
                     logger.info("Received stop request")
-                    response = (
-                        await graph_runner.stop_agent()
-                    )  # Changed from agent_runner to graph_runner
+                    response = await graph_runner.stop_agent()
                     await websocket.send_text(json.dumps(response))
                     logger.info("Stop Response sent to UI")
                     return
