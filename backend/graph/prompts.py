@@ -1,6 +1,7 @@
 import json
 from tools.utils import ExecutorPromptContext
 from graph.types import BrainState
+from tools.tool_collection import ActionEngineToolCollection
 
 
 def format_message_history(messages: list) -> str:
@@ -52,6 +53,44 @@ def get_planner_prompt() -> str:
 
 
 EXECUTOR_PROMPT = """
+Your current working environment has the following state:
+
+## Date
+The current date and time.
+
+{current_date}
+
+---
+
+## Terminal windows
+The list of all terminal windows and their last performed commands.
+
+{terminal_windows}
+
+---
+
+## Browser tabs
+The list of all browser tabs
+
+{browser_tabs}
+
+---
+
+## Current browser information
+The current browser tab has this information.
+
+- **URL**: {current_url}
+- **Page Title**: {current_page_title}
+
+---
+
+## Clickable elements
+The clickable elements within the currently selected browser tab.
+
+{px_above_text}
+{clickable_elements}
+{px_below_text}
+
 You are a precise browser automation agent that interacts with websites and terminals through structured commands. 
 Your role is to analyze the provided information and determine whether to use provided webpage elements and structure for browser or execute a command in a terminal.  Use only the tools and functions provided to you.  Do not respond with text.  You must always call a tool to perform an action.
 
@@ -100,44 +139,10 @@ Your role is to analyze the provided information and determine whether to use pr
     - If uncertain about a path, first list the contents of the parent directory
     - If looking for specific directories like 'app', first check if they exist at root level (e.g., '/app')
 
-
-Your current working environment has the following state:
-
-## Date
-The current date and time.
-
-{current_date}
-
----
-
-## Terminal windows
-The list of all terminal windows and their last performed commands.
-
-{terminal_windows}
-
----
-
-## Browser tabs
-The list of all browser tabs
-
-{browser_tabs}
-
----
-
-## Current browser information
-The current browser tab has this information.
-
-- **URL**: {current_url}
-- **Page Title**: {current_page_title}
-
----
-
-## Clickable elements
-The clickable elements within the currently selected browser tab.
-
-{px_above_text}
-{clickable_elements}
-{px_below_text}
+Available tools:
+- `browser_use`
+- `terminal`
+- `terminate`
 """
 
 
@@ -145,12 +150,12 @@ def get_executor_prompt(context: ExecutorPromptContext) -> str:
     """Helps the agent understand the current state of the environment"""
 
     px_above_text = (
-        f"\n... {context.pixels_above} pixels above - scroll or extract content to see more ..."
+        f"\n... {context.pixels_above} pixels above - you can scroll to see more ..."
         if context.pixels_above
         else ""
     )
     px_below_text = (
-        f"\n... {context.pixels_below} pixels below - scroll or extract content to see more ..."
+        f"\n... {context.pixels_below} pixels below - you can scroll to see more ..."
         if context.pixels_below
         else ""
     )
@@ -201,9 +206,33 @@ def get_thinking_prompt(brainstate: BrainState) -> str:
 TOOL_CALL_RETRY_PROMPT = """
 The previous response did not include a tool/function call in order to complete the task.
 Please ensure that you always call a tool to perform an action.
+
+Call a tool by formatting your response with the tool_call XML format
+<tool_call>
+{{tool_format}}
+</tool_call>
+
+Your available tools are: 
+{tools_str}
+
+Do not respond with text.  You must always call a tool to perform an action.
 """
 
 
-def get_tool_call_retry_prompt() -> str:
+def get_tool_call_retry_prompt(tools_str: str) -> str:
     """Prompt to remind the agent to always call a tool to perform an action"""
-    return TOOL_CALL_RETRY_PROMPT
+    return TOOL_CALL_RETRY_PROMPT.format(
+        tools_str=tools_str,
+    )
+
+
+PREVIOUS_EXECUTOR_TOOL_CALLS_PROMPT = """
+The agent before you performed these actions: 
+
+{tool_calls}
+"""
+
+
+def get_previous_executor_tool_calls_prompt(tool_calls: str) -> str:
+    """Prompt to inform the agent about the actions taken in previous steps"""
+    return PREVIOUS_EXECUTOR_TOOL_CALLS_PROMPT.format(tool_calls=tool_calls)

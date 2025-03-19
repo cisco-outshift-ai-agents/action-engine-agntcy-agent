@@ -64,7 +64,7 @@ class PlanningNode(BaseNode):
         local_messages.append(system_message)
 
         # Add the current plan message
-        plan_msg = planning_env.get_ai_message_for_current_plan()
+        plan_msg = planning_env.get_message_for_current_plan()
         local_messages.append(plan_msg)
 
         # Get LLM response with tool calls
@@ -77,10 +77,7 @@ class PlanningNode(BaseNode):
         # First hydrate any existing messages before serializing
         existing_messages = hydrate_messages(state["messages"])
         global_messages = serialize_messages(existing_messages)
-        global_messages.extend(
-            # serialize_messages([human_message, system_message, plan_msg, response])
-            serialize_messages([response])
-        )
+        global_messages.extend(serialize_messages([response]))
 
         # Execute any tool calls and add the tool messages to the global state
         if hasattr(response, "tool_calls") and response.tool_calls:

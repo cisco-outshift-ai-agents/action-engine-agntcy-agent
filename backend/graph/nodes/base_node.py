@@ -140,13 +140,19 @@ class BaseNode:
             response: AIMessage = await llm.ainvoke(messages)
             return response
 
-        MAX_ATTEMPTS = 3
+        MAX_ATTEMPTS = 5
         attempt = 0
 
         while attempt < MAX_ATTEMPTS:
             if attempt > 0:
                 logger.info(f"Retrying model call with tool calls, attempt {attempt}")
-                messages.append(AIMessage(content=get_tool_call_retry_prompt()))
+                messages.append(
+                    AIMessage(
+                        content=get_tool_call_retry_prompt(
+                            tools_str="\n".join(self.tool_collection.list_tools())
+                        )
+                    )
+                )
 
             attempt += 1
             try:
@@ -203,13 +209,7 @@ class BaseNode:
             message.content
         )
         if extracted_text_tool_call:
-            tool_calls.append(
-                WorkableToolCall(
-                    name=extracted_text_tool_call.name,
-                    args=extracted_text_tool_call.args,
-                    call_id=extracted_text_tool_call.id,
-                )
-            )
+            tool_calls.append(extracted_text_tool_call)
 
         return tool_calls
 

@@ -6,6 +6,7 @@ from langchain_core.runnables import RunnableConfig
 from .base import ToolResult
 from langchain_core.tools import tool
 from src.browser.custom_context import CustomBrowserContext
+from tools.utils import stringify_dom_element_node
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,9 @@ class BrowserToolInput(BaseModel):
     }
 
 
-@tool("browser_use")
+@tool(
+    "browser_use",
+)
 async def browser_use_tool(
     action: BrowserAction,
     url: Optional[str] = None,
@@ -85,6 +88,14 @@ async def browser_use_tool(
     Interact with web browser to perform navigation, clicking, typing and other actions.
     All actions return standardized results with success/failure status and error messages.
     Browser state is maintained between actions within the same session.
+
+    Example usage:
+    - Navigate to a URL: { "action": "navigate", "url": "https://www.example.com" }
+    - Click on an element: { "action": "click", "index": 0 }
+    - Input text into an element: { "action": "input_text", "index": 1, "text": "Hello" }
+    - Take a screenshot: { "action": "screenshot" }
+    - Get the HTML content: { "action": "get_html" }
+    - Get the text content: { "action": "get_text" }
 
     Args:
         action: The browser action to perform
@@ -129,7 +140,7 @@ async def browser_use_tool(
             if not element:
                 return ToolResult(error=f"Element with index {index} not found")
             download_path = await browser_context._click_element_node(element)
-            output = f"Clicked element at index {index}"
+            output = f"Clicked element at index {index} ({stringify_dom_element_node(element)})"
             if download_path:
                 output += f" - Downloaded file to {download_path}"
             return ToolResult(output=output)
@@ -143,7 +154,9 @@ async def browser_use_tool(
             if not element:
                 return ToolResult(error=f"Element with index {index} not found")
             await browser_context._input_text_element_node(element, text)
-            return ToolResult(output=f"Input '{text}' into element at index {index}")
+            return ToolResult(
+                output=f"Input '{text}' into element at index {index} ({stringify_dom_element_node(element)})"
+            )
 
         elif params.action == BrowserAction.SCREENSHOT:
             screenshot = await browser_context.take_screenshot(full_page=True)

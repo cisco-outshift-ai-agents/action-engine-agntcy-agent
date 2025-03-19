@@ -61,7 +61,7 @@ class ThinkingNode(BaseNode):
         local_messages.append(system_message)
 
         # Add the current plan message
-        plan_msg = planning_env.get_ai_message_for_current_plan()
+        plan_msg = planning_env.get_message_for_current_plan()
         local_messages.append(plan_msg)
 
         # Get LLM response and structured output

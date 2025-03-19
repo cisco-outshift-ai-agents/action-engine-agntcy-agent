@@ -1,4 +1,5 @@
 import logging
+import json
 from typing import Dict, List, Any
 from langchain_core.messages import (
     HumanMessage,
@@ -12,19 +13,21 @@ from langchain_openai import ChatOpenAI
 from graph.types import AgentState
 from tools.tool_collection import ActionEngineToolCollection
 from tools.terminal import terminal_tool
-from tools.file_saver import file_saver_tool
 from tools.browser_use import browser_use_tool
-from tools.google_search import google_search_tool
-from tools.python_execute import python_execute_tool
-from tools.str_replace_editor import str_replace_editor_tool
+
+# from tools.file_saver import file_saver_tool
+# from tools.google_search import google_search_tool
+# from tools.python_execute import python_execute_tool
+# from tools.str_replace_editor import str_replace_editor_tool
 from tools.terminate import terminate_tool
 from tools.utils import (
     serialize_messages,
     get_executor_system_prompt_context,
     hydrate_messages,
 )
-from graph.prompts import get_executor_prompt
+from graph.prompts import get_executor_prompt, get_previous_executor_tool_calls_prompt
 from graph.nodes.base_node import BaseNode
+from graph.environments.planning import PlanningEnvironment
 
 logger = logging.getLogger(__name__)
 
@@ -37,12 +40,12 @@ class ExecutorNode(BaseNode):
         self.tool_collection = ActionEngineToolCollection(
             [
                 terminal_tool,
-                # file_saver_tool,
                 browser_use_tool,
+                terminate_tool,
+                # file_saver_tool,
                 # google_search_tool,
                 # python_execute_tool,
                 # str_replace_editor_tool,
-                terminate_tool,
             ]
         )
 
@@ -62,14 +65,20 @@ class ExecutorNode(BaseNode):
         if not llm:
             raise ValueError("LLM not provided in config")
 
+        planning_env = config["configurable"].get("planning_environment")
+        if not isinstance(planning_env, PlanningEnvironment):
+            logger.error("No planning_environment in configurable")
+            return ValueError("Planning environment not initialized")
+
         # Bind tools to LLM
         bound_llm = llm.bind_tools(
             self.tool_collection.get_tools(), tool_choice="auto"
         ).with_config(config=config)
 
         # Hydrate existing messages
-        local_messages = hydrate_messages(state["messages"])
-        local_messages = self.prune_messages(local_messages)
+        # local_messages = hydrate_messages(state["messages"])
+        # local_messages = self.prune_messages(local_messages)
+        local_messages = []
 
         # Add new human message with the task
         human_message = HumanMessage(content=state["task"])
@@ -95,6 +104,16 @@ class ExecutorNode(BaseNode):
         )
         local_messages.append(executor_message)
 
+        # Add the current plan message
+        plan_msg = planning_env.get_message_for_current_plan()
+        local_messages.append(plan_msg)
+
+        # Add the previous executor tool calls message
+        previous_tool_calls_message = (
+            self.get_previous_executor_tool_calls_as_ai_message(state)
+        )
+        local_messages.append(previous_tool_calls_message)
+
         # Get LLM response with tool calls
         response: AIMessage = await self.call_model_with_tool_retry(
             llm=bound_llm, messages=local_messages
@@ -105,10 +124,7 @@ class ExecutorNode(BaseNode):
         # First hydrate any existing messages before serializing
         existing_messages = hydrate_messages(state["messages"])
         global_messages = serialize_messages(existing_messages)
-        global_messages.extend(
-            # serialize_messages([human_message, executor_message, response])
-            serialize_messages([response])
-        )
+        global_messages.extend(serialize_messages([response]))
 
         # Execute any tool calls
         if hasattr(response, "tool_calls") and response.tool_calls:
@@ -127,3 +143,28 @@ class ExecutorNode(BaseNode):
         # Update the global state with the new messages
         state["messages"] = global_messages
         return state
+
+    def get_previous_executor_tool_calls_as_ai_message(
+        self, state: AgentState
+    ) -> AIMessage:
+        """Given the sum of all previous messages, return the tool calls in a prompt format"""
+        messages = hydrate_messages(state["messages"])
+        tool_calls_str = ""
+
+        # Loop over all the messages in state
+        for i, message in enumerate(messages):
+            if not isinstance(message, AIMessage):
+                continue
+            # Find the tool_calls within the objects
+            workable_tool_calls = self.get_workable_tool_calls(message)
+            for j, tool_call in enumerate(workable_tool_calls):
+                # Append the tool call to the string
+                tool_calls_str += f"{i}: {tool_call.name}({tool_call.args})"
+                if j < len(workable_tool_calls) - 1:
+                    tool_calls_str += ", "
+
+                tool_calls_str += "\n\n"
+
+        return AIMessage(
+            content=get_previous_executor_tool_calls_prompt(tool_calls_str)
+        )

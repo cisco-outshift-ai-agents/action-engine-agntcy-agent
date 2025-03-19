@@ -14,6 +14,8 @@ from langchain_core.messages import (
 from graph.types import GraphConfig
 from browser_use.browser.views import BrowserState
 from src.browser.custom_context import CustomBrowserContext
+from browser_use.dom.views import DOMElementNode
+
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +139,8 @@ async def get_executor_system_prompt_context(
     current_url = browser_state.url
     current_page_title = browser_state.title
 
-    clickable_elements = element_tree.clickable_elements_to_string()
+    clickable_elements = browser_context.get_semantic_elements_string(element_tree)
+    # clickable_elements = element_tree.clickable_elements_to_string()
     current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     return ExecutorPromptContext(
@@ -151,3 +154,94 @@ async def get_executor_system_prompt_context(
         pixels_below=pixels_below,
         current_page_title=current_page_title,
     )
+
+
+def stringify_dom_element_node(dom_element_node: DOMElementNode) -> str:
+    """Convert the DOMElementNode to a string with semantic information"""
+    if not dom_element_node:
+        return "unknown element"
+
+    # Get basic element information
+    tag = dom_element_node.tag_name.lower()
+    id = dom_element_node.attributes.get("id", "")
+    classes = dom_element_node.attributes.get("class", "")
+
+    # Get text content from children nodes, limited to 50 chars
+    text = dom_element_node.get_all_text_till_next_clickable_element()
+    if text:
+        text = text.strip()[:50]
+
+    # Get specific attributes
+    role = dom_element_node.attributes.get(
+        "aria-role"
+    ) or dom_element_node.attributes.get("role")
+    name = dom_element_node.attributes.get("name")
+    type = dom_element_node.attributes.get("type")
+    placeholder = dom_element_node.attributes.get("placeholder")
+    title = dom_element_node.attributes.get("title")
+    href = dom_element_node.attributes.get("href")
+    value = dom_element_node.attributes.get(
+        "value"
+    )  # Note: In JS this was element.value
+    label = (
+        dom_element_node.attributes.get("aria-label")
+        or dom_element_node.attributes.get("label")
+        # Note: closest('label') functionality not directly translatable
+    )
+
+    semantic_parts = []
+
+    # Add role or tag
+    if role:
+        semantic_parts.append(f"{role}")
+    else:
+        semantic_parts.append(tag)
+
+    # Add identifier if present
+    if id:
+        semantic_parts.append(f"#{id}")
+
+    # Add element-specific information
+    if tag == "input":
+        if type:
+            semantic_parts.append(f'type="{type}"')
+        if name:
+            semantic_parts.append(f'name="{name}"')
+        if placeholder:
+            semantic_parts.append(f'placeholder="{placeholder}"')
+        if label:
+            semantic_parts.append(f'label="{label}"')
+        if value:
+            semantic_parts.append(f'value="{value}"')
+    elif tag == "button":
+        if text:
+            semantic_parts.append(f'text="{text}"')
+    elif tag == "a":
+        if text:
+            semantic_parts.append(f'text="{text}"')
+        if href:
+            short_href = href[:30] + "..." if len(href) > 30 else href
+            semantic_parts.append(f'href="{short_href}"')
+    elif tag == "select":
+        if name:
+            semantic_parts.append(f'name="{name}"')
+        if label:
+            semantic_parts.append(f'label="{label}"')
+    elif text:
+        semantic_parts.append(f'text="{text}"')
+
+    # Add important ARIA attributes
+    aria_attributes = [
+        "aria-label",
+        "aria-description",
+        "aria-expanded",
+        "aria-selected",
+        "aria-checked",
+        "aria-pressed",
+    ]
+
+    for attr in aria_attributes:
+        if value := dom_element_node.attributes.get(attr):
+            semantic_parts.append(f'{attr}="{value}"')
+
+    return " ".join(semantic_parts)

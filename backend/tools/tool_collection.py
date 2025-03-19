@@ -90,8 +90,6 @@ class ActionEngineToolCollection:
 
     def validate_workable_tool_calls(self, tool_calls: List[WorkableToolCall]) -> bool:
         """Validate tool calls against available tools"""
-        logger.info(f"Validating tool calls: {tool_calls}")
-        logger.info(f"Available tools: {self.tool_map}")
 
         for tool_call in tool_calls:
             if tool_call.name not in self.tool_map:

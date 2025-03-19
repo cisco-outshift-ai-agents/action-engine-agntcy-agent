@@ -1,6 +1,6 @@
 from typing import Dict, List, Literal, Optional
 from pydantic import BaseModel
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 
 
 class Plan(BaseModel):
@@ -104,11 +104,11 @@ class PlanningEnvironment:
 
         return output
 
-    def get_ai_message_for_current_plan(self) -> AIMessage:
+    def get_message_for_current_plan(self) -> HumanMessage:
         plan = self.get_plan()
         if not plan:
-            return AIMessage(content="No plan available")
+            return HumanMessage(content="No plan available")
 
         formatted_plan = self.format_plan(plan)
 
-        return AIMessage(content=formatted_plan)
+        return HumanMessage(content=formatted_plan)

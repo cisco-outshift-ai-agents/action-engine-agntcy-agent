@@ -11,10 +11,12 @@ from browser_use.browser.views import (
     BrowserState,
     TabInfo,
 )
+from browser_use.dom.views import DOMBaseNode, DOMElementNode, DOMTextNode
 from browser_use.dom.service import DomService
 from playwright.async_api import (
     Page,
 )
+from tools.utils import stringify_dom_element_node
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +48,29 @@ class CustomBrowserContext(BrowserContext):
             asyncio.create_task(self.save_cookies())
 
         return session.cached_state
+
+    async def get_semantic_elements_string(self, element_tree: DOMElementNode) -> str:
+        """Convert the processed DOM content to semantic HTML string."""
+        formatted_text = []
+
+        def process_node(node: DOMBaseNode, depth: int) -> None:
+            if isinstance(node, DOMElementNode):
+                # Add element with highlight_index
+                if node.highlight_index is not None:
+                    semantic_desc = stringify_dom_element_node(node)
+                    formatted_text.append(f"{node.highlight_index}[:]<{semantic_desc}>")
+
+                # Process children regardless
+                for child in node.children:
+                    process_node(child, depth + 1)
+
+            elif isinstance(node, DOMTextNode):
+                # Add text only if it doesn't have a highlighted parent
+                if not node.has_parent_with_highlight_index():
+                    formatted_text.append(f"_[:]{node.text}")
+
+        process_node(element_tree, 0)
+        return "\n".join(formatted_text)
 
     async def _update_state(
         self, use_vision: bool = False, focus_element: int = -1
