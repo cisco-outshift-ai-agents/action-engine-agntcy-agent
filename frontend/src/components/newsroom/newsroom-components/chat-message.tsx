@@ -9,11 +9,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   role,
   error,
   warnings,
-  thoughts,
+  thought,
   actions,
   isDone,
-  isTerminal,
-  hasEmptyThought,
 }) => {
   if (isDone) {
     return null;
@@ -53,13 +51,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 
             <ChatMessageText
               content={content}
-              thoughts={thoughts}
+              thought={thought}
               errors={error ? [error] : undefined}
               warnings={warnings}
               role={role}
               actions={actions}
-              isTerminal={isTerminal}
-              hasEmptyThought={hasEmptyThought}
             />
           </div>
         </div>
@@ -68,17 +64,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   );
 };
 
-interface ChatMessageProps {
+export interface ChatMessageProps {
   content: ReactNode | undefined | null;
   error?: string | undefined | null;
   warnings?: string[] | undefined | null;
   isLoading?: boolean | undefined | null;
   role: "user" | "assistant";
-  thoughts?: string[] | undefined | null;
+  thought?: string | undefined | null;
   actions?: string[] | undefined | null;
   isDone?: boolean;
-  isTerminal?: boolean;
-  hasEmptyThought?: boolean;
 }
 
 export default ChatMessage;

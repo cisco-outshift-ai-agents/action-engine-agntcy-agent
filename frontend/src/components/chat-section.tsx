@@ -4,12 +4,14 @@ import { PaperPlaneRight, StopCircle } from "@magnetic/icons";
 import { Button } from "@magnetic/button";
 import { cn } from "@/utils";
 import { Flex } from "@magnetic/flex";
-import ChatMessage from "./newsroom/newsroom-components/chat-message";
+import ChatMessage, {
+  ChatMessageProps,
+} from "./newsroom/newsroom-components/chat-message";
 import CiscoAIAssistantLoader from "@/components/newsroom/newsroom-assets/thinking.gif";
 
 import { TodoFixAny } from "@/types";
 import { useChatStore } from "@/stores/chat";
-import { CleanerData, Data, DataZod, StopDataZod } from "@/pages/session/types";
+import { GraphData, GraphDataZod, StopDataZod } from "@/pages/session/types";
 
 interface ChatSectionProps {
   className?: string;
@@ -19,10 +21,12 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
   const [messages, setMessages] = useState<
     {
       sender: string;
-      text: CleanerData;
+      text: ChatMessageProps;
     }[]
   >([]);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(
+    "Go to Wikipedia and search for Cisco Systems, then click on the first link on the page"
+  );
   const wsRef = useRef<WebSocket | null>(null); //Main websocket for tasks
   const wsStopRef = useRef<WebSocket | null>(null); //Websocket for stop requests
   const isThinking = useChatStore((state) => state.isThinking);
@@ -48,14 +52,14 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
     };
 
     ws.onmessage = (event: MessageEvent) => {
-      console.log("received websocket message:", event.data);
-      const d = JSON.parse((event as TodoFixAny).data) as Data;
-      const parse = DataZod.safeParse(d);
+      console.log("received websocket message:", JSON.parse(event.data));
+      const d = JSON.parse((event as TodoFixAny).data) as GraphData;
+      const parse = GraphDataZod.safeParse(d);
       if (!parse.success) {
         console.error(parse.error);
         return;
       }
-      const clean = cleanData(d);
+      const clean = cleanAPIData(d);
       console.log("processed data:", clean);
 
       setMessages((messages) => [
@@ -65,14 +69,14 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
           text: clean,
         },
       ]);
-      if (clean.action.some((a) => a.done === true)) {
+      if (clean.isDone) {
         setisThinking(false);
       }
     };
 
     wsStop.onmessage = (event: MessageEvent) => {
       console.log("received stop response:", event.data);
-      const d = JSON.parse((event as TodoFixAny).data) as Data;
+      const d = JSON.parse((event as TodoFixAny).data) as GraphData;
       const parse = StopDataZod.safeParse(d);
       if (!parse.success) {
         console.error(parse.error);
@@ -91,9 +95,8 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
         {
           sender: "agent",
           text: {
-            action: [{ summary: stopResponse.summary }],
-            current_state: {},
-            html_content: "",
+            content: stopResponse.summary,
+            role: "assistant",
           },
         },
       ]);
@@ -126,11 +129,10 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
       ...messages,
       {
         sender: "user",
-        text: cleanData({
-          action: [{ summary: input }],
-          current_state: {},
-          html_content: "",
-        }),
+        text: {
+          content: input,
+          role: "user",
+        },
       },
     ]);
 
@@ -172,35 +174,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
           )}
           {[...messages].reverse().map((message, index) => (
             <div key={index}>
-              <ChatMessage
-                content={message.text.action.map((a) => a.summary).join("\n")}
-                isDone={message.text.action.some((a) => a.done === true)}
-                thoughts={
-                  message.text.action
-                    .map((a) => a.thought)
-                    .filter((a) => !!a) as string[]
-                }
-                actions={
-                  message.text.action
-                    .map((a) => {
-                      if (a.click_element) {
-                        return `Click element ${a.click_element.index}`;
-                      } else if (a.input_text) {
-                        return `Input text ${a.input_text.text} at index ${a.input_text.index}`;
-                      } else if (a.execute_terminal_command) {
-                        return `Execute terminal command ${a.execute_terminal_command.command}`;
-                      } else {
-                        return undefined;
-                      }
-                    })
-                    .filter((a) => !!a) as string[]
-                }
-                role={message.sender === "agent" ? "assistant" : "user"}
-                isTerminal={message.text.action.some((a) => a.is_terminal)}
-                hasEmptyThought={message.text.action.some(
-                  (a) => a.is_terminal && a.thought === ""
-                )}
-              />
+              <ChatMessage {...message.text} />
             </div>
           ))}
         </div>
@@ -209,7 +183,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
         <Flex
           as="form"
           align="center"
-          className="max-w-3xl mx-auto bg-[#373c42] border-2 border-[#7E868F] pr-3 pt-2 pr-3 pl-5 pb-2 rounded-lg"
+          className="max-w-3xl mx-auto bg-[#373c42] border-2 border-[#7E868F] pr-3 pt-2 pl-5 pb-2 rounded-lg"
         >
           <TextareaAutosize
             tabIndex={1}
@@ -283,43 +257,32 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
   );
 };
 
-const cleanData = (data: Data): CleanerData => {
-  console.log(data);
-
-  if (typeof data === "string") {
-    return {
-      action: [{ summary: data }],
-      current_state: {},
-      html_content: "",
-    };
-  }
+const cleanAPIData = (data: GraphData): ChatMessageProps => {
   return {
-    action: data.action.map((action) => {
-      if (typeof action === "string") {
-        return {
-          summary: action,
-        };
-      }
-
-      return {
-        input_text: action.input_text,
-        click_element: action.click_element,
-        execute_terminal_command: action.execute_terminal_command,
-        prev_action_evaluation: action.prev_action_evaluation,
-        important_contents: action.important_contents,
-        task_progress: action.task_progress,
-        future_plans: action.future_plans,
-        thought: action.thought,
-        summary: action.summary,
-        done: typeof action.done === "boolean" ? action.done : false,
-        terminal_id: action.terminal_id,
-        working_directory: action.working_directory,
-        is_terminal: action.is_terminal,
-      };
-    }),
-    current_state: data.current_state,
-    html_content: data.html_content,
+    content: data.brain.summary,
+    thought: data.brain.thought,
+    role: "assistant",
+    actions: getLastAITools(data),
+    error: data.error,
+    isDone: data.exiting,
   };
+};
+
+const getLastAITools = (data: GraphData): string[] => {
+  const lastAIMessage = data.messages
+    .filter((m) => m.type === "AIMessage")
+    .pop();
+
+  if (!lastAIMessage) {
+    return [];
+  }
+
+  return [
+    ...(lastAIMessage.tool_calls?.map((t) => {
+      return JSON.stringify(t);
+    }) || []),
+    lastAIMessage.content || "",
+  ].filter((a) => !!a);
 };
 
 export default ChatSection;
