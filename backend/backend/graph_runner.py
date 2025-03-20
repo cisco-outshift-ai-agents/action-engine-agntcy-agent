@@ -114,7 +114,7 @@ class GraphRunner:
                         agent_state = step_output[key].copy()
                         break
 
-                yield json.dumps(serialize_graph_response(agent_state), indent=2)
+                yield serialize_graph_response(agent_state)
 
         except Exception as e:
             logger.error(f"Graph execution error: {str(e)}", exc_info=True)

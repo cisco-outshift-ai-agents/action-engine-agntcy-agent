@@ -128,7 +128,7 @@ async def chat_endpoint(websocket: WebSocket):
                             logger.debug("Skipping None update from graph runner")
                             continue
 
-                        await websocket.send_text(update)
+                        await websocket.send_text(json.dumps(update))
 
                     except Exception as serialize_error:
                         logger.error(
