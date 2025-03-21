@@ -110,6 +110,7 @@ class AgentState(TypedDict, total=False):
 
     # Core state
     task: Annotated[str, last_value_reducer]  # Now mutable with reducer
+    plan: Annotated[Optional[Dict[str, Any]], last_value_reducer]  # Current plan state
 
     # Brain state
     brain: Annotated[Dict[str, Any], dict_merge_reducer]
@@ -139,6 +140,7 @@ def create_default_agent_state(task: str = "") -> Dict:
     """Create a default agent state with all required fields"""
     return {
         "task": task,
+        "plan": None,
         "brain": {},
         "thought": "",
         "summary": "",

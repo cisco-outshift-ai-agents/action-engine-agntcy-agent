@@ -91,6 +91,13 @@ class PlanningNode(BaseNode):
             tool_messages = await self.execute_tools(message=response, config=config)
             global_messages.extend(serialize_messages(tool_messages))
 
+        # Update plan in state if available
+        plan = planning_env.get_plan()
+        if plan:
+            state["plan"] = plan.to_dict()
+        else:
+            state["plan"] = None
+
         # Check for and handle termination tool call
         termination_tool_call = next(
             (tc for tc in response.tool_calls if tc["name"] == "terminate"), None

@@ -3,6 +3,16 @@ from langchain_core.messages import AIMessage, HumanMessage
 from pydantic import BaseModel, Field
 
 
+def step_to_dict(step: "Step") -> Dict:
+    """Convert a Step to a dictionary representation"""
+    return {
+        "content": step.content,
+        "status": step.status,
+        "notes": step.notes,
+        "substeps": [step_to_dict(substep) for substep in step.substeps],
+    }
+
+
 class Step(BaseModel):
     """Step model for representing a single step with optional substeps"""
 
@@ -23,6 +33,14 @@ class Plan(BaseModel):
     plan_id: str
     title: str
     steps: List[Step]
+
+    def to_dict(self) -> Dict:
+        """Convert the plan to a dictionary representation"""
+        return {
+            "plan_id": self.plan_id,
+            "title": self.title,
+            "steps": [step_to_dict(step) for step in self.steps],
+        }
 
 
 class PlanningEnvironment:
