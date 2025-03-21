@@ -46,10 +46,25 @@ class PlanningEnvironment:
         self._current_plan_id = plan.plan_id
 
     def update_plan(self, plan_id: str, updates: Dict) -> None:
-        """Update existing plan"""
+        """Update existing plan
+
+        If the update contains 'step_index' and 'step_status', update the corresponding step's status
+        without resetting other steps.
+        """
         if plan_id not in self._plans:
             raise ValueError(f"No plan found with ID: {plan_id}")
         plan = self._plans[plan_id]
+
+        # Update a specific step's status if provided
+        if "step_index" in updates and "step_status" in updates:
+            index = updates.pop("step_index")
+            new_status = updates.pop("step_status")
+            if 0 <= index < len(plan.step_statuses):
+                plan.step_statuses[index] = new_status
+            else:
+                raise ValueError("Invalid step index")
+
+        # Apply any other updates to the plan
         for key, value in updates.items():
             setattr(plan, key, value)
 

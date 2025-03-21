@@ -78,12 +78,9 @@ class CustomBrowserContext(BrowserContext):
         """Update and return state."""
         session = await self.get_session()
         # Check if current page is still valid, if not switch to another available page
-        logger.info("a")
         try:
             page = await self.get_current_page()
-            logger.info("b")
             await page.evaluate("console.log('evaluated')")
-            logger.info("evaluated")
         except Exception as e:
             logger.debug(f"Current page is no longer accessible: {str(e)}")
             # Get all available pages
@@ -94,12 +91,9 @@ class CustomBrowserContext(BrowserContext):
                 logger.debug(f"Switched to page: {await self._get_page_title(page)}")
             else:
                 raise BrowserError("Browser closed: no valid pages available")
-        logger.info("c")
         try:
             await self.remove_highlights()
-            logger.info("d")
             dom_service = DomService(page)
-            logger.info("e")
             content = await dom_service.get_clickable_elements(
                 focus_element=focus_element,
                 viewport_expansion=self.config.viewport_expansion,
@@ -107,20 +101,14 @@ class CustomBrowserContext(BrowserContext):
             )
 
             screenshot_b64 = None
-            logger.info("f")
             if use_vision:
-                logger.info("g")
                 screenshot_b64 = await self.take_screenshot()
-                logger.info("h")
 
             pixels_above, pixels_below = await self.get_scroll_info(page)
 
-            logger.info("i")
             title = await self._get_page_title(page)
-            logger.info("j")
 
             tabs = await self.get_tabs_info()
-            logger.info("k")
 
             self.current_state = BrowserState(
                 element_tree=content.element_tree,

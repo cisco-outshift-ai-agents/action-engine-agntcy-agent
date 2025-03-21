@@ -31,41 +31,100 @@ class BrowserAction(str, Enum):
 
 
 class BrowserToolInput(BaseModel):
-    """Input model for browser tool actions"""
+    """Input model for browser tool actions - validates required parameters for each action type"""
 
-    action: BrowserAction = Field(description="The browser action to perform")
+    action: BrowserAction = Field(
+        description="The browser action to perform. Each action has specific required parameters:\n"
+        "- navigate, new_tab: requires 'url'\n"
+        "- click: requires 'index'\n"
+        "- input_text: requires both 'index' and 'text'\n"
+        "- execute_js: requires 'script'\n"
+        "- scroll: requires 'scroll_amount'\n"
+        "- switch_tab: requires 'tab_id'\n"
+        "- screenshot, get_html, get_text, close_tab, refresh: no additional parameters needed"
+    )
     url: Optional[str] = Field(
-        None, description="URL for 'navigate' or 'new_tab' actions"
+        None,
+        description="Required URL for 'navigate' and 'new_tab' actions. Must be a valid HTTP/HTTPS URL",
+        pattern="^https?://.*",
     )
     index: Optional[int] = Field(
         None,
-        description="Element index for 'click' or 'input_text' actions. (e.g. for 33[:]<button>, the index is 33)",
+        description="Required element index for 'click' and 'input_text' actions. Found in browser view as N[:]<element>, e.g. 42[:]<button>",
+        ge=0,
     )
-    text: Optional[str] = Field(None, description="Text for 'input_text' action")
+    text: Optional[str] = Field(
+        None,
+        description="Required text to input for 'input_text' action. The text that will be typed into the selected element",
+    )
     script: Optional[str] = Field(
-        None, description="JavaScript code for 'execute_js' action"
+        None,
+        description="Required JavaScript code for 'execute_js' action. Will be executed in the browser context",
     )
     scroll_amount: Optional[int] = Field(
-        None, description="Pixels to scroll (positive for down, negative for up)"
+        None,
+        description="Required for 'scroll' action. Positive numbers scroll down, negative scroll up. Unit is pixels",
     )
-    tab_id: Optional[int] = Field(None, description="Tab ID for 'switch_tab' action")
+    tab_id: Optional[int] = Field(
+        None,
+        description="Required tab ID for 'switch_tab' action. Must be a valid tab ID from an open browser tab",
+        ge=0,
+    )
 
     model_config = {
         "json_schema_extra": {
             "required": ["action"],
+            "examples": [
+                {"action": "navigate", "url": "https://www.example.com"},
+                {"action": "click", "index": 42},
+                {"action": "input_text", "index": 42, "text": "Hello World"},
+            ],
+            "title": "Browser Action Parameters",
+            "description": "Parameters required for each browser action type",
             "dependencies": {
-                "navigate": ["url"],
-                "click": ["index"],
-                "input_text": ["index", "text"],
-                "screenshot": [],
-                "get_html": [],
-                "get_text": [],
-                "execute_js": ["script"],
-                "scroll": ["scroll_amount"],
-                "switch_tab": ["tab_id"],
-                "new_tab": ["url"],
-                "close_tab": [],
-                "refresh": [],
+                # Required URL actions
+                "navigate": {
+                    "required": ["url"],
+                    "properties": {"url": {"type": "string", "format": "uri"}},
+                },
+                "new_tab": {
+                    "required": ["url"],
+                    "properties": {"url": {"type": "string", "format": "uri"}},
+                },
+                # Required index actions
+                "click": {
+                    "required": ["index"],
+                    "properties": {"index": {"type": "integer", "minimum": 0}},
+                },
+                # Required multiple parameter actions
+                "input_text": {
+                    "required": ["index", "text"],
+                    "properties": {
+                        "index": {"type": "integer", "minimum": 0},
+                        "text": {"type": "string"},
+                    },
+                },
+                # Required script actions
+                "execute_js": {
+                    "required": ["script"],
+                    "properties": {"script": {"type": "string"}},
+                },
+                # Required scroll actions
+                "scroll": {
+                    "required": ["scroll_amount"],
+                    "properties": {"scroll_amount": {"type": "integer"}},
+                },
+                # Required tab actions
+                "switch_tab": {
+                    "required": ["tab_id"],
+                    "properties": {"tab_id": {"type": "integer", "minimum": 0}},
+                },
+                # No-parameter actions
+                "screenshot": {"required": []},
+                "get_html": {"required": []},
+                "get_text": {"required": []},
+                "close_tab": {"required": []},
+                "refresh": {"required": []},
             },
         }
     }
@@ -82,29 +141,35 @@ async def browser_use_tool(
     script: Optional[str] = None,
     scroll_amount: Optional[int] = None,
     tab_id: Optional[int] = None,
-    config: RunnableConfig = None,  # Changed to explicitly use RunnableConfig
+    config: RunnableConfig = None,
 ) -> ToolResult:
     """
-    Interact with web browser to perform navigation, clicking, typing and other actions.
-    All actions return standardized results with success/failure status and error messages.
-    Browser state is maintained between actions within the same session.
+    Browser automation tool for web interactions. Each action requires specific parameters.
 
-    Example usage:
-    - Navigate to a URL: { "action": "navigate", "url": "https://www.example.com" }
-    - Click on an element: { "action": "click", "index": 0 }
-    - Input text into an element: { "action": "input_text", "index": 1, "text": "Hello" }
-    - Take a screenshot: { "action": "screenshot" }
-    - Get the HTML content: { "action": "get_html" }
-    - Get the text content: { "action": "get_text" }
+    REQUIRED PARAMETERS PER ACTION:
+    - navigate: url
+    - click: index
+    - input_text: index, text
+    - screenshot: (no parameters needed)
+    - get_html: (no parameters needed)
+    - get_text: (no parameters needed)
+    - execute_js: script
+    - scroll: scroll_amount
+    - switch_tab: tab_id
+    - new_tab: url
+    - close_tab: (no parameters needed)
+    - refresh: (no parameters needed)
+
+    Element indexes are shown in the browser view like: 42[:]<button>
 
     Args:
-        action: The browser action to perform
-        url: URL for 'navigate' or 'new_tab' actions
-        index: Element index for 'click' or 'input_text' actions
-        text: Text for 'input_text' action
-        script: JavaScript code for 'execute_js' action
-        scroll_amount: Pixels to scroll (positive for down, negative for up)
-        tab_id: Tab ID for 'switch_tab' action
+        action: The browser action to perform from the list above
+        url: Required URL for 'navigate' and 'new_tab' actions
+        index: Required element index for 'click' and 'input_text' actions (e.g. 42 from 42[:]<button>)
+        text: Required text to input for 'input_text' action
+        script: Required JavaScript code for 'execute_js' action
+        scroll_amount: Required pixels to scroll for 'scroll' action (positive for down, negative for up)
+        tab_id: Required tab ID for 'switch_tab' action
     """
     logger.info(f"Browser tool invoked with action: {action}")
 

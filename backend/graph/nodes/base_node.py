@@ -91,31 +91,37 @@ class BaseNode:
 
     def prune_messages(self, messages: List[BaseMessage]) -> List[BaseMessage]:
         """
-        Given the full sum of messages from the internal store,
-        prune out the irrelevant information and return only the pertinent
-        information.
+        Prune messages to maintain a focused context while preserving important interactions.
+
+        The pruning process:
+        1. Removes system messages (these should be added fresh by each node)
+        2. Removes empty messages
+        3. Converts tool messages to AI messages for compatibility with vLLM
+        4. Keeps the last 15 messages to maintain a reasonable context window
+
+        Returns a list of pruned messages in chronological order.
         """
         beginning_length = len(messages)
 
-        # Prune out system messages
-        pruned_messages = [
-            msg for msg in messages if not isinstance(msg, SystemMessage)
-        ]
+        # Filter messages in one pass
+        pruned_messages = []
+        for msg in messages:
+            # Skip system messages and empty messages
+            if isinstance(msg, SystemMessage) or not msg.content:
+                continue
 
-        # Prune out human messages
-        pruned_messages = [msg for msg in messages if not isinstance(msg, HumanMessage)]
+            if isinstance(msg, ToolMessage):
+                # Keep tool messages as passive observations
+                pruned_messages.append(
+                    AIMessage(
+                        content=f"Observed event: Previous {msg.tool_name} action completed: {msg.content}"
+                    )
+                )
+            else:
+                # Keep all other non-empty messages
+                pruned_messages.append(msg)
 
-        # Prune out empty messages
-        pruned_messages = [msg for msg in pruned_messages if msg.content]
-
-        # Prune out tool messages and convert them to AI messages -- if we don't do this, (I think) the hermes parser for vLLM freaks out and
-        # refuses to show new tool calls
-        pruned_messages = [
-            AIMessage(content=msg.content) if isinstance(msg, ToolMessage) else msg
-            for msg in pruned_messages
-        ]
-
-        # Keep only the last 15 messages
+        # Keep the last 15 messages
         pruned_messages = pruned_messages[-15:]
 
         logger.info(
@@ -134,36 +140,58 @@ class BaseNode:
         we need to implement some retry logic to ensure that the model responds with the correct tool calls.
         """
 
+        # Simple path - no tool collection means no validation needed
         if not self.tool_collection:
-            response: AIMessage = await llm.ainvoke(messages)
-            return response
+            logger.debug(
+                f"{self.name} node has no tool collection, skipping validation"
+            )
+            return await llm.ainvoke(messages)
+
+        # Tool validation path
+        logger.debug(
+            f"{self.name} node validating tools. Available: {self.tool_collection.list_tools()}"
+        )
 
         MAX_ATTEMPTS = 5
         attempt = 0
 
         while attempt < MAX_ATTEMPTS:
+            # Add retry prompt if needed
             if attempt > 0:
-                logger.info(f"Retrying model call with tool calls, attempt {attempt}")
+                logger.info(f"{self.name} node retrying, attempt {attempt}")
+                available_tools = "\n".join(
+                    f"- {tool} (available to {self.name} node)"
+                    for tool in self.tool_collection.list_tools()
+                )
                 messages.append(
                     AIMessage(
-                        content=get_tool_call_retry_prompt(
-                            tools_str="\n".join(self.tool_collection.list_tools())
-                        )
+                        content=get_tool_call_retry_prompt(tools_str=available_tools)
                     )
                 )
 
+            # Try to get valid tool calls
             attempt += 1
             try:
                 response: AIMessage = await llm.ainvoke(messages)
                 workable_tool_calls = self.get_workable_tool_calls(response)
-                if len(
-                    workable_tool_calls
-                ) > 0 and self.tool_collection.validate_workable_tool_calls(
-                    workable_tool_calls
-                ):
+
+                if len(workable_tool_calls) > 0:
+                    tool_names = [tc.name for tc in workable_tool_calls]
+                    logger.info(
+                        f"{self.name} node got valid response with tools: {tool_names}"
+                    )
                     return response
+
+                # Only log non-empty invalid responses
+                if response.content.strip():
+                    logger.warning(
+                        f"{self.name} node got response without valid tools: {response.content}"
+                    )
+
             except Exception as e:
-                logger.error(f"Error calling model with tool calls: {str(e)}")
+                logger.error(
+                    f"Error in {self.name} node calling model with tool calls: {str(e)}"
+                )
                 continue
 
         return None
@@ -173,11 +201,12 @@ class BaseNode:
         Convert tool calls to workable format, parsing out the necessary information
         regardless of whether the tool call is a dictionary or object.
         """
-        tool_calls: List[WorkableToolCall] = []
+        all_tool_calls: List[WorkableToolCall] = []
 
+        # First extract all potential tool calls
         for tool_call in message.tool_calls:
             if isinstance(tool_call, dict):
-                tool_calls.append(
+                all_tool_calls.append(
                     WorkableToolCall(
                         name=tool_call.get("name")
                         or tool_call.get("function", {}).get("name"),
@@ -187,7 +216,7 @@ class BaseNode:
                     )
                 )
             else:
-                tool_calls.append(
+                all_tool_calls.append(
                     WorkableToolCall(
                         name=(
                             tool_call.function.name
@@ -203,13 +232,42 @@ class BaseNode:
                     )
                 )
 
+        # Try to extract from message content
         extracted_text_tool_call = self.extract_workable_tool_call_from_vllm_string(
             message.content
         )
         if extracted_text_tool_call:
-            tool_calls.append(extracted_text_tool_call)
+            all_tool_calls.append(extracted_text_tool_call)
 
-        return tool_calls
+        # Filter for only valid tools for this node
+        if not self.tool_collection:
+            logger.warning(
+                f"{self.name} node has no tool collection, rejecting all tool calls"
+            )
+            return []
+
+        available_tools = self.tool_collection.list_tools()
+        valid_tool_calls = []
+        for tc in all_tool_calls:
+            if not tc.name:
+                logger.warning(f"{self.name} node found tool call without name")
+                continue
+
+            if tc.name not in available_tools:
+                logger.warning(
+                    f"{self.name} node found unavailable tool: {tc.name}. "
+                    f"Available tools are: {available_tools}"
+                )
+                continue
+
+            valid_tool_calls.append(tc)
+
+        if valid_tool_calls:
+            logger.info(
+                f"{self.name} node validated tool calls: {[tc.name for tc in valid_tool_calls]}"
+            )
+
+        return valid_tool_calls
 
     # Sometimes the tool call appears within the message itself
     # I think this is probably a bug with vLLM and the hermes parser
@@ -218,22 +276,36 @@ class BaseNode:
         self, string: str
     ) -> Optional[WorkableToolCall]:
         """
-        Extract a tool call from a vLLM string
+        Extract a tool call from a vLLM string if one exists.
+        Validation against available tools happens in get_workable_tool_calls.
         """
         if not string or not isinstance(string, str):
             return None
 
-        # Remove <tool_call> tags
+        # Clean up any partial tool_call tags that might confuse the parser
         string = string.replace("<tool_call>", "").replace("</tool_call>", "")
 
         try:
+            # Try to find a JSON object in the string
+            string = string.strip()
+            if not (string.startswith("{") and string.endswith("}")):
+                return None
+
             parsed_tool_call = json.loads(string)
             if isinstance(parsed_tool_call, dict) and "name" in parsed_tool_call:
+                logger.debug(
+                    f"{self.name} node found potential tool call in message content: {parsed_tool_call.get('name')}"
+                )
                 return WorkableToolCall(
                     name=parsed_tool_call.get("name"),
                     args=parsed_tool_call.get("args"),
                     call_id=parsed_tool_call.get("id"),
                 )
+
+            return None
+
         except Exception as e:
-            logger.debug(f"Error parsing tool call from message: {str(e)}")
+            logger.debug(
+                f"{self.name} node failed to parse tool call from message: {str(e)}"
+            )
             return None

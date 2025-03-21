@@ -53,13 +53,9 @@ class ThinkingNode(BaseNode):
         system_message = SystemMessage(content=thinking_prompt)
         local_messages.append(system_message)
 
+        # Hydrate and prune messages
         hydrated = hydrate_messages(state["messages"])
-        hydrated = [
-            msg
-            for msg in hydrated
-            if not isinstance(msg, SystemMessage) and not isinstance(msg, HumanMessage)
-        ]
-        hydrated = hydrated[-20:]
+        hydrated = self.prune_messages(hydrated)
         local_messages.extend(hydrated)
 
         # Add new human message with the task
@@ -76,7 +72,15 @@ class ThinkingNode(BaseNode):
         state["thought"] = response.thought
         state["summary"] = response.summary
         state["brain"] = response
-        brain_state_message = AIMessage(content=json.dumps(response.model_dump()))
+
+        # Add thinking identity to response
+        brain_state_message = AIMessage(
+            content=(
+                "[Thinking Node] Based on my analysis of the current system state:\n"
+                f"Thought: {response.thought}\n"
+                f"Summary: {response.summary}"
+            )
+        )
 
         # First hydrate any existing messages before serializing
         existing_messages = hydrate_messages(state["messages"])

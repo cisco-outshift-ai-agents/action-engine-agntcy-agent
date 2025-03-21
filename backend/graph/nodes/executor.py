@@ -75,14 +75,15 @@ class ExecutorNode(BaseNode):
             self.tool_collection.get_tools(), tool_choice="auto"
         ).with_config(config=config)
 
-        # Hydrate existing messages
+        # Initialize with system message first
         local_messages = []
-        # Add environment prompt
         executor_prompt_context = await get_executor_system_prompt_context(
             config=config
         )
         if not executor_prompt_context:
             raise ValueError("System prompt context not provided in config")
+
+        # Add system message with current environment context
         executor_prompt = get_executor_prompt(context=executor_prompt_context)
         screenshot = executor_prompt_context.screenshot
         executor_message = SystemMessage(
@@ -96,24 +97,46 @@ class ExecutorNode(BaseNode):
         )
         local_messages.append(executor_message)
 
-        # Add new human message with the task
+        # Hydrate and prune messages
+        hydrated = hydrate_messages(state["messages"])
+        hydrated = self.prune_messages(hydrated)
+        local_messages.extend(hydrated)
+
+        # Add task and plan context
         human_message = HumanMessage(content=state["task"])
-        local_messages.append(human_message)
-
-        # Add the current plan message
         plan_msg = planning_env.get_message_for_current_plan()
-        local_messages.append(plan_msg)
+        local_messages.extend([human_message, plan_msg])
 
-        # Add the previous executor tool calls message
-        previous_tool_calls_message = self.get_previous_tool_calls_as_message(state)
-        local_messages.append(previous_tool_calls_message)
+        # Add context to prevent action repetition
+        progress_context = HumanMessage(
+            content=(
+                "Based on the current state and plan above:\n"
+                "1. Review what actions have already been completed\n"
+                "2. Choose the next logical action that hasn't been done yet\n"
+                "3. Do not repeat actions that were already successful\n"
+                "\nWhat is the next action you should take?"
+            )
+        )
+        local_messages.append(progress_context)
 
         # Get LLM response with tool calls
-        response: AIMessage = await self.call_model_with_tool_retry(
+        raw_response: AIMessage = await self.call_model_with_tool_retry(
             llm=bound_llm, messages=local_messages
         )
-        if not response:
+        if not raw_response:
             raise ValueError("LLM response not provided")
+
+        # Add executor identity to response
+        prefixed_content = (
+            f"[Executor Node] Based on the current system state, "
+            f"I am choosing to: {raw_response.content}"
+        )
+        response = AIMessage(
+            content=prefixed_content,
+            tool_calls=(
+                raw_response.tool_calls if hasattr(raw_response, "tool_calls") else None
+            ),
+        )
 
         # First hydrate any existing messages before serializing
         existing_messages = hydrate_messages(state["messages"])
@@ -137,36 +160,3 @@ class ExecutorNode(BaseNode):
         # Update the global state with the new messages
         state["messages"] = global_messages
         return state
-
-    def get_previous_tool_calls_as_message(self, state: AgentState) -> AIMessage:
-        """Given the sum of all previous messages, return the tool calls in a prompt format"""
-        messages = hydrate_messages(state["messages"])
-        tool_calls_str = ""
-
-        # Loop over all the messages in state
-        for i, message in enumerate(messages):
-            logger.info("Trying to get information out of :")
-            logger.info(message)
-
-            if not isinstance(message, AIMessage) or not isinstance(
-                message, ToolMessage
-            ):
-                continue
-
-            if isinstance(message, ToolMessage):
-                tool_calls_str += (
-                    f"Tool response: {message.tool_call_id}: {message.content})\n\n"
-                )
-
-            if isinstance(message, AIMessage):
-                # Find the tool_calls within the objects
-                workable_tool_calls = self.get_workable_tool_calls(message)
-                for j, tool_call in enumerate(workable_tool_calls):
-                    # Append the tool call to the string
-                    tool_calls_str += f"{i}: {tool_call.name}({tool_call.args})"
-                    if j < len(workable_tool_calls) - 1:
-                        tool_calls_str += ", "
-
-                    tool_calls_str += "\n\n"
-
-        return HumanMessage(content=get_previous_tool_calls_prompt(tool_calls_str))

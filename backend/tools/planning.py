@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict, Union
 from enum import Enum
 from langchain_core.tools import tool
 from langchain_core.runnables import RunnableConfig
@@ -15,12 +15,8 @@ class PlanCommand(str, Enum):
     """Available planning commands"""
 
     CREATE = "create"
-    UPDATE = "update"
-    LIST = "list"
-    GET = "get"
-    SET_ACTIVE = "set_active"
-    MARK_STEP = "mark_step"
-    DELETE = "delete"
+    UPDATE_PLAN = "update_plan"
+    MARK_STEPS = "mark_steps"
 
 
 class StepStatus(str, Enum):
@@ -39,24 +35,46 @@ async def planning_tool(
     title: Optional[str] = None,
     task: Optional[str] = None,
     steps: Optional[List[str]] = None,
-    step_index: Optional[int] = None,
-    step_status: Optional[StepStatus] = None,
-    step_notes: Optional[str] = None,
-    config: RunnableConfig = None,  # Changed to explicitly use RunnableConfig
+    step_updates: Optional[List[Dict[str, Union[int, str]]]] = None,  # For bulk updates
+    config: RunnableConfig = None,
 ) -> ToolResult:
     """
-    A planning tool that allows the agent to create and manage plans for solving complex tasks.
-    Supports creating plans, updating steps, tracking progress, and managing multiple plans.
+    A simplified planning API for creating and updating plans.
+
+    Commands:
+    - CREATE: Create a new plan. Requires 'task' (used as title if no title provided) and 'steps' array.
+      Example: {
+          "command": "create",
+          "task": "Build a website",
+          "steps": ["Design layout", "Code HTML", "Add CSS"]
+      }
+
+    - UPDATE_PLAN: Replace all steps in a plan. Requires 'plan_id' and new 'steps' array. Optional 'title' update.
+      Note: This resets all step statuses to "not_started".
+      Example: {
+          "command": "update_plan",
+          "plan_id": "plan_0",
+          "steps": ["New step 1", "New step 2"]
+      }
+
+    - MARK_STEPS: Update multiple steps' statuses at once. Requires 'plan_id' and 'step_updates' array.
+      Example: {
+          "command": "mark_steps",
+          "plan_id": "plan_0",
+          "step_updates": [
+              { "index": 0, "status": "completed" },
+              { "index": 1, "status": "completed" },
+              { "index": 2, "status": "in_progress" }
+          ]
+      }
 
     Args:
-        command: The planning command to execute
-        plan_id: Identifier for the plan
-        title: Title for the plan
-        task: Task description for plan creation
-        steps: List of steps for the plan
-        step_index: Index of step to modify
-        step_status: Status to set for a step
-        step_notes: Notes to add to a step
+        command: The planning command to execute (create, update_plan, or mark_steps)
+        plan_id: Plan identifier (required for update_plan and mark_steps)
+        title: Plan title (optional for create and update_plan)
+        task: Task description (required for create)
+        steps: List of plan steps (required for create and update_plan)
+        step_updates: List of step updates, each with index and status (required for mark_steps)
     """
     logger.info(f"Planning tool invoked with command: {command}")
 
@@ -67,137 +85,86 @@ async def planning_tool(
     planning_env = config["configurable"].get("planning_environment")
     if not isinstance(planning_env, PlanningEnvironment):
         logger.error("No planning_environment in configurable")
-        return ValueError("Planning environment not initialized")
+        return ToolResult(error="Planning environment not initialized")
 
     try:
         if command == PlanCommand.CREATE:
-            plan_id = plan_id or f"plan_{len(planning_env._plans)}"
-
-            title = title or task or "Untitled Plan"
             if not task:
-                return ToolResult(error="task is required for create command")
+                return ToolResult(error="'task' is required for create command")
+            if not steps:
+                return ToolResult(error="'steps' array is required for create command")
 
-            steps = steps or [task]
-
+            plan_id = f"plan_{len(planning_env._plans)}"
             plan = Plan(
                 plan_id=plan_id,
-                title=title,
+                title=title or task,
                 steps=steps,
                 step_statuses=["not_started"] * len(steps),
                 step_notes=[""] * len(steps),
             )
             planning_env.create_plan(plan)
 
-        elif command == PlanCommand.UPDATE:
+        elif command == PlanCommand.UPDATE_PLAN:
             if not plan_id:
-                return ToolResult(error="plan_id is required for update command")
+                return ToolResult(error="'plan_id' is required for update_plan command")
+            if not steps:
+                return ToolResult(
+                    error="'steps' array is required for update_plan command"
+                )
 
-            updates = {}
+            updates = {
+                "steps": steps,
+                "step_statuses": ["not_started"] * len(steps),
+                "step_notes": [""] * len(steps),
+            }
             if title:
                 updates["title"] = title
-            if steps:
-                updates["steps"] = steps
-                updates["step_statuses"] = ["not_started"] * len(steps)
-                updates["step_notes"] = [""] * len(steps)
-            elif step_index is not None:
-                plan = planning_env.get_plan(plan_id)
-                if not plan:
-                    return ToolResult(error=f"No plan found with ID: {plan_id}")
-
-                step_updates = plan.model_dump()
-                if step_status:
-                    step_updates["step_statuses"] = list(plan.step_statuses)
-                    step_updates["step_statuses"][step_index] = step_status
-                if step_notes:
-                    step_updates["step_notes"] = list(plan.step_notes)
-                    step_updates["step_notes"][step_index] = step_notes
-                updates.update(step_updates)
 
             planning_env.update_plan(plan_id, updates)
 
-        elif command == PlanCommand.LIST:
-            plans = planning_env.list_plans()
-            if not plans:
-                return ToolResult(output="No plans available")
-
-            output = ["Available plans:"]
-            for p_id, plan in plans.items():
-                active = " (active)" if p_id == planning_env._current_plan_id else ""
-                completed = sum(1 for s in plan.step_statuses if s == "completed")
-                total = len(plan.steps)
-                percentage = (completed / total * 100) if total > 0 else 0
-                output.append(
-                    f"• {p_id}{active}: {plan.title} - {completed}/{total} steps ({percentage:.1f}%)"
-                )
-
-            return ToolResult(output="\n".join(output))
-
-        elif command == PlanCommand.GET:
-            plan_id = plan_id or planning_env._current_plan_id
+        elif command == PlanCommand.MARK_STEPS:
             if not plan_id:
-                return ToolResult(error="No plan ID provided and no active plan set")
-
-            plan = planning_env.get_plan(plan_id)
-            if not plan:
-                return ToolResult(error=f"No plan found with ID: {plan_id}")
-
-        elif command == PlanCommand.SET_ACTIVE:
-            plan_id = plan_id
-            if not plan_id:
-                return ToolResult(error="plan_id is required for set_active command")
-
-            if plan_id not in planning_env._plans:
-                return ToolResult(error=f"No plan found with ID: {plan_id}")
-
-            planning_env._current_plan_id = plan_id
-
-        elif command == PlanCommand.MARK_STEP:
-            plan_id = plan_id or planning_env._current_plan_id
-            if not plan_id:
-                return ToolResult(error="No plan ID provided and no active plan set")
-
-            plan = planning_env.get_plan(plan_id)
-            if not plan:
-                return ToolResult(error=f"No plan found with ID: {plan_id}")
-
-            if step_index is None:
-                return ToolResult(error="step_index is required for mark_step command")
-
-            if not 0 <= step_index < len(plan.steps):
+                return ToolResult(error="'plan_id' is required for mark_steps command")
+            if not step_updates:
                 return ToolResult(
-                    error=f"Invalid step_index: {step_index}. Must be between 0 and {len(plan.steps)-1}"
+                    error="'step_updates' array is required for mark_steps command"
                 )
 
-            if step_status:
-                if step_status not in StepStatus:
-                    return ToolResult(error=f"Invalid status: {step_status}")
-                plan.step_statuses[step_index] = step_status
-
-            if step_notes:
-                plan.step_notes[step_index] = step_notes
-
-            # Persist the changes
-            planning_env._plans[plan_id] = plan
-
-        elif command == PlanCommand.DELETE:
-            plan_id = plan_id
-            if not plan_id:
-                return ToolResult(error="plan_id is required for delete command")
-
-            if plan_id not in planning_env._plans:
+            plan = planning_env.get_plan(plan_id)
+            if not plan:
                 return ToolResult(error=f"No plan found with ID: {plan_id}")
 
-            del planning_env._plans[plan_id]
-            if planning_env._current_plan_id == plan_id:
-                planning_env._current_plan_id = None
+            updates = {"step_statuses": list(plan.step_statuses)}
 
-            return ToolResult(output=f"Plan {plan_id} deleted successfully")
+            for update in step_updates:
+                if not isinstance(update, dict):
+                    return ToolResult(error="Each step update must be a dictionary")
 
-        if command != PlanCommand.LIST and command != PlanCommand.DELETE:
-            plan = planning_env.get_plan(plan_id)
-            return ToolResult(
-                output=planning_env.format_plan(plan) if plan else "No plan found"
-            )
+                index = update.get("index")
+                status = update.get("status")
+
+                if index is None:
+                    return ToolResult(error="Each step update requires an 'index'")
+                if not isinstance(index, int):
+                    return ToolResult(error="Step index must be an integer")
+                if not 0 <= index < len(plan.steps):
+                    return ToolResult(
+                        error=f"Invalid step index: {index}. Must be between 0 and {len(plan.steps)-1}"
+                    )
+
+                if not status:
+                    return ToolResult(error="Each step update requires a 'status'")
+                if status not in [s.value for s in StepStatus]:
+                    return ToolResult(error=f"Invalid status: {status}")
+
+                updates["step_statuses"][index] = status
+
+            planning_env.update_plan(plan_id, updates)
+
+        plan = planning_env.get_plan(plan_id)
+        return ToolResult(
+            output=planning_env.format_plan(plan) if plan else "No plan found"
+        )
 
     except Exception as e:
         traceback.print_exc()

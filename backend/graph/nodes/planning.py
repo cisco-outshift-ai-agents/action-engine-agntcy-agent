@@ -25,9 +25,7 @@ class PlanningNode(BaseNode):
 
     def __init__(self):
         self.name = "planning"
-        self.tool_collection = ActionEngineToolCollection(
-            [planning_tool, terminate_tool]
-        )
+        self.tool_collection = ActionEngineToolCollection([planning_tool])
 
     async def ainvoke(self, state: AgentState, config: Dict = None) -> AgentState:
         logger.info("PlanningNode invoked")
@@ -70,11 +68,20 @@ class PlanningNode(BaseNode):
         local_messages.append(plan_msg)
 
         # Get LLM response with tool calls
-        response: AIMessage = await self.call_model_with_tool_retry(
+        raw_response: AIMessage = await self.call_model_with_tool_retry(
             llm=bound_llm, messages=local_messages
         )
-        if not response:
+        if not raw_response:
             raise ValueError("LLM response not provided")
+
+        # Add planner identity to response
+        prefixed_content = f"[Planning Node] Based on the current state, I am updating the plan:\n{raw_response.content}"
+        response = AIMessage(
+            content=prefixed_content,
+            tool_calls=(
+                raw_response.tool_calls if hasattr(raw_response, "tool_calls") else None
+            ),
+        )
 
         # First hydrate any existing messages before serializing
         existing_messages = hydrate_messages(state["messages"])
@@ -82,9 +89,9 @@ class PlanningNode(BaseNode):
         global_messages.extend(serialize_messages([response]))
 
         # Execute any tool calls and add the tool messages to the global state
-        if hasattr(response, "tool_calls") and response.tool_calls:
+        if hasattr(raw_response, "tool_calls") and raw_response.tool_calls:
             logger.info(f"Executing tool calls: {response.tool_calls}")
-            tool_messages = await self.execute_tools(message=response)
+            tool_messages = await self.execute_tools(message=response, config=config)
             global_messages.extend(serialize_messages(tool_messages))
 
         # Check for and handle termination tool call
