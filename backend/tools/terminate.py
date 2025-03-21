@@ -29,18 +29,42 @@ async def terminate_tool(
     status: TerminationStatus, reason: Optional[str] = None
 ) -> ToolResult:
     """
-    Terminate the interaction when the request is met OR if the assistant cannot proceed further with the task.
-    - Use when the user's request is met and the interaction is complete.
-    - Use when the assistant cannot proceed further with the task.
+    Signal that an interaction flow should terminate. Used in two scenarios:
+    1. SUCCESS: The requested task has been completed successfully
+    2. FAILURE: The task cannot be completed due to errors or limitations
+
+    Examples:
+        Success termination:
+        ```python
+        {
+            "status": "success",
+            "reason": "Successfully created new user profile"
+        }
+        ```
+
+        Failure termination:
+        ```python
+        {
+            "status": "failure",
+            "reason": "Required file not found: config.json"
+        }
+        ```
 
     Args:
-        status: Completion status ("success" or "failure")
-        reason: Optional explanation for termination
+        status: Must be either "success" or "failure"
+        reason: Required explanation for why the flow is terminating
     """
-    logger.info(f"Termination tool called with status: {status}")
+    logger.info(f"Terminate tool called with status: {status}, reason: {reason}")
 
-    message = f"Interaction terminated with status: {status}"
-    if reason:
-        message += f"\nReason: {reason}"
+    if not isinstance(status, TerminationStatus):
+        return ToolResult(
+            error=f"Invalid status. Must be one of: {[s.value for s in TerminationStatus]}"
+        )
 
-    return ToolResult(output=message, system=f"Termination triggered: {status}")
+    if not reason:
+        return ToolResult(
+            error="Reason is required - must explain why the flow is terminating"
+        )
+
+    message = f"Flow terminated - {status.upper()}\nReason: {reason}"
+    return ToolResult(output=message, system={"status": status, "reason": reason})

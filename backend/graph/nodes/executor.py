@@ -156,7 +156,7 @@ class ExecutorNode(BaseNode):
         )
         if termination_tool_call:
             state["exiting"] = True
-            state["thought"] = termination_tool_call["reason"]
+            state["thought"] = json.loads(termination_tool_call["arguments"])["reason"]
 
         # Update the global state with the new messages
         state["messages"] = global_messages
