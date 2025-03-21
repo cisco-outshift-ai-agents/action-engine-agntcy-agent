@@ -12,27 +12,23 @@ import CiscoAIAssistantLoader from "@/components/newsroom/newsroom-assets/thinki
 import { TodoFixAny } from "@/types";
 import { useChatStore } from "@/stores/chat";
 import { GraphData, GraphDataZod, StopDataZod } from "@/pages/session/types";
+import PlanRenderer from "./plan-renderer";
 
 interface ChatSectionProps {
   className?: string;
 }
 
 const ChatSection: React.FC<ChatSectionProps> = () => {
-  const [messages, setMessages] = useState<
-    {
-      sender: string;
-      text: ChatMessageProps;
-    }[]
-  >([]);
+  const [messages, setMessages] = useState<ChatMessageProps[]>([]);
   const [input, setInput] = useState(
     "Go to Wikipedia and search for Cisco Systems, then click on the first link on the page"
   );
   const wsRef = useRef<WebSocket | null>(null); //Main websocket for tasks
   const wsStopRef = useRef<WebSocket | null>(null); //Websocket for stop requests
-  const isThinking = useChatStore((state) => state.isThinking);
-  const setisThinking = useChatStore((state) => state.setisThinking);
-  const isStopped = useChatStore((state) => state.isStopped);
-  const setIsStopped = useChatStore((state) => state.setIsStopped);
+  const bottomOfChatRef = useRef<HTMLDivElement | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement | null>(null);
+  const { isThinking, setisThinking, isStopped, setIsStopped, plan, setPlan } =
+    useChatStore();
 
   useEffect(() => {
     const useLocal = true;
@@ -59,18 +55,17 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
         console.error(parse.error);
         return;
       }
-      const clean = cleanAPIData(d);
-      console.log("processed data:", clean);
+      const cleanedData = cleanAPIData(d);
+      console.log("processed data:", cleanedData);
+      addMessage(cleanedData);
 
-      setMessages((messages) => [
-        ...messages,
-        {
-          sender: "agent",
-          text: clean,
-        },
-      ]);
-      if (clean.isDone) {
+      if (cleanedData.isDone) {
         setisThinking(false);
+      }
+
+      const plan = getPlanFromMessage(d);
+      if (plan) {
+        setPlan(plan);
       }
     };
 
@@ -89,17 +84,10 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
         setisThinking(false);
         setIsStopped(false);
       }
-
-      setMessages((messages) => [
-        ...messages,
-        {
-          sender: "agent",
-          text: {
-            content: stopResponse.summary,
-            role: "assistant",
-          },
-        },
-      ]);
+      addMessage({
+        content: stopResponse.summary,
+        role: "assistant",
+      });
     };
 
     ws.onclose = () => {
@@ -125,16 +113,10 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
     };
 
     wsRef.current.send(JSON.stringify(payload));
-    setMessages((messages) => [
-      ...messages,
-      {
-        sender: "user",
-        text: {
-          content: input,
-          role: "user",
-        },
-      },
-    ]);
+    addMessage({
+      content: input,
+      role: "user",
+    });
 
     setInput("");
     setisThinking(true);
@@ -158,10 +140,36 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
     wsStopRef.current?.send(JSON.stringify(stopPayload));
   };
 
+  const addMessage = (msg: ChatMessageProps) => {
+    setMessages((messages) => [...messages, msg]);
+
+    if (bottomOfChatRef.current && chatContainerRef.current) {
+      const SHOULD_SCROLL_PERCENTAGE = 0.9;
+
+      const shouldScroll =
+        chatContainerRef.current.scrollTop +
+          chatContainerRef.current.clientHeight >=
+        chatContainerRef.current.scrollHeight * SHOULD_SCROLL_PERCENTAGE;
+
+      if (shouldScroll) {
+        bottomOfChatRef.current.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+  };
+
   return (
     <div className="h-full rounded-lg  bg-[#32363c] w-full px-2 py-4 flex flex-col">
-      <div className="flex-1 overflow-y-auto px-2 pt-2 pb-3">
-        <div className="flex flex-col-reverse gap-4 space-y-reverse">
+      <PlanRenderer plan={plan} />
+      <div
+        className="flex-1 overflow-y-auto px-2 pt-2 pb-3"
+        ref={chatContainerRef}
+      >
+        <div className="flex flex-col gap-4 space-y-reverse">
+          {[...messages].map((message, index) => (
+            <div key={index}>
+              <ChatMessage {...message} />
+            </div>
+          ))}
           {isThinking && (
             <div className="flex items-start px-2 py-2">
               <img
@@ -172,12 +180,8 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
               />
             </div>
           )}
-          {[...messages].reverse().map((message, index) => (
-            <div key={index}>
-              <ChatMessage {...message.text} />
-            </div>
-          ))}
         </div>
+        <div ref={bottomOfChatRef}></div>
       </div>
       <div className="px-4 pt-2 pb-3">
         <Flex
@@ -255,6 +259,26 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
       </div>
     </div>
   );
+};
+
+const getPlanFromMessage = (data: GraphData): string => {
+  const messages = data.messages;
+
+  const searchStr = "The current plan:";
+
+  const foundMessage = messages
+    .reverse()
+    .find((m) => m.content?.includes(searchStr));
+
+  if (!foundMessage) {
+    return "";
+  }
+
+  const content = foundMessage.content || "";
+
+  const plan = content.split(searchStr)[1].trim();
+
+  return plan;
 };
 
 const cleanAPIData = (data: GraphData): ChatMessageProps => {

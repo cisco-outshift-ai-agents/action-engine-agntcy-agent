@@ -2,14 +2,25 @@ import { create } from "zustand";
 
 interface ChatStoreState {
   isThinking: boolean;
-  setisThinking: (value: boolean) => void;
   isStopped: boolean;
-  setIsStopped: (value: boolean) => void;
+  plan: string;
 }
 
-export const useChatStore = create<ChatStoreState>((set) => ({
-  isThinking: false,
-  setisThinking: (value) => set({ isThinking: value }),
-  isStopped: false,
-  setIsStopped: (value) => set({ isStopped: value }),
-}));
+interface ChatStoreActions {
+  setisThinking: (value: boolean) => void;
+  setIsStopped: (value: boolean) => void;
+  setPlan: (value: string) => void;
+}
+
+export const useChatStore = create<ChatStoreState & ChatStoreActions>(
+  (set) => ({
+    isThinking: false,
+    setisThinking: (value) => set({ isThinking: value }),
+
+    isStopped: false,
+    setIsStopped: (value) => set({ isStopped: value }),
+
+    plan: "",
+    setPlan: (value) => set({ plan: value }),
+  })
+);
