@@ -1,5 +1,9 @@
 # ActionEngine Backend
 
+This document outlines the coding standards and best practices for the ActionEngine backend system. The backend system is responsible for executing agent operations, managing state transitions, and orchestrating tool executions.
+This system powers a comprehensive agentic browser/terminal/code-use system called ActionEngine. ActionEngine is unique in the sense that it is tailored towards a network engineer persona by providing primitives for "teaching" multi-environment agents specific tasks.
+As the agent learns via generated workflows, it becomes more adept at handling complex tasks. This backend system is the core of the ActionEngine system and is responsible for managing all aspects of the generative AI agentic process.
+
 ### Agent System Architecture
 
 - Implement nodes as isolated, single-responsibility components
