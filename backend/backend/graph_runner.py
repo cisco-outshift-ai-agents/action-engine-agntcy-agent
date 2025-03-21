@@ -1,18 +1,18 @@
+import json
 import logging
 import os
-import json
-
 from dataclasses import dataclass
 from typing import Any, AsyncIterator, Dict, Optional
+
 from pydantic import BaseModel
 
-from src.utils.utils import get_llm_model
+from graph.environments.browser import BrowserSession
+from graph.environments.planning import PlanningEnvironment
 from graph.environments.terminal import TerminalManager
 from graph.global_configurable import context
 from graph.graph import action_engine_graph
-from graph.environments.browser import BrowserSession
-from graph.types import create_default_agent_state, GraphConfig, AgentState, BrainState
-from graph.environments.planning import PlanningEnvironment
+from graph.types import AgentState, BrainState, GraphConfig, create_default_agent_state
+from src.utils.utils import get_llm_model
 
 logger = logging.getLogger(__name__)
 
@@ -106,15 +106,8 @@ class GraphRunner:
             # Use astream and properly await the async generator
             async for step_output in self.graph.astream(agent_state, config):
                 step_output: Dict[str, AgentState]
-                keys = ["planning", "thinking", "executor"]
 
-                agent_state: AgentState = None
-                for key in keys:
-                    if key in step_output:
-                        agent_state = step_output[key].copy()
-                        break
-
-                yield serialize_graph_response(agent_state)
+                yield serialize_graph_response(step_output)
 
         except Exception as e:
             logger.error(f"Graph execution error: {str(e)}", exc_info=True)

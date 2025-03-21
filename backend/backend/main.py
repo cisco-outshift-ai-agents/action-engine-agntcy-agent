@@ -1,9 +1,9 @@
 import json
 import logging
-import uvicorn
-
 from dataclasses import dataclass
-from typing import Optional, Dict
+from typing import Dict, Optional
+
+import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 

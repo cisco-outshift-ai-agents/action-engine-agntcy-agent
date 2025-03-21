@@ -1,13 +1,12 @@
 import logging
 
-from langgraph.graph import END, START, Graph, StateGraph
-from graph.types import AgentState
 from langchain_core.runnables import RunnableConfig
+from langgraph.graph import END, START, Graph, StateGraph
 
 from graph.nodes.executor import ExecutorNode
 from graph.nodes.planning import PlanningNode
 from graph.nodes.thinking import ThinkingNode
-
+from graph.types import AgentState
 
 logger = logging.getLogger(__name__)
 

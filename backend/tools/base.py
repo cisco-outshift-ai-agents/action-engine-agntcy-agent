@@ -1,5 +1,6 @@
 from abc import ABC
-from typing import Any, Optional, Callable, Awaitable, TypeVar
+from typing import Any, Awaitable, Callable, Optional, TypeVar
+
 from pydantic import BaseModel, Field
 
 

@@ -1,16 +1,14 @@
-from typing import Any, Dict, Optional, TYPE_CHECKING
-
-from langchain_openai import ChatOpenAI
-from browser_use.dom.service import DomService
-from graph.environments.terminal import TerminalManager
-from graph.environments.planning import PlanningEnvironment
-
-from enum import Enum
-from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
+from enum import Enum
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+from browser_use.dom.service import DomService
+from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 from typing_extensions import Annotated, TypedDict
+
+from graph.environments.planning import PlanningEnvironment
+from graph.environments.terminal import TerminalManager
 
 # Avoids circular imports
 if TYPE_CHECKING:

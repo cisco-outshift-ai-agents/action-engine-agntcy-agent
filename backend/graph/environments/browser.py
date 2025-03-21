@@ -5,9 +5,10 @@ import os
 from browser_use.browser.browser import BrowserConfig
 from browser_use.browser.context import BrowserContextConfig, BrowserContextWindowSize
 from browser_use.dom.service import DomService
-from playwright.async_api import async_playwright
-from src.browser.custom_browser import CustomBrowser
 from dotenv import load_dotenv
+from playwright.async_api import async_playwright
+
+from src.browser.custom_browser import CustomBrowser
 
 load_dotenv()
 logger = logging.getLogger(__name__)

@@ -1,12 +1,15 @@
 import logging
-from typing import Optional, Any
-from pydantic import Field, BaseModel
 from enum import Enum
+from typing import Any, Optional
+
 from langchain_core.runnables import RunnableConfig
-from .base import ToolResult
 from langchain_core.tools import tool
+from pydantic import BaseModel, Field
+
 from src.browser.custom_context import CustomBrowserContext
 from tools.utils import stringify_dom_element_node
+
+from .base import ToolResult
 
 logger = logging.getLogger(__name__)
 

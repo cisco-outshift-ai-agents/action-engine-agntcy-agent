@@ -1,6 +1,7 @@
 from typing import Dict, List, Literal, Optional
-from pydantic import BaseModel
+
 from langchain_core.messages import AIMessage, HumanMessage
+from pydantic import BaseModel
 
 
 class Plan(BaseModel):
