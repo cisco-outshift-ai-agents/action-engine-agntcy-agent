@@ -1,24 +1,34 @@
-from typing import Dict, List, Literal, Optional
-
+from typing import Dict, List, Literal, Optional, Union
 from langchain_core.messages import AIMessage, HumanMessage
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+class Step(BaseModel):
+    """Step model for representing a single step with optional substeps"""
+
+    content: str
+    status: Literal["not_started", "in_progress", "completed", "blocked"] = (
+        "not_started"
+    )
+    notes: str = ""
+    substeps: List["Step"] = Field(default_factory=list)
+
+
+Step.model_rebuild()  # Required for recursive Pydantic models
 
 
 class Plan(BaseModel):
-    """Plan model for tracking steps and progress"""
+    """Plan model for tracking hierarchical steps and progress"""
 
     plan_id: str
     title: str
-    steps: List[str]
-    step_statuses: List[Literal["not_started", "in_progress", "completed", "blocked"]]
-    step_notes: List[str]
+    steps: List[Step]
 
 
 class PlanningEnvironment:
     """Manages global planning state as a singleton"""
 
     _instance = None
-
     _plans: Dict[str, Plan]
     _current_plan_id: Optional[str]
 
@@ -47,23 +57,36 @@ class PlanningEnvironment:
         self._current_plan_id = plan.plan_id
 
     def update_plan(self, plan_id: str, updates: Dict) -> None:
-        """Update existing plan
-
-        If the update contains 'step_index' and 'step_status', update the corresponding step's status
-        without resetting other steps.
-        """
+        """Update existing plan"""
         if plan_id not in self._plans:
             raise ValueError(f"No plan found with ID: {plan_id}")
         plan = self._plans[plan_id]
 
-        # Update a specific step's status if provided
+        # Handle nested step updates
         if "step_index" in updates and "step_status" in updates:
-            index = updates.pop("step_index")
+            index_path = updates.pop("step_index")
             new_status = updates.pop("step_status")
-            if 0 <= index < len(plan.step_statuses):
-                plan.step_statuses[index] = new_status
+
+            # Handle both single index and nested index paths
+            indices = index_path if isinstance(index_path, list) else [index_path]
+
+            current_step = None
+            current_steps = plan.steps
+
+            # Navigate to the correct step
+            for idx in indices[:-1]:
+                if 0 <= idx < len(current_steps):
+                    current_step = current_steps[idx]
+                    current_steps = current_step.substeps
+                else:
+                    raise ValueError(f"Invalid step index: {idx}")
+
+            # Update the final step's status
+            final_idx = indices[-1]
+            if 0 <= final_idx < len(current_steps):
+                current_steps[final_idx].status = new_status
             else:
-                raise ValueError("Invalid step index")
+                raise ValueError(f"Invalid step index: {final_idx}")
 
         # Apply any other updates to the plan
         for key, value in updates.items():
@@ -81,42 +104,75 @@ class PlanningEnvironment:
         """List all plans"""
         return self._plans
 
-    def format_plan(cls, plan: Plan) -> str:
-        """Format plan for display"""
-        output = f"The current plan: {plan.title} (ID: {plan.plan_id})\n"
-        output += "=" * len(output) + "\n\n"
+    def _calculate_step_stats(self, steps: List[Step]) -> Dict[str, int]:
+        """Calculate statistics for steps recursively"""
+        stats = {
+            "total": 0,
+            "completed": 0,
+            "in_progress": 0,
+            "blocked": 0,
+            "not_started": 0,
+        }
 
-        # Calculate progress statistics
-        total_steps = len(plan.steps)
-        completed = sum(1 for status in plan.step_statuses if status == "completed")
-        in_progress = sum(1 for status in plan.step_statuses if status == "in_progress")
-        blocked = sum(1 for status in plan.step_statuses if status == "blocked")
-        not_started = sum(1 for status in plan.step_statuses if status == "not_started")
+        for step in steps:
+            stats["total"] += 1
+            stats[step.status] += 1
 
-        output += f"Progress: {completed}/{total_steps} steps completed "
-        if total_steps > 0:
-            percentage = (completed / total_steps) * 100
-            output += f"({percentage:.1f}%)\n"
-        else:
-            output += "(0%)\n"
+            # Recursively process substeps
+            if step.substeps:
+                substep_stats = self._calculate_step_stats(step.substeps)
+                for key in stats:
+                    if key != "total":  # Don't double count total
+                        stats[key] += substep_stats[key]
+                stats["total"] += substep_stats["total"]
 
-        output += f"Status: {completed} completed, {in_progress} in progress, {blocked} blocked, {not_started} not started\n\n"
-        output += "Steps:\n"
+        return stats
 
-        # Add each step with its status and notes
-        for i, (step, status, notes) in enumerate(
-            zip(plan.steps, plan.step_statuses, plan.step_notes)
-        ):
+    def _format_steps(self, steps: List[Step], level: int = 0) -> str:
+        """Format steps recursively with proper indentation"""
+        output = ""
+        indent = "    " * level
+
+        for i, step in enumerate(steps):
             status_symbol = {
                 "not_started": "[ ]",
                 "in_progress": "[→]",
                 "completed": "[✓]",
                 "blocked": "[!]",
-            }.get(status, "[ ]")
+            }.get(step.status, "[ ]")
 
-            output += f"{i}. {status_symbol} {step}\n"
-            if notes:
-                output += f"   Notes: {notes}\n"
+            output += f"{indent}{i}. {status_symbol} {step.content}\n"
+            if step.notes:
+                output += f"{indent}   Notes: {step.notes}\n"
+
+            if step.substeps:
+                output += self._format_steps(step.substeps, level + 1)
+
+        return output
+
+    def format_plan(self, plan: Plan) -> str:
+        """Format plan for display with nested steps"""
+        output = f"The current plan: {plan.title} (ID: {plan.plan_id})\n"
+        output += "=" * len(output) + "\n\n"
+
+        # Calculate progress statistics recursively
+        stats = self._calculate_step_stats(plan.steps)
+        total = stats["total"]
+        completed = stats["completed"]
+
+        output += f"Progress: {completed}/{total} steps completed "
+        if total > 0:
+            percentage = (completed / total) * 100
+            output += f"({percentage:.1f}%)\n"
+        else:
+            output += "(0%)\n"
+
+        output += (
+            f"Status: {completed} completed, {stats['in_progress']} in progress, "
+            f"{stats['blocked']} blocked, {stats['not_started']} not started\n\n"
+        )
+        output += "Steps:\n"
+        output += self._format_steps(plan.steps)
 
         return output
 
@@ -126,5 +182,4 @@ class PlanningEnvironment:
             return HumanMessage(content="No plan available")
 
         formatted_plan = self.format_plan(plan)
-
         return HumanMessage(content=formatted_plan)

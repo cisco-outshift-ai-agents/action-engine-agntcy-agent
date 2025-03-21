@@ -26,7 +26,7 @@ As the agent learns via generated workflows, it becomes more adept at handling c
    - Status: [In progress]
    - Branch: [terminal-implementation]
    - Components:
-   - TODO
+     - TODO
    - Key Features:
    - Use a combination of Xterm on the frontend and tmux on the backend to allow the agent to create and modify arbitrary amounts of terminal sessions.
 
@@ -35,7 +35,7 @@ As the agent learns via generated workflows, it becomes more adept at handling c
    - Status: [In progress]
    - Branch: [teaching-observation-support]
    - Components:
-   - TODO
+     - TODO
    - Key Features:
    - Use Javascript event listening in order to build a model of the user's behavior and use that to teach the agent how to perform tasks.
    - Integrate with the "planning" step of the agent to allow the agent to take in that initial learning state from the user.
