@@ -1,9 +1,9 @@
 import asyncio
 import logging
 import subprocess
-import requests
 import time
 
+import requests
 from browser_use.browser.browser import Browser
 from browser_use.browser.context import BrowserContextConfig
 from playwright.async_api import Browser as PlaywrightBrowser

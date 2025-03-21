@@ -1,21 +1,16 @@
-import logging
 import asyncio
-
+import logging
 from dataclasses import dataclass
+
 from browser_use.browser.browser import Browser
 from browser_use.browser.context import BrowserContext, BrowserContextConfig
-from playwright.async_api import BrowserContext as PlaywrightBrowserContext
-from browser_use.utils import time_execution_sync
-from browser_use.browser.views import (
-    BrowserError,
-    BrowserState,
-    TabInfo,
-)
-from browser_use.dom.views import DOMBaseNode, DOMElementNode, DOMTextNode
+from browser_use.browser.views import BrowserError, BrowserState, TabInfo
 from browser_use.dom.service import DomService
-from playwright.async_api import (
-    Page,
-)
+from browser_use.dom.views import DOMBaseNode, DOMElementNode, DOMTextNode
+from browser_use.utils import time_execution_sync
+from playwright.async_api import BrowserContext as PlaywrightBrowserContext
+from playwright.async_api import Page
+
 from tools.utils import stringify_dom_element_node
 
 logger = logging.getLogger(__name__)

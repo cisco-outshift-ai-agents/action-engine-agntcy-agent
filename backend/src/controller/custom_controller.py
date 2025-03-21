@@ -2,15 +2,16 @@ import asyncio
 import logging
 from typing import Optional, Type
 
-from browser_use import ActionModel
 import pyperclip
+from browser_use import ActionModel
 from browser_use.agent.views import ActionResult
 from browser_use.browser.context import BrowserContext
-from src.terminal.terminal_views import TerminalCommandAction
-from src.terminal.terminal_manager import TerminalManager
 from browser_use.controller.service import Controller
-from pydantic import BaseModel
 from browser_use.utils import time_execution_async, time_execution_sync
+from pydantic import BaseModel
+
+from src.terminal.terminal_manager import TerminalManager
+from src.terminal.terminal_views import TerminalCommandAction
 
 logger = logging.getLogger(__name__)
 
