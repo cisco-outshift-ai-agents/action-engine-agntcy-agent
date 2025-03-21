@@ -6,12 +6,18 @@ import { cn } from "@/utils";
 import { Flex } from "@magnetic/flex";
 import ChatMessage, {
   ChatMessageProps,
+  NodeType,
 } from "./newsroom/newsroom-components/chat-message";
 import CiscoAIAssistantLoader from "@/components/newsroom/newsroom-assets/thinking.gif";
 
 import { TodoFixAny } from "@/types";
 import { useChatStore } from "@/stores/chat";
-import { GraphData, GraphDataZod, StopDataZod } from "@/pages/session/types";
+import {
+  GraphData,
+  GraphDataZod,
+  NodeUpdateZod,
+  StopDataZod,
+} from "@/pages/session/types";
 import PlanRenderer from "./plan-renderer";
 
 interface ChatSectionProps {
@@ -27,7 +33,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
   const wsStopRef = useRef<WebSocket | null>(null); //Websocket for stop requests
   const bottomOfChatRef = useRef<HTMLDivElement | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
-  const { isThinking, setisThinking, isStopped, setIsStopped, plan, setPlan } =
+  const { isThinking, setisThinking, isStopped, setIsStopped, setPlan } =
     useChatStore();
 
   useEffect(() => {
@@ -49,21 +55,67 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
 
     ws.onmessage = (event: MessageEvent) => {
       console.log("received websocket message:", JSON.parse(event.data));
-      const d = JSON.parse((event as TodoFixAny).data) as GraphData;
-      const parse = GraphDataZod.safeParse(d);
-      if (!parse.success) {
-        console.error(parse.error);
+      const data = JSON.parse((event as TodoFixAny).data);
+
+      // Check if this is an error message
+      if (data.error) {
+        addMessage({
+          content: data.error,
+          role: "assistant",
+          error: data.error,
+        });
+        setisThinking(false);
         return;
       }
-      const cleanedData = cleanAPIData(d);
-      console.log("processed data:", cleanedData);
+
+      // Check if this is a node-specific update
+      const parseNodeUpdate = NodeUpdateZod.safeParse(data);
+      if (parseNodeUpdate.success) {
+        const update = parseNodeUpdate.data;
+
+        if (update.thinking) {
+          const cleanedData = cleanAPIData(update.thinking, "thinking");
+          addMessage(cleanedData);
+        }
+
+        if (update.planning) {
+          const plan = getPlanFromMessage(update.planning);
+          if (plan) setPlan(plan);
+        }
+
+        if (update.executor) {
+          const cleanedData = cleanAPIData(update.executor, "executor");
+          if (cleanedData.actions?.length) {
+            addMessage(cleanedData);
+          }
+        }
+
+        // Check if any node signals completion
+        if (
+          (update.thinking?.exiting || update.executor?.exiting) &&
+          !update.planning
+        ) {
+          setisThinking(false);
+        }
+
+        return;
+      }
+
+      // Fall back to handling legacy format
+      const parseGraphData = GraphDataZod.safeParse(data);
+      if (!parseGraphData.success) {
+        console.error(parseGraphData.error);
+        return;
+      }
+
+      const cleanedData = cleanAPIData(parseGraphData.data);
       addMessage(cleanedData);
 
       if (cleanedData.isDone) {
         setisThinking(false);
       }
 
-      const plan = getPlanFromMessage(d);
+      const plan = getPlanFromMessage(parseGraphData.data);
       if (plan) {
         setPlan(plan);
       }
@@ -141,8 +193,48 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
   };
 
   const addMessage = (msg: ChatMessageProps) => {
-    setMessages((messages) => [...messages, msg]);
+    // Update similar node messages instead of adding new ones
+    setMessages((messages) => {
+      if (msg.nodeType && msg.role === "assistant") {
+        // Find the last message of the same node type
+        for (let i = messages.length - 1; i >= 0; i--) {
+          if (messages[i].nodeType === msg.nodeType) {
+            const newMessages = [...messages];
+            newMessages[i] = msg;
+            return newMessages;
+          }
+        }
+      }
+      return [...messages, msg];
+    });
+    scrollToBottom();
+  };
 
+  const cleanAPIData = (
+    data: GraphData,
+    nodeType?: NodeType
+  ): ChatMessageProps => {
+    return {
+      content: data.brain.summary,
+      thought: data.brain.thought,
+      role: "assistant",
+      actions: getLastAITools(data),
+      error: data.error,
+      isDone: data.exiting,
+      nodeType,
+    };
+  };
+
+  const getPlanFromMessage = (
+    data: GraphData
+  ): NonNullable<GraphData["plan"]> | null => {
+    if (!data.plan) {
+      return null;
+    }
+    return data.plan;
+  };
+
+  const scrollToBottom = () => {
     if (bottomOfChatRef.current && chatContainerRef.current) {
       const SHOULD_SCROLL_PERCENTAGE = 0.9;
 
@@ -159,7 +251,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
 
   return (
     <div className="h-full rounded-lg  bg-[#32363c] w-full px-2 py-4 flex flex-col">
-      <PlanRenderer plan={plan} />
+      <PlanRenderer />
       <div
         className="flex-1 overflow-y-auto px-2 pt-2 pb-3"
         ref={chatContainerRef}
@@ -167,7 +259,13 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
         <div className="flex flex-col gap-4 space-y-reverse">
           {[...messages].map((message, index) => (
             <div key={index}>
-              <ChatMessage {...message} />
+              {/* Handle user messages */}
+              {message.role === "user" ? (
+                <ChatMessage {...message} />
+              ) : (
+                /* Handle assistant messages with a single component */
+                <ChatMessage {...message} />
+              )}
             </div>
           ))}
           {isThinking && (
@@ -259,37 +357,6 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
       </div>
     </div>
   );
-};
-
-const getPlanFromMessage = (data: GraphData): string => {
-  const messages = data.messages;
-
-  const searchStr = "The current plan:";
-
-  const foundMessage = messages
-    .reverse()
-    .find((m) => m.content?.includes(searchStr));
-
-  if (!foundMessage) {
-    return "";
-  }
-
-  const content = foundMessage.content || "";
-
-  const plan = content.split(searchStr)[1].trim();
-
-  return plan;
-};
-
-const cleanAPIData = (data: GraphData): ChatMessageProps => {
-  return {
-    content: data.brain.summary,
-    thought: data.brain.thought,
-    role: "assistant",
-    actions: getLastAITools(data),
-    error: data.error,
-    isDone: data.exiting,
-  };
 };
 
 const getLastAITools = (data: GraphData): string[] => {

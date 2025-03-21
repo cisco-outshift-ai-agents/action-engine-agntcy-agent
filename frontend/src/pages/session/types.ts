@@ -18,6 +18,35 @@ export const GraphDataZod = z.object({
   context: z.object({}),
   error: z.any(),
   exiting: z.boolean(),
+  plan: z
+    .object({
+      plan_id: z.string().nullish(),
+      steps: z.array(
+        z.object({
+          content: z.string(),
+          notes: z.string().nullish(),
+          status: z.union([
+            z.literal("not_started"),
+            z.literal("in_progress"),
+            z.literal("completed"),
+            z.literal("blocked"),
+          ]),
+          substeps: z.array(
+            z.object({
+              content: z.string(),
+              notes: z.string().nullish(),
+              status: z.union([
+                z.literal("not_started"),
+                z.literal("in_progress"),
+                z.literal("completed"),
+                z.literal("blocked"),
+              ]),
+            })
+          ),
+        })
+      ),
+    })
+    .nullish(),
   messages: z.array(
     z.object({
       type: z.union([
@@ -46,3 +75,17 @@ export const GraphDataZod = z.object({
   tools_used: z.array(z.unknown()),
 });
 export type GraphData = z.infer<typeof GraphDataZod>;
+
+export const NodeUpdateZod = z.object({
+  thinking: GraphDataZod.optional(),
+  planning: GraphDataZod.optional(),
+  executor: GraphDataZod.optional(),
+});
+export type NodeUpdate = z.infer<typeof NodeUpdateZod>;
+
+export const GraphDataWrapperZod = z.union([GraphDataZod, NodeUpdateZod]);
+export type GraphDataWrapper = z.infer<typeof GraphDataWrapperZod>;
+
+export const isNodeUpdate = (data: GraphDataWrapper): data is NodeUpdate => {
+  return "thinking" in data || "planning" in data || "executor" in data;
+};

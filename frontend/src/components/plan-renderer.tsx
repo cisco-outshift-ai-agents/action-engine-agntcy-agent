@@ -1,44 +1,14 @@
 import { useMemo } from "react";
 import LoaderGIF from "@/components/newsroom/newsroom-assets/loader.gif";
+import { useChatStore } from "@/stores/chat";
 
-interface PlanRendererProps {
-  plan: string;
-}
+const PlanRenderer: React.FC = () => {
+  const { plan } = useChatStore();
 
-interface ParsedStep {
-  number: number;
-  status: "not_started" | "in_progress" | "completed" | "blocked";
-  text: string;
-}
-
-const PlanRenderer: React.FC<PlanRendererProps> = ({ plan }) => {
-  const parsedPlan = useMemo(() => {
-    const lines = plan.split("\n");
-    const title = lines[0];
-    const progress = lines.find((l) => l.startsWith("Progress:"));
-    const status = lines.find((l) => l.startsWith("Status:"));
-
-    const steps = lines
-      .filter((line) => /^\d+\..*/.test(line))
-      .map((line) => {
-        const [numberPart, ...rest] = line.split("] ");
-        return {
-          number: parseInt(numberPart),
-          status: line.includes("[→]")
-            ? "in_progress"
-            : line.includes("[✓]")
-            ? "completed"
-            : line.includes("[!]")
-            ? "blocked"
-            : "not_started",
-          text: rest.join("] ").trim(),
-        } as ParsedStep;
-      });
-
-    return { title, progress, status, steps };
-  }, [plan]);
-
-  const nextStep = parsedPlan.steps.find(
+  if (!plan) {
+    return null;
+  }
+  const nextStep = plan.steps.find(
     (s) => s.status === "in_progress" || s.status === "not_started"
   );
 
@@ -48,13 +18,13 @@ const PlanRenderer: React.FC<PlanRendererProps> = ({ plan }) => {
       <details className="group bg-[#373C42] mb-4 rounded-lg shadow-md">
         <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
           <div className="flex items-center gap-2">
-            {plan && nextStep?.status !== "completed" ? (
+            {nextStep?.status !== "completed" ? (
               <img src={LoaderGIF} alt="Loading..." className="w-5 h-5" />
             ) : (
               <span className="text-gray-400">○</span>
             )}
             <span className="text-gray-100">
-              {nextStep?.text || "No active steps"}
+              {nextStep?.content || "No active steps"}
             </span>
           </div>
           <svg
@@ -73,14 +43,9 @@ const PlanRenderer: React.FC<PlanRendererProps> = ({ plan }) => {
           </svg>
         </summary>
         <div className="p-4 border-t border-gray-700">
-          <h2 className="text-lg font-bold text-gray-100">
-            {parsedPlan.title}
-          </h2>
-          <p className="text-sm text-gray-400">{parsedPlan.progress}</p>
-          <p className="text-sm text-gray-400">{parsedPlan.status}</p>
           <ul className="mt-2 space-y-2">
-            {parsedPlan.steps.map((step) => (
-              <li key={step.number} className="flex items-start">
+            {plan.steps.map((step, index) => (
+              <li key={index} className="flex flex-col gap-2">
                 <span
                   className={`mr-2 ${
                     step.status === "completed"
@@ -100,7 +65,47 @@ const PlanRenderer: React.FC<PlanRendererProps> = ({ plan }) => {
                     ? "!"
                     : "○"}
                 </span>
-                <span className="text-gray-100">{step.text}</span>
+                <span className="text-gray-100">{step.content}</span>
+                {step.notes && (
+                  <p className="text-sm text-gray-400 ml-6">{step.notes}</p>
+                )}
+                {step.substeps && step.substeps.length > 0 && (
+                  <ul className="ml-6 space-y-2">
+                    {step.substeps.map((substep, subIndex) => (
+                      <li key={subIndex} className="flex items-start">
+                        <span
+                          className={`mr-2 ${
+                            substep.status === "completed"
+                              ? "text-green-500"
+                              : substep.status === "in_progress"
+                              ? "text-blue-500"
+                              : substep.status === "blocked"
+                              ? "text-red-500"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          {substep.status === "completed"
+                            ? "✓"
+                            : substep.status === "in_progress"
+                            ? "→"
+                            : substep.status === "blocked"
+                            ? "!"
+                            : "○"}
+                        </span>
+                        <div className="flex flex-col">
+                          <span className="text-gray-100">
+                            {substep.content}
+                          </span>
+                          {substep.notes && (
+                            <p className="text-sm text-gray-400">
+                              {substep.notes}
+                            </p>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             ))}
           </ul>

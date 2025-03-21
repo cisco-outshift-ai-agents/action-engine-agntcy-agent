@@ -1,15 +1,16 @@
 import { create } from "zustand";
+import { GraphData } from "@/pages/session/types";
 
 interface ChatStoreState {
   isThinking: boolean;
   isStopped: boolean;
-  plan: string;
+  plan: NonNullable<GraphData["plan"]> | null;
 }
 
 interface ChatStoreActions {
   setisThinking: (value: boolean) => void;
   setIsStopped: (value: boolean) => void;
-  setPlan: (value: string) => void;
+  setPlan: (value: NonNullable<GraphData["plan"]> | null) => void;
 }
 
 export const useChatStore = create<ChatStoreState & ChatStoreActions>(
@@ -20,7 +21,7 @@ export const useChatStore = create<ChatStoreState & ChatStoreActions>(
     isStopped: false,
     setIsStopped: (value) => set({ isStopped: value }),
 
-    plan: "",
+    plan: null,
     setPlan: (value) => set({ plan: value }),
   })
 );
