@@ -18,7 +18,7 @@ This is the frontend application for Action Engine, built with React, TypeScript
 2. Terminal support
 
    - Status: [In progress]
-   - Branch: [terminal-implementation]
+   - Branch: [terminal-implementation] [xterm-integration]
    - Components:
    - TODO
    - Key Features:
