@@ -5,30 +5,29 @@ import subprocess
 import time
 import logging
 import asyncio
-from typing import Dict, Any, Optional
-from browser_use.agent.views import ActionResult
-from browser_use.controller.service import Registry
-
-from src.terminal.terminal_views import TerminalCommandAction
-
-logger = logging.getLogger(__name__)
-
-import os
-import random
-import shlex
-import subprocess
-import time
-import logging
-import asyncio
-from typing import Dict, Any, Optional
+from typing import AsyncGenerator, Dict, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 
 class TerminalManager:
-    """Manages terminal sessions and command execution using tmux"""
+    """
+    Manages terminal sessions and command execution using tmux.
+    Implements a proper singleton pattern for global access.
+    """
 
+    # Singleton instance storage
     _instance = None
+
+    @classmethod
+    def get_instance(cls) -> "TerminalManager":
+        """
+        Get or create the singleton instance of TerminalManager.
+        This allows access from any module without circular imports.
+        """
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
 
     def __new__(cls):
         if cls._instance is None:
@@ -99,7 +98,9 @@ class TerminalManager:
 
         self.current_terminal_id = terminal_id
 
-        print(f"Terminal {terminal_id} created with working directory: {working_dir}")
+        logger.info(
+            f"Terminal {terminal_id} created with working directory: {working_dir}"
+        )
         return terminal_id
 
     async def _get_working_directory(
@@ -176,7 +177,7 @@ class TerminalManager:
 
     async def execute_command(
         self, terminal_id: Optional[str], command: str
-    ) -> tuple[str, bool]:
+    ) -> Tuple[str, bool]:
         """Execute a command in the specified terminal and return the output"""
         "Returns a tuple of (output, is_success)"
         try:
@@ -560,3 +561,77 @@ class TerminalManager:
         except Exception as e:
             logger.error(f"Error checking if terminal {session_name} is busy: {str(e)}")
             return False
+
+    def _clean_tmux_output(self, raw_output: str) -> str:
+        """
+        Cleans raw tmux output: strips markers, echo artifacts, empty prompts, etc.
+        """
+        lines = raw_output.splitlines()
+        cleaned_lines = []
+
+        prompt_line_found = False
+        for line in lines:
+            # Skip empty or echo lines
+            if not line.strip() or line.strip().endswith("echo"):
+                continue
+
+            if not prompt_line_found and "root@" in line and "#" in line:
+                prompt_parts = line.split("#", 1)
+                if len(prompt_parts) > 1 and prompt_parts[1].strip():
+                    cleaned_lines.append(line)
+                    prompt_line_found = True
+                    continue
+
+            if line.strip().startswith("root@") and "#" in line:
+                after_hash = line.split("#", 1)[1].strip()
+                if not after_hash:
+                    continue
+
+            cleaned_lines.append(line)
+
+        return "\n".join(cleaned_lines).strip()
+
+    async def stream_terminal_updates_forever(
+        self,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Continuously polls all tmux terminals and yields new output per terminal.
+        """
+        logger.info("Started global terminal stream monitor")
+        last_seen = {}
+
+        while True:
+            for terminal_id in self.terminals:
+                tmux_socket_path = os.environ.get(
+                    "TMUX_SOCKET_PATH", "/root/.tmux/tmux-server"
+                )
+
+                capture_proc = await asyncio.create_subprocess_exec(
+                    "tmux",
+                    "-S",
+                    tmux_socket_path,
+                    "capture-pane",
+                    "-p",
+                    "-t",
+                    terminal_id,
+                    "-S",
+                    "-5000",
+                    stdout=asyncio.subprocess.PIPE,
+                )
+                stdout, _ = await capture_proc.communicate()
+                raw_output = stdout.decode() if stdout else ""
+                cleaned_output = self._clean_tmux_output(raw_output)
+                working_directory = self.terminals[terminal_id].get(
+                    "working_directory", ""
+                )
+
+                if cleaned_output and cleaned_output != last_seen.get(terminal_id, ""):
+                    last_seen[terminal_id] = cleaned_output
+
+                    yield {
+                        "summary": cleaned_output,
+                        "working_directory": working_directory,
+                        "terminal_id": terminal_id,
+                    }
+
+            await asyncio.sleep(0.5)
