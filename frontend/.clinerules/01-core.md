@@ -27,6 +27,10 @@ This is the frontend application for Action Engine, built with React, TypeScript
 - Define interfaces/types in dedicated type files (e.g., `types.ts`)
 - Prefer explicit type annotations over `any`
 - Use proper TypeScript features like generics, unions, and intersections when appropriate
+- Name your files in kebab-case, e.g., `my-component.tsx`
+- Name your types in PascalCase, e.g., `MyType`
+- Name your components in PascalCase, e.g., `MyComponent`
+- Name constants in SCREAMING_SNAKE_CASE, e.g., `MY_CONSTANT`
 
 ### State Management
 

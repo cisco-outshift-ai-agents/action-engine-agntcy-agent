@@ -42,30 +42,32 @@ const PlanRenderer: React.FC = () => {
             />
           </svg>
         </summary>
-        <div className="p-4 border-t border-gray-700">
+        <div className="p-4 border-t border-gray-700 bg-[#535a63] rounded-b-lg text-sm">
           <ul className="mt-2 space-y-2">
             {plan.steps.map((step, index) => (
               <li key={index} className="flex flex-col gap-2">
-                <span
-                  className={`mr-2 ${
-                    step.status === "completed"
-                      ? "text-green-500"
+                <div>
+                  <span
+                    className={`mr-2 ${
+                      step.status === "completed"
+                        ? "text-green-500"
+                        : step.status === "in_progress"
+                        ? "text-blue-500"
+                        : step.status === "blocked"
+                        ? "text-red-500"
+                        : "text-gray-400"
+                    }`}
+                  >
+                    {step.status === "completed"
+                      ? "✓"
                       : step.status === "in_progress"
-                      ? "text-blue-500"
+                      ? "→"
                       : step.status === "blocked"
-                      ? "text-red-500"
-                      : "text-gray-400"
-                  }`}
-                >
-                  {step.status === "completed"
-                    ? "✓"
-                    : step.status === "in_progress"
-                    ? "→"
-                    : step.status === "blocked"
-                    ? "!"
-                    : "○"}
-                </span>
-                <span className="text-gray-100">{step.content}</span>
+                      ? "!"
+                      : "○"}
+                  </span>
+                  <span className="text-gray-100">{step.content}</span>
+                </div>
                 {step.notes && (
                   <p className="text-sm text-gray-400 ml-6">{step.notes}</p>
                 )}

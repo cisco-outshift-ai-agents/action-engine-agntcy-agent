@@ -25,7 +25,6 @@ interface ChatSectionProps {
 }
 
 const ChatSection: React.FC<ChatSectionProps> = () => {
-  const [messages, setMessages] = useState<ChatMessageProps[]>([]);
   const [input, setInput] = useState(
     "Go to Wikipedia and search for Cisco Systems, then click on the first link on the page"
   );
@@ -33,8 +32,15 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
   const wsStopRef = useRef<WebSocket | null>(null); //Websocket for stop requests
   const bottomOfChatRef = useRef<HTMLDivElement | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
-  const { isThinking, setisThinking, isStopped, setIsStopped, setPlan } =
-    useChatStore();
+  const {
+    messages,
+    addMessage,
+    isThinking,
+    setisThinking,
+    isStopped,
+    setIsStopped,
+    setPlan,
+  } = useChatStore();
 
   useEffect(() => {
     const useLocal = true;
@@ -192,33 +198,40 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
     wsStopRef.current?.send(JSON.stringify(stopPayload));
   };
 
-  const addMessage = (msg: ChatMessageProps) => {
-    // Update similar node messages instead of adding new ones
-    setMessages((messages) => {
-      if (msg.nodeType && msg.role === "assistant") {
-        // Find the last message of the same node type
-        for (let i = messages.length - 1; i >= 0; i--) {
-          if (messages[i].nodeType === msg.nodeType) {
-            const newMessages = [...messages];
-            newMessages[i] = msg;
-            return newMessages;
-          }
-        }
-      }
-      return [...messages, msg];
-    });
+  useEffect(() => {
     scrollToBottom();
-  };
+  }, [messages]);
 
   const cleanAPIData = (
     data: GraphData,
     nodeType?: NodeType
   ): ChatMessageProps => {
+    if (nodeType === "executor") {
+      return {
+        role: "assistant",
+        content: null, // We don't need content for executor, just actions
+        actions: getLastAITools(data),
+        error: data.error,
+        isDone: data.exiting,
+        nodeType,
+      };
+    }
+
+    if (nodeType === "planning") {
+      return {
+        role: "assistant",
+        content: null, // Planning node just shows "Updating plan..."
+        error: data.error,
+        isDone: data.exiting,
+        nodeType,
+      };
+    }
+
+    // For thinking and other nodes, show conversational UI
     return {
+      role: "assistant",
       content: data.brain.summary,
       thought: data.brain.thought,
-      role: "assistant",
-      actions: getLastAITools(data),
       error: data.error,
       isDone: data.exiting,
       nodeType,
@@ -259,13 +272,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
         <div className="flex flex-col gap-4 space-y-reverse">
           {[...messages].map((message, index) => (
             <div key={index}>
-              {/* Handle user messages */}
-              {message.role === "user" ? (
-                <ChatMessage {...message} />
-              ) : (
-                /* Handle assistant messages with a single component */
-                <ChatMessage {...message} />
-              )}
+              <ChatMessage {...message} />
             </div>
           ))}
           {isThinking && (
