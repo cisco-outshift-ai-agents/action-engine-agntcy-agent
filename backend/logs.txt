@@ -5,153 +5,149 @@
 #1 transferring dockerfile: 2.98kB done
 #1 DONE 0.0s
 
-#2 [browser-use-webui auth] library/python:pull token for registry-1.docker.io
-#2 DONE 0.0s
-
-#3 [browser-use-webui internal] load metadata for docker.io/library/python:3.11-slim
-#3 DONE 1.6s
+#2 [browser-use-webui internal] load metadata for docker.io/library/python:3.11-slim
+#2 DONE 0.8s
  Service browser-use-webui  Built
 
-#4 [browser-use-webui internal] load .dockerignore
-#4 transferring context: 717B done
+#3 [browser-use-webui internal] load .dockerignore
+#3 transferring context: 717B done
+#3 DONE 0.0s
+
+#4 [browser-use-webui  1/17] FROM docker.io/library/python:3.11-slim@sha256:7029b00486ac40bed03e36775b864d3f3d39dcbdf19cd45e6a52d541e6c178f0
 #4 DONE 0.0s
 
-#5 [browser-use-webui  1/17] FROM docker.io/library/python:3.11-slim@sha256:7029b00486ac40bed03e36775b864d3f3d39dcbdf19cd45e6a52d541e6c178f0
+#5 [browser-use-webui internal] load build context
+#5 transferring context: 180B done
 #5 DONE 0.0s
 
-#6 [browser-use-webui internal] load build context
-#6 transferring context: 180B done
-#6 DONE 0.0s
+#6 [browser-use-webui  8/17] RUN playwright install --with-deps chromium
+#6 CACHED
 
-#7 [browser-use-webui 10/17] RUN apt-get update && apt-get install -y dbus
+#7 [browser-use-webui 11/17] RUN mkdir -p /run/dbus && chmod 755 /run/dbus
 #7 CACHED
 
-#8 [browser-use-webui  8/17] RUN playwright install --with-deps chromium
+#8 [browser-use-webui 13/17] RUN mkdir -p /root/.tmux
 #8 CACHED
 
-#9 [browser-use-webui  9/17] RUN playwright install-deps
+#9 [browser-use-webui  6/17] COPY requirements.txt .
 #9 CACHED
 
-#10 [browser-use-webui  3/17] RUN git clone https://github.com/novnc/noVNC.git /opt/novnc     && git clone https://github.com/novnc/websockify /opt/novnc/utils/websockify     && ln -s /opt/novnc/vnc.html /opt/novnc/index.html
+#10 [browser-use-webui 16/17] COPY start-tmux.sh /app/
 #10 CACHED
 
-#11 [browser-use-webui  5/17] WORKDIR /app
+#11 [browser-use-webui  4/17] RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg     && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list     && apt-get update     && apt-get install -y google-chrome-stable
 #11 CACHED
 
-#12 [browser-use-webui 13/17] RUN mkdir -p /root/.tmux
+#12 [browser-use-webui  7/17] RUN pip install --no-cache-dir -r requirements.txt
 #12 CACHED
 
-#13 [browser-use-webui 11/17] RUN mkdir -p /run/dbus && chmod 755 /run/dbus
+#13 [browser-use-webui 10/17] RUN apt-get update && apt-get install -y dbus
 #13 CACHED
 
-#14 [browser-use-webui 16/17] COPY start-tmux.sh /app/
+#14 [browser-use-webui 12/17] RUN dbus-uuidgen > /etc/machine-id && service dbus start
 #14 CACHED
 
-#15 [browser-use-webui 12/17] RUN dbus-uuidgen > /etc/machine-id && service dbus start
+#15 [browser-use-webui 14/17] RUN mkdir -p /var/log/supervisor
 #15 CACHED
 
 #16 [browser-use-webui  2/17] RUN apt-get update && apt-get install -y     wget     netcat-traditional     gnupg     curl     unzip     tmux     xvfb     libgconf-2-4     libxss1     libnss3     libnspr4     libasound2     libatk1.0-0     libatk-bridge2.0-0     libcups2     libdbus-1-3     libdrm2     libgbm1     libgtk-3-0     libxcomposite1     libxdamage1     libxfixes3     libxrandr2     xdg-utils     fonts-liberation     dbus     dbus-x11     xauth     xvfb     x11vnc     tigervnc-tools     supervisor     net-tools     procps     git     python3-numpy     fontconfig     fonts-dejavu     fonts-dejavu-core     fonts-dejavu-extra     && rm -rf /var/lib/apt/lists/*
 #16 CACHED
 
-#17 [browser-use-webui  6/17] COPY requirements.txt .
+#17 [browser-use-webui 15/17] COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 #17 CACHED
 
-#18 [browser-use-webui 14/17] RUN mkdir -p /var/log/supervisor
+#18 [browser-use-webui  3/17] RUN git clone https://github.com/novnc/noVNC.git /opt/novnc     && git clone https://github.com/novnc/websockify /opt/novnc/utils/websockify     && ln -s /opt/novnc/vnc.html /opt/novnc/index.html
 #18 CACHED
 
-#19 [browser-use-webui  4/17] RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg     && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list     && apt-get update     && apt-get install -y google-chrome-stable
+#19 [browser-use-webui  5/17] WORKDIR /app
 #19 CACHED
 
-#20 [browser-use-webui 15/17] COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+#20 [browser-use-webui  9/17] RUN playwright install-deps
 #20 CACHED
 
-#21 [browser-use-webui  7/17] RUN pip install --no-cache-dir -r requirements.txt
+#21 [browser-use-webui 17/17] RUN chmod +x /app/start-tmux.sh
 #21 CACHED
 
-#22 [browser-use-webui 17/17] RUN chmod +x /app/start-tmux.sh
-#22 CACHED
+#22 [browser-use-webui] exporting to image
+#22 exporting layers done
+#22 writing image sha256:909daffeed0405aed5483b4e3c0bc7ff69f4f4a16092b0c2dd10ea5657e7495c done
+#22 naming to docker.io/library/action-engine-backend-browser-use-webui done
+#22 DONE 0.0s
 
-#23 [browser-use-webui] exporting to image
-#23 exporting layers done
-#23 writing image sha256:909daffeed0405aed5483b4e3c0bc7ff69f4f4a16092b0c2dd10ea5657e7495c done
-#23 naming to docker.io/library/action-engine-backend-browser-use-webui done
+#23 [browser-use-webui] resolving provenance for metadata file
 #23 DONE 0.0s
-
-#24 [browser-use-webui] resolving provenance for metadata file
-#24 DONE 0.0s
  Container action-engine-backend-browser-use-webui-1  Created
 Attaching to browser-use-webui-1
-browser-use-webui-1  | 2025-03-21 21:18:24,166 CRIT Supervisor is running as root.  Privileges were not dropped because no user is specified in the config file.  If you intend to run as root, you can set user=root in the config file to avoid this message.
-browser-use-webui-1  | 2025-03-21 21:18:24,166 CRIT Supervisor is running as root.  Privileges were not dropped because no user is specified in the config file.  If you intend to run as root, you can set user=root in the config file to avoid this message.
-browser-use-webui-1  | 2025-03-21 21:18:24,170 INFO supervisord started with pid 1
-browser-use-webui-1  | 2025-03-21 21:18:24,170 INFO supervisord started with pid 1
-browser-use-webui-1  | 2025-03-21 21:18:25,189 INFO spawned: 'dbus' with pid 7
-browser-use-webui-1  | 2025-03-21 21:18:25,189 INFO spawned: 'dbus' with pid 7
-browser-use-webui-1  | 2025-03-21 21:18:25,196 INFO spawned: '-bgfb' with pid 8
-browser-use-webui-1  | 2025-03-21 21:18:25,196 INFO spawned: '-bgfb' with pid 8
-browser-use-webui-1  | 2025-03-21 21:18:25,206 INFO spawned: 'tmux-server' with pid 9
-browser-use-webui-1  | 2025-03-21 21:18:25,206 INFO spawned: 'tmux-server' with pid 9
-browser-use-webui-1  | 2025-03-21 21:18:25,225 INFO spawned: 'vnc_setup' with pid 10
-browser-use-webui-1  | 2025-03-21 21:18:25,225 INFO spawned: 'vnc_setup' with pid 10
-browser-use-webui-1  | 2025-03-21 21:18:25,229 INFO spawned: 'x11vnc' with pid 11
-browser-use-webui-1  | 2025-03-21 21:18:25,229 INFO spawned: 'x11vnc' with pid 11
-browser-use-webui-1  | 2025-03-21 21:18:25,233 INFO spawned: 'x11vnc_log' with pid 12
-browser-use-webui-1  | 2025-03-21 21:18:25,233 INFO spawned: 'x11vnc_log' with pid 12
-browser-use-webui-1  | 2025-03-21 21:18:25,237 INFO spawned: 'novnc' with pid 13
-browser-use-webui-1  | 2025-03-21 21:18:25,237 INFO spawned: 'novnc' with pid 13
-browser-use-webui-1  | 2025-03-21 21:18:25,253 INFO spawned: 'persistent_browser' with pid 15
-browser-use-webui-1  | 2025-03-21 21:18:25,253 INFO spawned: 'persistent_browser' with pid 15
-browser-use-webui-1  | 2025-03-21 21:18:25,256 INFO spawned: 'backend' with pid 16
-browser-use-webui-1  | 2025-03-21 21:18:25,256 INFO spawned: 'backend' with pid 16
-browser-use-webui-1  | _XSERVTransSocketCreateListener: failed to bind listener
-browser-use-webui-1  | _XSERVTransSocketUNIXCreateListener: ...SocketCreateListener() failed
-browser-use-webui-1  | _XSERVTransMakeAllCOTSServerListeners: failed to create listener for unix
-browser-use-webui-1  | 2025-03-21 21:18:25,262 INFO success: vnc_setup entered RUNNING state, process has stayed up for > than 0 seconds (startsecs)
-browser-use-webui-1  | 2025-03-21 21:18:25,262 INFO success: vnc_setup entered RUNNING state, process has stayed up for > than 0 seconds (startsecs)
+browser-use-webui-1  | 2025-03-21 23:05:16,232 CRIT Supervisor is running as root.  Privileges were not dropped because no user is specified in the config file.  If you intend to run as root, you can set user=root in the config file to avoid this message.
+browser-use-webui-1  | 2025-03-21 23:05:16,232 CRIT Supervisor is running as root.  Privileges were not dropped because no user is specified in the config file.  If you intend to run as root, you can set user=root in the config file to avoid this message.
+browser-use-webui-1  | 2025-03-21 23:05:16,236 INFO supervisord started with pid 1
+browser-use-webui-1  | 2025-03-21 23:05:16,236 INFO supervisord started with pid 1
+browser-use-webui-1  | 2025-03-21 23:05:17,253 INFO spawned: 'dbus' with pid 7
+browser-use-webui-1  | 2025-03-21 23:05:17,253 INFO spawned: 'dbus' with pid 7
+browser-use-webui-1  | 2025-03-21 23:05:17,259 INFO spawned: '-bgfb' with pid 8
+browser-use-webui-1  | 2025-03-21 23:05:17,259 INFO spawned: '-bgfb' with pid 8
+browser-use-webui-1  | 2025-03-21 23:05:17,270 INFO spawned: 'tmux-server' with pid 9
+browser-use-webui-1  | 2025-03-21 23:05:17,270 INFO spawned: 'tmux-server' with pid 9
+browser-use-webui-1  | 2025-03-21 23:05:17,272 INFO spawned: 'vnc_setup' with pid 10
+browser-use-webui-1  | 2025-03-21 23:05:17,272 INFO spawned: 'vnc_setup' with pid 10
+browser-use-webui-1  | 2025-03-21 23:05:17,277 INFO spawned: 'x11vnc' with pid 11
+browser-use-webui-1  | 2025-03-21 23:05:17,277 INFO spawned: 'x11vnc' with pid 11
+browser-use-webui-1  | 2025-03-21 23:05:17,281 INFO spawned: 'x11vnc_log' with pid 12
+browser-use-webui-1  | 2025-03-21 23:05:17,281 INFO spawned: 'x11vnc_log' with pid 12
+browser-use-webui-1  | 2025-03-21 23:05:17,284 INFO spawned: 'novnc' with pid 13
+browser-use-webui-1  | 2025-03-21 23:05:17,284 INFO spawned: 'novnc' with pid 13
+browser-use-webui-1  | 2025-03-21 23:05:17,290 INFO spawned: 'persistent_browser' with pid 14
+browser-use-webui-1  | 2025-03-21 23:05:17,290 INFO spawned: 'persistent_browser' with pid 14
+browser-use-webui-1  | 2025-03-21 23:05:17,292 INFO spawned: 'backend' with pid 15
+browser-use-webui-1  | 2025-03-21 23:05:17,292 INFO spawned: 'backend' with pid 15
 browser-use-webui-1  | Xlib:  extension "DPMS" missing on display ":99".
 browser-use-webui-1  | 
 browser-use-webui-1  | The VNC desktop is:      dcd590af1263:0
-browser-use-webui-1  | -rw------- 1 root root 8 Mar 21 21:18 /root/.vnc/passwd
-browser-use-webui-1  | 2025-03-21 21:18:25,376 INFO exited: vnc_setup (exit status 0; expected)
-browser-use-webui-1  | 2025-03-21 21:18:25,376 INFO exited: vnc_setup (exit status 0; expected)
+browser-use-webui-1  | 2025-03-21 23:05:17,305 INFO success: vnc_setup entered RUNNING state, process has stayed up for > than 0 seconds (startsecs)
+browser-use-webui-1  | 2025-03-21 23:05:17,305 INFO success: vnc_setup entered RUNNING state, process has stayed up for > than 0 seconds (startsecs)
+browser-use-webui-1  | _XSERVTransSocketCreateListener: failed to bind listener
+browser-use-webui-1  | _XSERVTransSocketUNIXCreateListener: ...SocketCreateListener() failed
+browser-use-webui-1  | _XSERVTransMakeAllCOTSServerListeners: failed to create listener for unix
+browser-use-webui-1  | -rw------- 1 root root 8 Mar 21 23:05 /root/.vnc/passwd
+browser-use-webui-1  | 2025-03-21 23:05:17,558 INFO exited: vnc_setup (exit status 0; expected)
+browser-use-webui-1  | 2025-03-21 23:05:17,558 INFO exited: vnc_setup (exit status 0; expected)
 browser-use-webui-1  | Creating default tmux session: terminal-session
+browser-use-webui-1  | Default session created successfully
 browser-use-webui-1  | INFO:     Will watch for changes in these directories: ['/app']
 browser-use-webui-1  | INFO:     Uvicorn running on http://0.0.0.0:7788 (Press CTRL+C to quit)
-browser-use-webui-1  | INFO:     Started reloader process [16] using StatReload
-browser-use-webui-1  | Default session created successfully
+browser-use-webui-1  | INFO:     Started reloader process [15] using StatReload
 browser-use-webui-1  | Active tmux sessions:
-browser-use-webui-1  | terminal-session: 1 windows (created Fri Mar 21 21:18:25 2025)
+browser-use-webui-1  | terminal-session: 1 windows (created Fri Mar 21 23:05:17 2025)
 browser-use-webui-1  | INFO     [browser_use] BrowserUse logging setup complete with level info
-browser-use-webui-1  | 2025-03-21 21:18:27,147 INFO success: x11vnc_log entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
-browser-use-webui-1  | 2025-03-21 21:18:27,147 INFO success: x11vnc_log entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
-browser-use-webui-1  | INFO:     Started server process [41]
+browser-use-webui-1  | 2025-03-21 23:05:18,916 INFO success: x11vnc_log entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+browser-use-webui-1  | 2025-03-21 23:05:18,916 INFO success: x11vnc_log entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+browser-use-webui-1  | 2025-03-21 23:05:20,400 INFO success: dbus entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | 2025-03-21 23:05:20,400 INFO success: dbus entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | 2025-03-21 23:05:20,400 INFO success: -bgfb entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | 2025-03-21 23:05:20,400 INFO success: -bgfb entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | 2025-03-21 23:05:20,400 INFO success: tmux-server entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | 2025-03-21 23:05:20,400 INFO success: tmux-server entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | 2025-03-21 23:05:20,400 INFO success: novnc entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | 2025-03-21 23:05:20,400 INFO success: novnc entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | 2025-03-21 23:05:20,400 INFO success: persistent_browser entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | 2025-03-21 23:05:20,400 INFO success: persistent_browser entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | 2025-03-21 23:05:20,400 INFO success: backend entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | 2025-03-21 23:05:20,400 INFO success: backend entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | PORT=5900
+browser-use-webui-1  | INFO:     Started server process [43]
 browser-use-webui-1  | INFO:     Waiting for application startup.
 browser-use-webui-1  | INFO     [src.terminal.terminal_manager] TerminalManager instance created
 browser-use-webui-1  | INFO     [backend.main] Calling stream_terminal_to_all_clients
-browser-use-webui-1  | INFO     [src.terminal.terminal_manager] Started global terminal stream monitor
-browser-use-webui-1  | 2025-03-21 21:18:28,343 INFO success: dbus entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
-browser-use-webui-1  | 2025-03-21 21:18:28,343 INFO success: dbus entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
-browser-use-webui-1  | 2025-03-21 21:18:28,343 INFO success: -bgfb entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
-browser-use-webui-1  | 2025-03-21 21:18:28,343 INFO success: -bgfb entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
-browser-use-webui-1  | 2025-03-21 21:18:28,343 INFO success: tmux-server entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
-browser-use-webui-1  | 2025-03-21 21:18:28,343 INFO success: tmux-server entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
-browser-use-webui-1  | 2025-03-21 21:18:28,343 INFO success: novnc entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
-browser-use-webui-1  | 2025-03-21 21:18:28,343 INFO success: novnc entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
-browser-use-webui-1  | 2025-03-21 21:18:28,343 INFO success: persistent_browser entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
-browser-use-webui-1  | 2025-03-21 21:18:28,343 INFO success: persistent_browser entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
-browser-use-webui-1  | 2025-03-21 21:18:28,343 INFO success: backend entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
-browser-use-webui-1  | 2025-03-21 21:18:28,343 INFO success: backend entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
-browser-use-webui-1  | PORT=5900
 browser-use-webui-1  | INFO     [backend.agent_runner] Browser initialized on startup.
 browser-use-webui-1  | INFO     [backend.main] Browser pre-initialized at server startup.
 browser-use-webui-1  | INFO:     Application startup complete.
 browser-use-webui-1  | INFO     [backend.main] New WebSocket connection for terminal commands
-browser-use-webui-1  | INFO:     ('172.18.0.1', 65090) - "WebSocket /ws/terminal" [accepted]
+browser-use-webui-1  | INFO:     ('172.18.0.1', 59108) - "WebSocket /ws/terminal" [accepted]
 browser-use-webui-1  | INFO     [backend.main] New WebSocket connection for terminal commands
-browser-use-webui-1  | INFO:     ('172.18.0.1', 65098) - "WebSocket /ws/terminal" [accepted]
+browser-use-webui-1  | INFO:     ('172.18.0.1', 59118) - "WebSocket /ws/terminal" [accepted]
 browser-use-webui-1  | Warning: could not find self.pem
-browser-use-webui-1  | 2025-03-21 21:18:30,454 INFO success: x11vnc entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
-browser-use-webui-1  | 2025-03-21 21:18:30,454 INFO success: x11vnc entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+browser-use-webui-1  | 2025-03-21 23:05:22,486 INFO success: x11vnc entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+browser-use-webui-1  | 2025-03-21 23:05:22,486 INFO success: x11vnc entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
 browser-use-webui-1  | Using local websockify at /opt/novnc/utils/websockify/run
 browser-use-webui-1  | Starting webserver and WebSockets proxy on host 0.0.0.0 port 6080
 browser-use-webui-1  | WebSocket server settings:
@@ -169,291 +165,534 @@ browser-use-webui-1  | Press Ctrl-C to exit
 browser-use-webui-1  | 
 browser-use-webui-1  | 
 browser-use-webui-1  | Starting google-chrome
-browser-use-webui-1  | INFO     [backend.main] Terminal WebSocket disconnected
-browser-use-webui-1  | INFO     [backend.main] Terminal WebSocket disconnected
-browser-use-webui-1  | ERROR:    Exception in ASGI application
-browser-use-webui-1  | Traceback (most recent call last):
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 341, in send
-browser-use-webui-1  |     output = self.conn.send(wsproto.events.CloseConnection(code=code, reason=reason))
-browser-use-webui-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/wsproto/__init__.py", line 64, in send
-browser-use-webui-1  |     data += self.connection.send(event)
-browser-use-webui-1  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/wsproto/connection.py", line 107, in send
-browser-use-webui-1  |     raise LocalProtocolError(
-browser-use-webui-1  | wsproto.utilities.LocalProtocolError: Event CloseConnection(code=1000, reason='') cannot be sent in state ConnectionState.CLOSED.
 browser-use-webui-1  | 
-browser-use-webui-1  | The above exception was the direct cause of the following exception:
-browser-use-webui-1  | 
-browser-use-webui-1  | Traceback (most recent call last):
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 85, in send
-browser-use-webui-1  |     await self._send(message)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 39, in sender
-browser-use-webui-1  |     await send(message)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 350, in send
-browser-use-webui-1  |     raise ClientDisconnected from exc
-browser-use-webui-1  | uvicorn.protocols.utils.ClientDisconnected
-browser-use-webui-1  | 
-browser-use-webui-1  | During handling of the above exception, another exception occurred:
-browser-use-webui-1  | 
-browser-use-webui-1  | Traceback (most recent call last):
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 235, in run_asgi
-browser-use-webui-1  |     result = await self.app(self.scope, self.receive, self.send)  # type: ignore[func-returns-value]
-browser-use-webui-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
-browser-use-webui-1  |     return await self.app(scope, receive, send)
-browser-use-webui-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/applications.py", line 1054, in __call__
-browser-use-webui-1  |     await super().__call__(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/applications.py", line 112, in __call__
-browser-use-webui-1  |     await self.middleware_stack(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/errors.py", line 152, in __call__
-browser-use-webui-1  |     await self.app(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/cors.py", line 77, in __call__
-browser-use-webui-1  |     await self.app(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
-browser-use-webui-1  |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
-browser-use-webui-1  |     raise exc
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
-browser-use-webui-1  |     await app(scope, receive, sender)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 715, in __call__
-browser-use-webui-1  |     await self.middleware_stack(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 735, in app
-browser-use-webui-1  |     await route.handle(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 362, in handle
-browser-use-webui-1  |     await self.app(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 95, in app
-browser-use-webui-1  |     await wrap_app_handling_exceptions(app, session)(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
-browser-use-webui-1  |     raise exc
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
-browser-use-webui-1  |     await app(scope, receive, sender)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 93, in app
-browser-use-webui-1  |     await func(session)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/routing.py", line 383, in app
-browser-use-webui-1  |     await dependant.call(**solved_result.values)
-browser-use-webui-1  |   File "/app/backend/main.py", line 211, in terminal_endpoint
-browser-use-webui-1  |     await websocket.close()
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 180, in close
-browser-use-webui-1  |     await self.send({"type": "websocket.close", "code": code, "reason": reason or ""})
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 88, in send
-browser-use-webui-1  |     raise WebSocketDisconnect(code=1006)
-browser-use-webui-1  | starlette.websockets.WebSocketDisconnect
-browser-use-webui-1  | ERROR:    Exception in ASGI application
-browser-use-webui-1  | Traceback (most recent call last):
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 341, in send
-browser-use-webui-1  |     output = self.conn.send(wsproto.events.CloseConnection(code=code, reason=reason))
-browser-use-webui-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/wsproto/__init__.py", line 64, in send
-browser-use-webui-1  |     data += self.connection.send(event)
-browser-use-webui-1  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/wsproto/connection.py", line 107, in send
-browser-use-webui-1  |     raise LocalProtocolError(
-browser-use-webui-1  | wsproto.utilities.LocalProtocolError: Event CloseConnection(code=1000, reason='') cannot be sent in state ConnectionState.CLOSED.
-browser-use-webui-1  | 
-browser-use-webui-1  | The above exception was the direct cause of the following exception:
-browser-use-webui-1  | 
-browser-use-webui-1  | Traceback (most recent call last):
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 85, in send
-browser-use-webui-1  |     await self._send(message)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 39, in sender
-browser-use-webui-1  |     await send(message)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 350, in send
-browser-use-webui-1  |     raise ClientDisconnected from exc
-browser-use-webui-1  | uvicorn.protocols.utils.ClientDisconnected
-browser-use-webui-1  | 
-browser-use-webui-1  | During handling of the above exception, another exception occurred:
-browser-use-webui-1  | 
-browser-use-webui-1  | Traceback (most recent call last):
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 235, in run_asgi
-browser-use-webui-1  |     result = await self.app(self.scope, self.receive, self.send)  # type: ignore[func-returns-value]
-browser-use-webui-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
-browser-use-webui-1  |     return await self.app(scope, receive, send)
-browser-use-webui-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/applications.py", line 1054, in __call__
-browser-use-webui-1  |     await super().__call__(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/applications.py", line 112, in __call__
-browser-use-webui-1  |     await self.middleware_stack(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/errors.py", line 152, in __call__
-browser-use-webui-1  |     await self.app(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/cors.py", line 77, in __call__
-browser-use-webui-1  |     await self.app(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
-browser-use-webui-1  |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
-browser-use-webui-1  |     raise exc
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
-browser-use-webui-1  |     await app(scope, receive, sender)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 715, in __call__
-browser-use-webui-1  |     await self.middleware_stack(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 735, in app
-browser-use-webui-1  |     await route.handle(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 362, in handle
-browser-use-webui-1  |     await self.app(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 95, in app
-browser-use-webui-1  |     await wrap_app_handling_exceptions(app, session)(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
-browser-use-webui-1  |     raise exc
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
-browser-use-webui-1  |     await app(scope, receive, sender)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 93, in app
-browser-use-webui-1  |     await func(session)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/routing.py", line 383, in app
-browser-use-webui-1  |     await dependant.call(**solved_result.values)
-browser-use-webui-1  |   File "/app/backend/main.py", line 211, in terminal_endpoint
-browser-use-webui-1  |     await websocket.close()
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 180, in close
-browser-use-webui-1  |     await self.send({"type": "websocket.close", "code": code, "reason": reason or ""})
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 88, in send
-browser-use-webui-1  |     raise WebSocketDisconnect(code=1006)
-browser-use-webui-1  | starlette.websockets.WebSocketDisconnect
-browser-use-webui-1  | INFO     [backend.main] New WebSocket connection for terminal commands
-browser-use-webui-1  | INFO:     ('172.18.0.1', 65104) - "WebSocket /ws/terminal" [accepted]
-browser-use-webui-1  | INFO     [backend.main] New WebSocket connection attempt
-browser-use-webui-1  | INFO     [backend.main] WebSocket connection accepted
-browser-use-webui-1  | INFO:     ('172.18.0.1', 65112) - "WebSocket /ws/chat" [accepted]
-browser-use-webui-1  | INFO:     ('172.18.0.1', 65118) - "WebSocket /ws/stop" [accepted]
-browser-use-webui-1  | INFO     [backend.main] New WebSocket connection for stop requests
-browser-use-webui-1  | 172.18.0.1 - - [21/Mar/2025 21:18:34] 172.18.0.1: Plain non-SSL (ws://) WebSocket connection
-browser-use-webui-1  | 172.18.0.1 - - [21/Mar/2025 21:18:34] connecting to: localhost:5900
-browser-use-webui-1  | INFO     [backend.main] New WebSocket connection for terminal commands
-browser-use-webui-1  | INFO:     ('172.18.0.1', 65130) - "WebSocket /ws/terminal" [accepted]
-browser-use-webui-1  | INFO     [backend.main] New WebSocket connection attempt
-browser-use-webui-1  | INFO:     ('172.18.0.1', 65132) - "WebSocket /ws/chat" [accepted]
-browser-use-webui-1  | INFO     [backend.main] WebSocket connection accepted
-browser-use-webui-1  | 172.18.0.1 - - [21/Mar/2025 21:18:34] 172.18.0.1: Plain non-SSL (ws://) WebSocket connection
-browser-use-webui-1  | 172.18.0.1 - - [21/Mar/2025 21:18:34] connecting to: localhost:5900
-browser-use-webui-1  | INFO     [backend.main] New WebSocket connection for stop requests
-browser-use-webui-1  | INFO:     ('172.18.0.1', 65148) - "WebSocket /ws/stop" [accepted]
-browser-use-webui-1  | INFO     [backend.main] WebSocket disconnected
-browser-use-webui-1  | INFO     [backend.main] Terminal WebSocket disconnected
-browser-use-webui-1  | INFO     [backend.main] WebSocket disconnected
-browser-use-webui-1  | ERROR:    Exception in ASGI application
-browser-use-webui-1  | Traceback (most recent call last):
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 341, in send
-browser-use-webui-1  |     output = self.conn.send(wsproto.events.CloseConnection(code=code, reason=reason))
-browser-use-webui-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/wsproto/__init__.py", line 64, in send
-browser-use-webui-1  |     data += self.connection.send(event)
-browser-use-webui-1  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/wsproto/connection.py", line 107, in send
-browser-use-webui-1  |     raise LocalProtocolError(
-browser-use-webui-1  | wsproto.utilities.LocalProtocolError: Event CloseConnection(code=1000, reason='') cannot be sent in state ConnectionState.CLOSED.
-browser-use-webui-1  | 
-browser-use-webui-1  | The above exception was the direct cause of the following exception:
-browser-use-webui-1  | 
-browser-use-webui-1  | Traceback (most recent call last):
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 85, in send
-browser-use-webui-1  |     await self._send(message)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 39, in sender
-browser-use-webui-1  |     await send(message)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 350, in send
-browser-use-webui-1  |     raise ClientDisconnected from exc
-browser-use-webui-1  | uvicorn.protocols.utils.ClientDisconnected
-browser-use-webui-1  | 
-browser-use-webui-1  | During handling of the above exception, another exception occurred:
-browser-use-webui-1  | 
-browser-use-webui-1  | Traceback (most recent call last):
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 235, in run_asgi
-browser-use-webui-1  |     result = await self.app(self.scope, self.receive, self.send)  # type: ignore[func-returns-value]
-browser-use-webui-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
-browser-use-webui-1  |     return await self.app(scope, receive, send)
-browser-use-webui-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/applications.py", line 1054, in __call__
-browser-use-webui-1  |     await super().__call__(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/applications.py", line 112, in __call__
-browser-use-webui-1  |     await self.middleware_stack(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/errors.py", line 152, in __call__
-browser-use-webui-1  |     await self.app(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/cors.py", line 77, in __call__
-browser-use-webui-1  |     await self.app(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
-browser-use-webui-1  |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
-browser-use-webui-1  |     raise exc
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
-browser-use-webui-1  |     await app(scope, receive, sender)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 715, in __call__
-browser-use-webui-1  |     await self.middleware_stack(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 735, in app
-browser-use-webui-1  |     await route.handle(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 362, in handle
-browser-use-webui-1  |     await self.app(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 95, in app
-browser-use-webui-1  |     await wrap_app_handling_exceptions(app, session)(scope, receive, send)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
-browser-use-webui-1  |     raise exc
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
-browser-use-webui-1  |     await app(scope, receive, sender)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 93, in app
-browser-use-webui-1  |     await func(session)
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/routing.py", line 383, in app
-browser-use-webui-1  |     await dependant.call(**solved_result.values)
-browser-use-webui-1  |   File "/app/backend/main.py", line 211, in terminal_endpoint
-browser-use-webui-1  |     await websocket.close()
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 180, in close
-browser-use-webui-1  |     await self.send({"type": "websocket.close", "code": code, "reason": reason or ""})
-browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 88, in send
-browser-use-webui-1  |     raise WebSocketDisconnect(code=1006)
-browser-use-webui-1  | starlette.websockets.WebSocketDisconnect
-browser-use-webui-1  | 
-browser-use-webui-1  | DevTools listening on ws://127.0.0.1:9222/devtools/browser/16b43195-1151-46ef-b687-b6d4dfa11b39
-browser-use-webui-1  | [83:221:0321/211836.975664:ERROR:object_proxy.cc(576)] Failed to call method: org.freedesktop.DBus.Properties.Get: object_path= /org/freedesktop/UPower: org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.UPower was not provided by any .service files
-browser-use-webui-1  | [83:221:0321/211836.976196:ERROR:object_proxy.cc(576)] Failed to call method: org.freedesktop.UPower.GetDisplayDevice: object_path= /org/freedesktop/UPower: org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.UPower was not provided by any .service files
-browser-use-webui-1  | [83:221:0321/211836.976292:ERROR:object_proxy.cc(576)] Failed to call method: org.freedesktop.UPower.EnumerateDevices: object_path= /org/freedesktop/UPower: org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.UPower was not provided by any .service files
-browser-use-webui-1  | INFO     [backend.main] New WebSocket connection for terminal commands
-browser-use-webui-1  | INFO:     ('172.18.0.1', 62744) - "WebSocket /ws/terminal" [accepted]
-browser-use-webui-1  | 2025-03-21 21:18:40,099 INFO reaped unknown pid 255 (exit status 0)
-browser-use-webui-1  | 2025-03-21 21:18:40,099 INFO reaped unknown pid 255 (exit status 0)
-browser-use-webui-1  | 2025-03-21 21:18:40,099 INFO reaped unknown pid 256 (exit status 0)
-browser-use-webui-1  | 2025-03-21 21:18:40,099 INFO reaped unknown pid 256 (exit status 0)
-browser-use-webui-1  | INFO     [backend.main] Terminal command received: {"command":"ls /"}
-browser-use-webui-1  | WARNING  [src.terminal.terminal_manager] Terminal None does not exist, creating a new one.
-browser-use-webui-1  | INFO     [src.terminal.terminal_manager] Generated terminal ID: 8016
-browser-use-webui-1  | INFO     [src.terminal.terminal_manager] Terminal 8016 created with working directory: PWD_4009
-browser-use-webui-1  | INFO     [src.terminal.terminal_manager] Terminal 8016 is currently busy with process 442
-browser-use-webui-1  | WARNING  [src.terminal.terminal_manager] Terminal 8016 is busy, creating a new terminal instead.
-browser-use-webui-1  | INFO     [src.terminal.terminal_manager] Generated terminal ID: 3929
-browser-use-webui-1  | INFO     [backend.main] Received Streaming terminal output: {'summary': 'root@dcd590af1263:~# echo PWD_4009\npwd\nPWD_4009\nroot@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# echo END_2613\nEND_2613', 'working_directory': 'PWD_4009', 'terminal_id': '8016'}
-browser-use-webui-1  | INFO     [backend.main] Sent terminal output to client: {'summary': 'root@dcd590af1263:~# echo PWD_4009\npwd\nPWD_4009\nroot@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# echo END_2613\nEND_2613', 'working_directory': 'PWD_4009', 'terminal_id': '8016'}
-browser-use-webui-1  | INFO     [backend.main] Sent terminal output to client: {'summary': 'root@dcd590af1263:~# echo PWD_4009\npwd\nPWD_4009\nroot@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# echo END_2613\nEND_2613', 'working_directory': 'PWD_4009', 'terminal_id': '8016'}
-browser-use-webui-1  | INFO     [src.terminal.terminal_manager] Terminal 3929 created with working directory: PWD_7552
+browser-use-webui-1  | DevTools listening on ws://127.0.0.1:9222/devtools/browser/d6a9c926-770c-458e-9633-592df0fd57ba
+browser-use-webui-1  | [83:221:0321/230529.233495:ERROR:object_proxy.cc(576)] Failed to call method: org.freedesktop.DBus.Properties.Get: object_path= /org/freedesktop/UPower: org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.UPower was not provided by any .service files
+browser-use-webui-1  | [83:221:0321/230529.236391:ERROR:object_proxy.cc(576)] Failed to call method: org.freedesktop.UPower.GetDisplayDevice: object_path= /org/freedesktop/UPower: org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.UPower was not provided by any .service files
+browser-use-webui-1  | [83:221:0321/230529.236550:ERROR:object_proxy.cc(576)] Failed to call method: org.freedesktop.UPower.EnumerateDevices: object_path= /org/freedesktop/UPower: org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.UPower was not provided by any .service files
+browser-use-webui-1  | [83:83:0321/230530.823002:ERROR:interface_endpoint_client.cc(725)] Message 0 rejected by interface blink.mojom.WidgetHost
+browser-use-webui-1  | 2025-03-21 23:05:32,827 INFO reaped unknown pid 255 (exit status 0)
+browser-use-webui-1  | 2025-03-21 23:05:32,827 INFO reaped unknown pid 255 (exit status 0)
+browser-use-webui-1  | 2025-03-21 23:05:32,827 INFO reaped unknown pid 256 (exit status 0)
+browser-use-webui-1  | 2025-03-21 23:05:32,827 INFO reaped unknown pid 256 (exit status 0)
+browser-use-webui-1  | ALSA lib confmisc.c:855:(parse_card) cannot find card '0'
+browser-use-webui-1  | ALSA lib conf.c:5180:(_snd_config_evaluate) function snd_func_card_inum returned error: No such file or directory
+browser-use-webui-1  | ALSA lib confmisc.c:422:(snd_func_concat) error evaluating strings
+browser-use-webui-1  | ALSA lib conf.c:5180:(_snd_config_evaluate) function snd_func_concat returned error: No such file or directory
+browser-use-webui-1  | ALSA lib confmisc.c:1334:(snd_func_refer) error evaluating name
+browser-use-webui-1  | ALSA lib conf.c:5180:(_snd_config_evaluate) function snd_func_refer returned error: No such file or directory
+browser-use-webui-1  | ALSA lib conf.c:5703:(snd_config_expand) Evaluate error: No such file or directory
+browser-use-webui-1  | ALSA lib pcm.c:2666:(snd_pcm_open_noupdate) Unknown PCM default
+browser-use-webui-1  | [454:454:0321/230539.679412:ERROR:alsa_util.cc(209)] PcmOpen: default,No such file or directory
+browser-use-webui-1  | ALSA lib confmisc.c:855:(parse_card) cannot find card '0'
+browser-use-webui-1  | ALSA lib conf.c:5180:(_snd_config_evaluate) function snd_func_card_inum returned error: No such file or directory
+browser-use-webui-1  | ALSA lib confmisc.c:422:(snd_func_concat) error evaluating strings
+browser-use-webui-1  | ALSA lib conf.c:5180:(_snd_config_evaluate) function snd_func_concat returned error: No such file or directory
+browser-use-webui-1  | ALSA lib confmisc.c:1334:(snd_func_refer) error evaluating name
+browser-use-webui-1  | ALSA lib conf.c:5180:(_snd_config_evaluate) function snd_func_refer returned error: No such file or directory
+browser-use-webui-1  | ALSA lib conf.c:5703:(snd_config_expand) Evaluate error: No such file or directory
+browser-use-webui-1  | ALSA lib pcm.c:2666:(snd_pcm_open_noupdate) Unknown PCM default
+browser-use-webui-1  | [454:454:0321/230539.681372:ERROR:alsa_util.cc(209)] PcmOpen: plug:default,No such file or directory
 browser-use-webui-1  | Created TensorFlow Lite XNNPACK delegate for CPU.
 browser-use-webui-1  | Attempting to use a delegate that only supports static-sized tensors with a graph that has dynamic-sized tensors (tensor#-1 is a dynamic-sized tensor).
-browser-use-webui-1  | ALSA lib confmisc.c:855:(parse_card) cannot find card '0'
-browser-use-webui-1  | ALSA lib conf.c:5180:(_snd_config_evaluate) function snd_func_card_inum returned error: No such file or directory
-browser-use-webui-1  | ALSA lib confmisc.c:422:(snd_func_concat) error evaluating strings
-browser-use-webui-1  | ALSA lib conf.c:5180:(_snd_config_evaluate) function snd_func_concat returned error: No such file or directory
-browser-use-webui-1  | ALSA lib confmisc.c:1334:(snd_func_refer) error evaluating name
-browser-use-webui-1  | ALSA lib conf.c:5180:(_snd_config_evaluate) function snd_func_refer returned error: No such file or directory
-browser-use-webui-1  | ALSA lib conf.c:5703:(snd_config_expand) Evaluate error: No such file or directory
-browser-use-webui-1  | ALSA lib pcm.c:2666:(snd_pcm_open_noupdate) Unknown PCM default
-browser-use-webui-1  | [508:508:0321/211848.480371:ERROR:alsa_util.cc(209)] PcmOpen: default,No such file or directory
-browser-use-webui-1  | ALSA lib confmisc.c:855:(parse_card) cannot find card '0'
-browser-use-webui-1  | ALSA lib conf.c:5180:(_snd_config_evaluate) function snd_func_card_inum returned error: No such file or directory
-browser-use-webui-1  | ALSA lib confmisc.c:422:(snd_func_concat) error evaluating strings
-browser-use-webui-1  | ALSA lib conf.c:5180:(_snd_config_evaluate) function snd_func_concat returned error: No such file or directory
-browser-use-webui-1  | ALSA lib confmisc.c:1334:(snd_func_refer) error evaluating name
-browser-use-webui-1  | ALSA lib conf.c:5180:(_snd_config_evaluate) function snd_func_refer returned error: No such file or directory
-browser-use-webui-1  | ALSA lib conf.c:5703:(snd_config_expand) Evaluate error: No such file or directory
-browser-use-webui-1  | ALSA lib pcm.c:2666:(snd_pcm_open_noupdate) Unknown PCM default
-browser-use-webui-1  | [508:508:0321/211848.482366:ERROR:alsa_util.cc(209)] PcmOpen: plug:default,No such file or directory
-browser-use-webui-1  | INFO     [src.terminal.terminal_manager] Command executed successfully in terminal 3929: root@dcd590af1263:~# ls /
-browser-use-webui-1  | app  boot  etc   lib    media  ms-playwright  proc  run   srv  tmp  var
-browser-use-webui-1  | bin  dev   home  lib64  mnt    opt            root  sbin  sys  usr
+browser-use-webui-1  | error: XDG_RUNTIME_DIR is invalid or not set in the environment.
+browser-use-webui-1  | error: XDG_RUNTIME_DIR is invalid or not set in the environment.
+browser-use-webui-1  | error: XDG_RUNTIME_DIR is invalid or not set in the environment.
+browser-use-webui-1  | error: XDG_RUNTIME_DIR is invalid or not set in the environment.
+browser-use-webui-1  | [83:83:0321/230828.641646:ERROR:service_client.cc(36)] Unexpected on_device_model service disconnect: 
+browser-use-webui-1  | INFO     [backend.main] Terminal WebSocket disconnected
+browser-use-webui-1  | ERROR:    Exception in ASGI application
+browser-use-webui-1  | Traceback (most recent call last):
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 341, in send
+browser-use-webui-1  |     output = self.conn.send(wsproto.events.CloseConnection(code=code, reason=reason))
+browser-use-webui-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/wsproto/__init__.py", line 64, in send
+browser-use-webui-1  |     data += self.connection.send(event)
+browser-use-webui-1  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/wsproto/connection.py", line 107, in send
+browser-use-webui-1  |     raise LocalProtocolError(
+browser-use-webui-1  | wsproto.utilities.LocalProtocolError: Event CloseConnection(code=1000, reason='') cannot be sent in state ConnectionState.CLOSED.
+browser-use-webui-1  | 
+browser-use-webui-1  | The above exception was the direct cause of the following exception:
+browser-use-webui-1  | 
+browser-use-webui-1  | Traceback (most recent call last):
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 85, in send
+browser-use-webui-1  |     await self._send(message)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 39, in sender
+browser-use-webui-1  |     await send(message)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 350, in send
+browser-use-webui-1  |     raise ClientDisconnected from exc
+browser-use-webui-1  | uvicorn.protocols.utils.ClientDisconnected
+browser-use-webui-1  | 
+browser-use-webui-1  | During handling of the above exception, another exception occurred:
+browser-use-webui-1  | 
+browser-use-webui-1  | Traceback (most recent call last):
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 235, in run_asgi
+browser-use-webui-1  |     result = await self.app(self.scope, self.receive, self.send)  # type: ignore[func-returns-value]
+browser-use-webui-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+browser-use-webui-1  |     return await self.app(scope, receive, send)
+browser-use-webui-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/applications.py", line 1054, in __call__
+browser-use-webui-1  |     await super().__call__(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/applications.py", line 112, in __call__
+browser-use-webui-1  |     await self.middleware_stack(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/errors.py", line 152, in __call__
+browser-use-webui-1  |     await self.app(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/cors.py", line 77, in __call__
+browser-use-webui-1  |     await self.app(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+browser-use-webui-1  |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+browser-use-webui-1  |     raise exc
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+browser-use-webui-1  |     await app(scope, receive, sender)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 715, in __call__
+browser-use-webui-1  |     await self.middleware_stack(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 735, in app
+browser-use-webui-1  |     await route.handle(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 362, in handle
+browser-use-webui-1  |     await self.app(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 95, in app
+browser-use-webui-1  |     await wrap_app_handling_exceptions(app, session)(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+browser-use-webui-1  |     raise exc
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+browser-use-webui-1  |     await app(scope, receive, sender)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 93, in app
+browser-use-webui-1  |     await func(session)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/routing.py", line 383, in app
+browser-use-webui-1  |     await dependant.call(**solved_result.values)
+browser-use-webui-1  |   File "/app/backend/main.py", line 211, in terminal_endpoint
+browser-use-webui-1  |     await websocket.close()
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 180, in close
+browser-use-webui-1  |     await self.send({"type": "websocket.close", "code": code, "reason": reason or ""})
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 88, in send
+browser-use-webui-1  |     raise WebSocketDisconnect(code=1006)
+browser-use-webui-1  | starlette.websockets.WebSocketDisconnect
+browser-use-webui-1  | INFO     [backend.main] Terminal WebSocket disconnected
+browser-use-webui-1  | ERROR:    Exception in ASGI application
+browser-use-webui-1  | Traceback (most recent call last):
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 341, in send
+browser-use-webui-1  |     output = self.conn.send(wsproto.events.CloseConnection(code=code, reason=reason))
+browser-use-webui-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/wsproto/__init__.py", line 64, in send
+browser-use-webui-1  |     data += self.connection.send(event)
+browser-use-webui-1  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/wsproto/connection.py", line 107, in send
+browser-use-webui-1  |     raise LocalProtocolError(
+browser-use-webui-1  | wsproto.utilities.LocalProtocolError: Event CloseConnection(code=1000, reason='') cannot be sent in state ConnectionState.CLOSED.
+browser-use-webui-1  | 
+browser-use-webui-1  | The above exception was the direct cause of the following exception:
+browser-use-webui-1  | 
+browser-use-webui-1  | Traceback (most recent call last):
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 85, in send
+browser-use-webui-1  |     await self._send(message)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 39, in sender
+browser-use-webui-1  |     await send(message)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 350, in send
+browser-use-webui-1  |     raise ClientDisconnected from exc
+browser-use-webui-1  | uvicorn.protocols.utils.ClientDisconnected
+browser-use-webui-1  | 
+browser-use-webui-1  | During handling of the above exception, another exception occurred:
+browser-use-webui-1  | 
+browser-use-webui-1  | Traceback (most recent call last):
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 235, in run_asgi
+browser-use-webui-1  |     result = await self.app(self.scope, self.receive, self.send)  # type: ignore[func-returns-value]
+browser-use-webui-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+browser-use-webui-1  |     return await self.app(scope, receive, send)
+browser-use-webui-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/applications.py", line 1054, in __call__
+browser-use-webui-1  |     await super().__call__(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/applications.py", line 112, in __call__
+browser-use-webui-1  |     await self.middleware_stack(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/errors.py", line 152, in __call__
+browser-use-webui-1  |     await self.app(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/cors.py", line 77, in __call__
+browser-use-webui-1  |     await self.app(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+browser-use-webui-1  |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+browser-use-webui-1  |     raise exc
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+browser-use-webui-1  |     await app(scope, receive, sender)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 715, in __call__
+browser-use-webui-1  |     await self.middleware_stack(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 735, in app
+browser-use-webui-1  |     await route.handle(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 362, in handle
+browser-use-webui-1  |     await self.app(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 95, in app
+browser-use-webui-1  |     await wrap_app_handling_exceptions(app, session)(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+browser-use-webui-1  |     raise exc
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+browser-use-webui-1  |     await app(scope, receive, sender)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 93, in app
+browser-use-webui-1  |     await func(session)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/routing.py", line 383, in app
+browser-use-webui-1  |     await dependant.call(**solved_result.values)
+browser-use-webui-1  |   File "/app/backend/main.py", line 211, in terminal_endpoint
+browser-use-webui-1  |     await websocket.close()
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 180, in close
+browser-use-webui-1  |     await self.send({"type": "websocket.close", "code": code, "reason": reason or ""})
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 88, in send
+browser-use-webui-1  |     raise WebSocketDisconnect(code=1006)
+browser-use-webui-1  | starlette.websockets.WebSocketDisconnect
+browser-use-webui-1  | INFO     [backend.main] New WebSocket connection for terminal commands
+browser-use-webui-1  | INFO:     ('172.18.0.1', 55470) - "WebSocket /ws/terminal" [accepted]
+browser-use-webui-1  | INFO:     ('172.18.0.1', 55478) - "WebSocket /ws/chat" [accepted]
+browser-use-webui-1  | INFO     [backend.main] New WebSocket connection attempt
+browser-use-webui-1  | INFO     [backend.main] WebSocket connection accepted
+browser-use-webui-1  | INFO     [backend.main] New WebSocket connection for stop requests
+browser-use-webui-1  | INFO:     ('172.18.0.1', 55488) - "WebSocket /ws/stop" [accepted]
+browser-use-webui-1  | 172.18.0.1 - - [21/Mar/2025 23:11:34] 172.18.0.1: Plain non-SSL (ws://) WebSocket connection
+browser-use-webui-1  | 172.18.0.1 - - [21/Mar/2025 23:11:34] connecting to: localhost:5900
+browser-use-webui-1  | INFO     [backend.main] New WebSocket connection for terminal commands
+browser-use-webui-1  | INFO:     ('172.18.0.1', 55490) - "WebSocket /ws/terminal" [accepted]
+browser-use-webui-1  | INFO     [backend.main] New WebSocket connection attempt
+browser-use-webui-1  | INFO:     ('172.18.0.1', 55506) - "WebSocket /ws/chat" [accepted]
+browser-use-webui-1  | INFO     [backend.main] WebSocket connection accepted
+browser-use-webui-1  | 172.18.0.1 - - [21/Mar/2025 23:11:34] 172.18.0.1: Plain non-SSL (ws://) WebSocket connection
+browser-use-webui-1  | 172.18.0.1 - - [21/Mar/2025 23:11:34] connecting to: localhost:5900
+browser-use-webui-1  | INFO     [backend.main] New WebSocket connection for stop requests
+browser-use-webui-1  | INFO:     ('172.18.0.1', 55514) - "WebSocket /ws/stop" [accepted]
+browser-use-webui-1  | INFO     [backend.main] Terminal WebSocket disconnected
+browser-use-webui-1  | INFO     [backend.main] WebSocket disconnected
+browser-use-webui-1  | ERROR:    Exception in ASGI application
+browser-use-webui-1  | Traceback (most recent call last):
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 341, in send
+browser-use-webui-1  |     output = self.conn.send(wsproto.events.CloseConnection(code=code, reason=reason))
+browser-use-webui-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/wsproto/__init__.py", line 64, in send
+browser-use-webui-1  |     data += self.connection.send(event)
+browser-use-webui-1  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/wsproto/connection.py", line 107, in send
+browser-use-webui-1  |     raise LocalProtocolError(
+browser-use-webui-1  | wsproto.utilities.LocalProtocolError: Event CloseConnection(code=1000, reason='') cannot be sent in state ConnectionState.CLOSED.
+browser-use-webui-1  | 
+browser-use-webui-1  | The above exception was the direct cause of the following exception:
+browser-use-webui-1  | 
+browser-use-webui-1  | Traceback (most recent call last):
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 85, in send
+browser-use-webui-1  |     await self._send(message)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 39, in sender
+browser-use-webui-1  |     await send(message)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 350, in send
+browser-use-webui-1  |     raise ClientDisconnected from exc
+browser-use-webui-1  | uvicorn.protocols.utils.ClientDisconnected
+browser-use-webui-1  | 
+browser-use-webui-1  | During handling of the above exception, another exception occurred:
+browser-use-webui-1  | 
+browser-use-webui-1  | Traceback (most recent call last):
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 235, in run_asgi
+browser-use-webui-1  |     result = await self.app(self.scope, self.receive, self.send)  # type: ignore[func-returns-value]
+browser-use-webui-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+browser-use-webui-1  |     return await self.app(scope, receive, send)
+browser-use-webui-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/applications.py", line 1054, in __call__
+browser-use-webui-1  |     await super().__call__(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/applications.py", line 112, in __call__
+browser-use-webui-1  |     await self.middleware_stack(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/errors.py", line 152, in __call__
+browser-use-webui-1  |     await self.app(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/cors.py", line 77, in __call__
+browser-use-webui-1  |     await self.app(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+browser-use-webui-1  |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+browser-use-webui-1  |     raise exc
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+browser-use-webui-1  |     await app(scope, receive, sender)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 715, in __call__
+browser-use-webui-1  |     await self.middleware_stack(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 735, in app
+browser-use-webui-1  |     await route.handle(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 362, in handle
+browser-use-webui-1  |     await self.app(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 95, in app
+browser-use-webui-1  |     await wrap_app_handling_exceptions(app, session)(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+browser-use-webui-1  |     raise exc
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+browser-use-webui-1  |     await app(scope, receive, sender)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 93, in app
+browser-use-webui-1  |     await func(session)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/routing.py", line 383, in app
+browser-use-webui-1  |     await dependant.call(**solved_result.values)
+browser-use-webui-1  |   File "/app/backend/main.py", line 211, in terminal_endpoint
+browser-use-webui-1  |     await websocket.close()
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 180, in close
+browser-use-webui-1  |     await self.send({"type": "websocket.close", "code": code, "reason": reason or ""})
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 88, in send
+browser-use-webui-1  |     raise WebSocketDisconnect(code=1006)
+browser-use-webui-1  | starlette.websockets.WebSocketDisconnect
+browser-use-webui-1  | INFO     [backend.main] WebSocket disconnected
+browser-use-webui-1  | INFO     [backend.main] New WebSocket connection for terminal commands
+browser-use-webui-1  | INFO:     ('172.18.0.1', 61672) - "WebSocket /ws/terminal" [accepted]
 browser-use-webui-1  | INFO     [backend.main] Terminal command received: {"command":"ls /"}
-browser-use-webui-1  | INFO     [src.terminal.terminal_manager] Terminal 3929 is currently busy with process 472
-browser-use-webui-1  | WARNING  [src.terminal.terminal_manager] Terminal 3929 is busy, creating a new terminal instead.
-browser-use-webui-1  | INFO     [src.terminal.terminal_manager] Generated terminal ID: 3925
-browser-use-webui-1  | INFO     [src.terminal.terminal_manager] Terminal 3925 created with working directory: /root
-browser-use-webui-1  | INFO     [src.terminal.terminal_manager] Command executed successfully in terminal 3925: root@dcd590af1263:~# ls /
+browser-use-webui-1  | INFO     [src.terminal.terminal_manager] Generated terminal ID: 3633
+browser-use-webui-1  | INFO     [src.terminal.terminal_manager] Terminal 3633 created with working directory: /root
+browser-use-webui-1  | INFO     [backend.main] Received Streaming terminal output: {'summary': "root@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~#", 'working_directory': '/root', 'terminal_id': '3633'}
+browser-use-webui-1  | INFO     [backend.main] Sent terminal output to client: {'summary': "root@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~#", 'working_directory': '/root', 'terminal_id': '3633'}
+browser-use-webui-1  | INFO     [backend.main] Sent terminal output to client: {'summary': "root@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~#", 'working_directory': '/root', 'terminal_id': '3633'}
+browser-use-webui-1  | INFO     [backend.main] Received Streaming terminal output: {'summary': "root@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~# ls /\napp  boot  etc   lib    media  ms-playwright  proc  run   srv  tmp  var\nbin  dev   home  lib64  mnt    opt            root  sbin  sys  usr\nroot@dcd590af1263:~#", 'working_directory': '/root', 'terminal_id': '3633'}
+browser-use-webui-1  | INFO     [backend.main] Sent terminal output to client: {'summary': "root@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~# ls /\napp  boot  etc   lib    media  ms-playwright  proc  run   srv  tmp  var\nbin  dev   home  lib64  mnt    opt            root  sbin  sys  usr\nroot@dcd590af1263:~#", 'working_directory': '/root', 'terminal_id': '3633'}
+browser-use-webui-1  | INFO     [backend.main] Sent terminal output to client: {'summary': "root@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~# ls /\napp  boot  etc   lib    media  ms-playwright  proc  run   srv  tmp  var\nbin  dev   home  lib64  mnt    opt            root  sbin  sys  usr\nroot@dcd590af1263:~#", 'working_directory': '/root', 'terminal_id': '3633'}
+browser-use-webui-1  | INFO     [src.terminal.terminal_manager] Command executed successfull in terminal 3633: root@dcd590af1263:~# ls /
 browser-use-webui-1  | app  boot  etc   lib    media  ms-playwright  proc  run   srv  tmp  var
 browser-use-webui-1  | bin  dev   home  lib64  mnt    opt            root  sbin  sys  usr
-browser-use-webui-1  | error: XDG_RUNTIME_DIR is invalid or not set in the environment.
-browser-use-webui-1  | error: XDG_RUNTIME_DIR is invalid or not set in the environment.
-browser-use-webui-1  | error: XDG_RUNTIME_DIR is invalid or not set in the environment.
-browser-use-webui-1  | error: XDG_RUNTIME_DIR is invalid or not set in the environment.
-browser-use-webui-1  | [83:83:0321/212136.306440:ERROR:service_client.cc(36)] Unexpected on_device_model service disconnect: 
+browser-use-webui-1  | INFO     [backend.main] Received Streaming terminal output: {'summary': "root@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~# ls /\napp  boot  etc   lib    media  ms-playwright  proc  run   srv  tmp  var\nbin  dev   home  lib64  mnt    opt            root  sbin  sys  usr\nroot@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~#", 'working_directory': '/root', 'terminal_id': '3633'}
+browser-use-webui-1  | INFO     [backend.main] Sent terminal output to client: {'summary': "root@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~# ls /\napp  boot  etc   lib    media  ms-playwright  proc  run   srv  tmp  var\nbin  dev   home  lib64  mnt    opt            root  sbin  sys  usr\nroot@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~#", 'working_directory': '/root', 'terminal_id': '3633'}
+browser-use-webui-1  | INFO     [backend.main] Sent terminal output to client: {'summary': "root@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~# ls /\napp  boot  etc   lib    media  ms-playwright  proc  run   srv  tmp  var\nbin  dev   home  lib64  mnt    opt            root  sbin  sys  usr\nroot@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~#", 'working_directory': '/root', 'terminal_id': '3633'}
+browser-use-webui-1  | INFO     [backend.main] Client message received: {"task":"whoami"}
+browser-use-webui-1  | INFO     [backend.agent_runner] Starting agent execution: Streaming AgentHistory
+browser-use-webui-1  | INFO     [agent] 🚀 Starting task: whoami
+browser-use-webui-1  | INFO     [src.agent.custom_agent] 
+browser-use-webui-1  | 📍 Step 1
+browser-use-webui-1  | INFO     [src.agent.custom_agent] Raw Model Responses:
+browser-use-webui-1  | INFO     [src.agent.custom_agent] {"current_state": {"prev_action_evaluation": "Unknown", "important_contents": "", "task_progress": "", "future_plans": "1. Execute `whoami` command in the terminal.", "thought": "The task requires executing the \"whoami\" command, which is a terminal command. Thus, I will execute the command using `execute_terminal_command` action.", "summary": "Execute the \"whoami\" command in the terminal to get the current user."}, "action": [{"execute_terminal_command": {"command": "whoami"}}]}
+browser-use-webui-1  | INFO     [src.agent.custom_agent] Structured response before parsing:
+browser-use-webui-1  | INFO     [src.agent.custom_agent] {
+browser-use-webui-1  |   "current_state": {
+browser-use-webui-1  |     "prev_action_evaluation": "Unknown",
+browser-use-webui-1  |     "important_contents": "",
+browser-use-webui-1  |     "task_progress": "",
+browser-use-webui-1  |     "future_plans": "1. Execute `whoami` command in the terminal.",
+browser-use-webui-1  |     "thought": "The task requires executing the \"whoami\" command, which is a terminal command. Thus, I will execute the command using `execute_terminal_command` action.",
+browser-use-webui-1  |     "summary": "Execute the \"whoami\" command in the terminal to get the current user."
+browser-use-webui-1  |   },
+browser-use-webui-1  |   "action": [
+browser-use-webui-1  |     {
+browser-use-webui-1  |       "execute_terminal_command": {
+browser-use-webui-1  |         "command": "whoami"
+browser-use-webui-1  |       }
+browser-use-webui-1  |     }
+browser-use-webui-1  |   ]
+browser-use-webui-1  | }
+browser-use-webui-1  | INFO     [src.agent.custom_agent] 🤷 Eval: Unknown
+browser-use-webui-1  | INFO     [src.agent.custom_agent] 🧠 New Memory: 
+browser-use-webui-1  | INFO     [src.agent.custom_agent] ⏳ Task Progress: 
+browser-use-webui-1  | 
+browser-use-webui-1  | INFO     [src.agent.custom_agent] 📋 Future Plans: 
+browser-use-webui-1  | 1. Execute `whoami` command in the terminal.
+browser-use-webui-1  | INFO     [src.agent.custom_agent] 🤔 Thought: The task requires executing the "whoami" command, which is a terminal command. Thus, I will execute the command using `execute_terminal_command` action.
+browser-use-webui-1  | INFO     [src.agent.custom_agent] 🎯 Summary: Execute the "whoami" command in the terminal to get the current user.
+browser-use-webui-1  | INFO     [src.agent.custom_agent] 🛠️  Action 1/1: {"execute_terminal_command":{"command":"whoami"}}
+browser-use-webui-1  | INFO     [backend.main] Received Streaming terminal output: {'summary': "root@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~# ls /\napp  boot  etc   lib    media  ms-playwright  proc  run   srv  tmp  var\nbin  dev   home  lib64  mnt    opt            root  sbin  sys  usr\nroot@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~# whoami\nroot\nroot@dcd590af1263:~#", 'working_directory': '/root', 'terminal_id': '3633'}
+browser-use-webui-1  | INFO     [backend.main] Sent terminal output to client: {'summary': "root@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~# ls /\napp  boot  etc   lib    media  ms-playwright  proc  run   srv  tmp  var\nbin  dev   home  lib64  mnt    opt            root  sbin  sys  usr\nroot@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~# whoami\nroot\nroot@dcd590af1263:~#", 'working_directory': '/root', 'terminal_id': '3633'}
+browser-use-webui-1  | INFO     [backend.main] Sent terminal output to client: {'summary': "root@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~# ls /\napp  boot  etc   lib    media  ms-playwright  proc  run   srv  tmp  var\nbin  dev   home  lib64  mnt    opt            root  sbin  sys  usr\nroot@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~# whoami\nroot\nroot@dcd590af1263:~#", 'working_directory': '/root', 'terminal_id': '3633'}
+browser-use-webui-1  | INFO     [src.terminal.terminal_manager] Command executed successfull in terminal 3633: root@dcd590af1263:~# whoami
+browser-use-webui-1  | root
+browser-use-webui-1  | INFO     [backend.main] Received Streaming terminal output: {'summary': "root@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~# ls /\napp  boot  etc   lib    media  ms-playwright  proc  run   srv  tmp  var\nbin  dev   home  lib64  mnt    opt            root  sbin  sys  usr\nroot@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~# whoami\nroot\nroot@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~#", 'working_directory': '/root', 'terminal_id': '3633'}
+browser-use-webui-1  | INFO     [backend.main] Sent terminal output to client: {'summary': "root@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~# ls /\napp  boot  etc   lib    media  ms-playwright  proc  run   srv  tmp  var\nbin  dev   home  lib64  mnt    opt            root  sbin  sys  usr\nroot@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~# whoami\nroot\nroot@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~#", 'working_directory': '/root', 'terminal_id': '3633'}
+browser-use-webui-1  | INFO     [backend.main] Sent terminal output to client: {'summary': "root@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~# ls /\napp  boot  etc   lib    media  ms-playwright  proc  run   srv  tmp  var\nbin  dev   home  lib64  mnt    opt            root  sbin  sys  usr\nroot@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~# printf '\\033[2J\\033[H'\nroot@dcd590af1263:~# whoami\nroot\nroot@dcd590af1263:~# pwd\n/root\nroot@dcd590af1263:~#", 'working_directory': '/root', 'terminal_id': '3633'}
+browser-use-webui-1  | INFO     [src.controller.custom_controller] Terminal action result: is_done=False extracted_content='Directory:/root\n\nOutput:\nroot@dcd590af1263:~# whoami\nroot' error=None include_in_memory=True
+browser-use-webui-1  | INFO     [src.agent.custom_agent] Terminal action executed but skipping yield to agent history
+browser-use-webui-1  | INFO     [src.agent.custom_agent] 
+browser-use-webui-1  | 📍 Step 2
+browser-use-webui-1  | INFO     [src.agent.custom_agent] Raw Model Responses:
+browser-use-webui-1  | INFO     [src.agent.custom_agent] {"current_state": {"prev_action_evaluation": "Success", "important_contents": "root", "task_progress": "1. Executed the `whoami` command.", "future_plans": "", "thought": "The `whoami` command was successfully executed, and the output is \"root\". The task is completed.", "summary": "The task is completed."}, "action": [{"done": {"text": "root"}}]}
+browser-use-webui-1  | INFO     [src.agent.custom_agent] Structured response before parsing:
+browser-use-webui-1  | INFO     [src.agent.custom_agent] {
+browser-use-webui-1  |   "current_state": {
+browser-use-webui-1  |     "prev_action_evaluation": "Success",
+browser-use-webui-1  |     "important_contents": "root",
+browser-use-webui-1  |     "task_progress": "1. Executed the `whoami` command.",
+browser-use-webui-1  |     "future_plans": "",
+browser-use-webui-1  |     "thought": "The `whoami` command was successfully executed, and the output is \"root\". The task is completed.",
+browser-use-webui-1  |     "summary": "The task is completed."
+browser-use-webui-1  |   },
+browser-use-webui-1  |   "action": [
+browser-use-webui-1  |     {
+browser-use-webui-1  |       "done": {
+browser-use-webui-1  |         "text": "root"
+browser-use-webui-1  |       }
+browser-use-webui-1  |     }
+browser-use-webui-1  |   ]
+browser-use-webui-1  | }
+browser-use-webui-1  | INFO     [src.agent.custom_agent] ✅ Eval: Success
+browser-use-webui-1  | INFO     [src.agent.custom_agent] 🧠 New Memory: root
+browser-use-webui-1  | INFO     [src.agent.custom_agent] ⏳ Task Progress: 
+browser-use-webui-1  | 1. Executed the `whoami` command.
+browser-use-webui-1  | INFO     [src.agent.custom_agent] 📋 Future Plans: 
+browser-use-webui-1  | 
+browser-use-webui-1  | INFO     [src.agent.custom_agent] 🤔 Thought: The `whoami` command was successfully executed, and the output is "root". The task is completed.
+browser-use-webui-1  | INFO     [src.agent.custom_agent] 🎯 Summary: The task is completed.
+browser-use-webui-1  | INFO     [src.agent.custom_agent] 🛠️  Action 1/1: {"done":{"text":"root"}}
+browser-use-webui-1  | INFO     [backend.agent_runner] Terminal output: root
+browser-use-webui-1  | INFO     [backend.agent_runner] Formatted update being sent to UI
+browser-use-webui-1  | INFO     [src.agent.custom_agent] ✅ Task completed successfully
+browser-use-webui-1  | INFO     [backend.agent_runner] Formatted update being sent to UI
+browser-use-webui-1  | WARNING:  StatReload detected changes in 'src/terminal/terminal_manager.py'. Reloading...
+browser-use-webui-1  | INFO:     Shutting down
+browser-use-webui-1  | INFO     [backend.main] Terminal WebSocket disconnected
+browser-use-webui-1  | ERROR:    Exception in ASGI application
+browser-use-webui-1  | Traceback (most recent call last):
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 341, in send
+browser-use-webui-1  |     output = self.conn.send(wsproto.events.CloseConnection(code=code, reason=reason))
+browser-use-webui-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/wsproto/__init__.py", line 64, in send
+browser-use-webui-1  |     data += self.connection.send(event)
+browser-use-webui-1  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/wsproto/connection.py", line 107, in send
+browser-use-webui-1  |     raise LocalProtocolError(
+browser-use-webui-1  | wsproto.utilities.LocalProtocolError: Event CloseConnection(code=1000, reason='') cannot be sent in state ConnectionState.LOCAL_CLOSING.
+browser-use-webui-1  | 
+browser-use-webui-1  | The above exception was the direct cause of the following exception:
+browser-use-webui-1  | 
+browser-use-webui-1  | Traceback (most recent call last):
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 85, in send
+browser-use-webui-1  |     await self._send(message)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 39, in sender
+browser-use-webui-1  |     await send(message)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 350, in send
+browser-use-webui-1  |     raise ClientDisconnected from exc
+browser-use-webui-1  | uvicorn.protocols.utils.ClientDisconnected
+browser-use-webui-1  | 
+browser-use-webui-1  | During handling of the above exception, another exception occurred:
+browser-use-webui-1  | 
+browser-use-webui-1  | Traceback (most recent call last):
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 235, in run_asgi
+browser-use-webui-1  |     result = await self.app(self.scope, self.receive, self.send)  # type: ignore[func-returns-value]
+browser-use-webui-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+browser-use-webui-1  |     return await self.app(scope, receive, send)
+browser-use-webui-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/applications.py", line 1054, in __call__
+browser-use-webui-1  |     await super().__call__(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/applications.py", line 112, in __call__
+browser-use-webui-1  |     await self.middleware_stack(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/errors.py", line 152, in __call__
+browser-use-webui-1  |     await self.app(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/cors.py", line 77, in __call__
+browser-use-webui-1  |     await self.app(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+browser-use-webui-1  |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+browser-use-webui-1  |     raise exc
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+browser-use-webui-1  |     await app(scope, receive, sender)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 715, in __call__
+browser-use-webui-1  |     await self.middleware_stack(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 735, in app
+browser-use-webui-1  |     await route.handle(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 362, in handle
+browser-use-webui-1  |     await self.app(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 95, in app
+browser-use-webui-1  |     await wrap_app_handling_exceptions(app, session)(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+browser-use-webui-1  |     raise exc
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+browser-use-webui-1  |     await app(scope, receive, sender)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 93, in app
+browser-use-webui-1  |     await func(session)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/routing.py", line 383, in app
+browser-use-webui-1  |     await dependant.call(**solved_result.values)
+browser-use-webui-1  |   File "/app/backend/main.py", line 211, in terminal_endpoint
+browser-use-webui-1  |     await websocket.close()
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 180, in close
+browser-use-webui-1  |     await self.send({"type": "websocket.close", "code": code, "reason": reason or ""})
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 88, in send
+browser-use-webui-1  |     raise WebSocketDisconnect(code=1006)
+browser-use-webui-1  | starlette.websockets.WebSocketDisconnect
+browser-use-webui-1  | INFO     [backend.main] WebSocket disconnected
+browser-use-webui-1  | INFO     [backend.main] WebSocket disconnected
+browser-use-webui-1  | INFO     [backend.main] Terminal WebSocket disconnected
+browser-use-webui-1  | ERROR:    Exception in ASGI application
+browser-use-webui-1  | Traceback (most recent call last):
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 341, in send
+browser-use-webui-1  |     output = self.conn.send(wsproto.events.CloseConnection(code=code, reason=reason))
+browser-use-webui-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/wsproto/__init__.py", line 64, in send
+browser-use-webui-1  |     data += self.connection.send(event)
+browser-use-webui-1  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/wsproto/connection.py", line 107, in send
+browser-use-webui-1  |     raise LocalProtocolError(
+browser-use-webui-1  | wsproto.utilities.LocalProtocolError: Event CloseConnection(code=1000, reason='') cannot be sent in state ConnectionState.LOCAL_CLOSING.
+browser-use-webui-1  | 
+browser-use-webui-1  | The above exception was the direct cause of the following exception:
+browser-use-webui-1  | 
+browser-use-webui-1  | Traceback (most recent call last):
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 85, in send
+browser-use-webui-1  |     await self._send(message)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 39, in sender
+browser-use-webui-1  |     await send(message)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 350, in send
+browser-use-webui-1  |     raise ClientDisconnected from exc
+browser-use-webui-1  | uvicorn.protocols.utils.ClientDisconnected
+browser-use-webui-1  | 
+browser-use-webui-1  | During handling of the above exception, another exception occurred:
+browser-use-webui-1  | 
+browser-use-webui-1  | Traceback (most recent call last):
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/protocols/websockets/wsproto_impl.py", line 235, in run_asgi
+browser-use-webui-1  |     result = await self.app(self.scope, self.receive, self.send)  # type: ignore[func-returns-value]
+browser-use-webui-1  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+browser-use-webui-1  |     return await self.app(scope, receive, send)
+browser-use-webui-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/applications.py", line 1054, in __call__
+browser-use-webui-1  |     await super().__call__(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/applications.py", line 112, in __call__
+browser-use-webui-1  |     await self.middleware_stack(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/errors.py", line 152, in __call__
+browser-use-webui-1  |     await self.app(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/cors.py", line 77, in __call__
+browser-use-webui-1  |     await self.app(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+browser-use-webui-1  |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+browser-use-webui-1  |     raise exc
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+browser-use-webui-1  |     await app(scope, receive, sender)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 715, in __call__
+browser-use-webui-1  |     await self.middleware_stack(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 735, in app
+browser-use-webui-1  |     await route.handle(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 362, in handle
+browser-use-webui-1  |     await self.app(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 95, in app
+browser-use-webui-1  |     await wrap_app_handling_exceptions(app, session)(scope, receive, send)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+browser-use-webui-1  |     raise exc
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+browser-use-webui-1  |     await app(scope, receive, sender)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/routing.py", line 93, in app
+browser-use-webui-1  |     await func(session)
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/fastapi/routing.py", line 383, in app
+browser-use-webui-1  |     await dependant.call(**solved_result.values)
+browser-use-webui-1  |   File "/app/backend/main.py", line 211, in terminal_endpoint
+browser-use-webui-1  |     await websocket.close()
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 180, in close
+browser-use-webui-1  |     await self.send({"type": "websocket.close", "code": code, "reason": reason or ""})
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/starlette/websockets.py", line 88, in send
+browser-use-webui-1  |     raise WebSocketDisconnect(code=1006)
+browser-use-webui-1  | starlette.websockets.WebSocketDisconnect
+browser-use-webui-1  | INFO:     Waiting for application shutdown.
+browser-use-webui-1  | INFO     [backend.main] Terminal stream task cancelled
+browser-use-webui-1  | INFO:     Application shutdown complete.
+browser-use-webui-1  | INFO:     Finished server process [43]
+browser-use-webui-1  | INFO     [browser_use] BrowserUse logging setup complete with level info
+browser-use-webui-1  | 2025-03-22 00:35:43,616 INFO reaped unknown pid 21851 (exit status 0)
+browser-use-webui-1  | 2025-03-22 00:35:43,616 INFO reaped unknown pid 21851 (exit status 0)
+browser-use-webui-1  | 2025-03-22 00:35:43,617 INFO reaped unknown pid 21856 (exit status 0)
+browser-use-webui-1  | 2025-03-22 00:35:43,617 INFO reaped unknown pid 21856 (exit status 0)
+browser-use-webui-1  | 2025-03-22 00:35:43,617 INFO reaped unknown pid 21833 (exit status 0)
+browser-use-webui-1  | 2025-03-22 00:35:43,617 INFO reaped unknown pid 21833 (exit status 0)
+browser-use-webui-1  | 2025-03-22 00:35:43,617 INFO reaped unknown pid 21853 (exit status 0)
+browser-use-webui-1  | 2025-03-22 00:35:43,617 INFO reaped unknown pid 21853 (exit status 0)
+browser-use-webui-1  | 2025-03-22 00:35:43,617 INFO reaped unknown pid 21854 (exit status 0)
+browser-use-webui-1  | 2025-03-22 00:35:43,617 INFO reaped unknown pid 21854 (exit status 0)
+browser-use-webui-1  | INFO:     Started server process [22857]
+browser-use-webui-1  | INFO:     Waiting for application startup.
+browser-use-webui-1  | INFO     [src.terminal.terminal_manager] TerminalManager instance created
+browser-use-webui-1  | INFO     [backend.main] Calling stream_terminal_to_all_clients
+browser-use-webui-1  | INFO     [backend.agent_runner] Browser initialized on startup.
+browser-use-webui-1  | INFO     [backend.main] Browser pre-initialized at server startup.
+browser-use-webui-1  | INFO:     Application startup complete.
+browser-use-webui-1  | INFO     [backend.main] New WebSocket connection for terminal commands
+browser-use-webui-1  | INFO:     ('172.18.0.1', 61818) - "WebSocket /ws/terminal" [accepted]
+browser-use-webui-1  | INFO:     ('172.18.0.1', 61824) - "WebSocket /ws/terminal" [accepted]
+browser-use-webui-1  | INFO     [backend.main] New WebSocket connection for terminal commands

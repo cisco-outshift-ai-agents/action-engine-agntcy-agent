@@ -6,6 +6,7 @@ import time
 import logging
 import asyncio
 from typing import AsyncGenerator, Dict, Any, Optional, Tuple
+import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,14 @@ class TerminalManager:
             cls._instance.current_terminal_id = None
             logger.info("TerminalManager instance created")
         return cls._instance
+
+    def __init__(self):
+        self.terminals = {}
+        self.current_terminal_id = None
+        self.last_seen_outputs = {}
+
+    def __get_hash(self, text: str) -> str:
+        return hashlib.md5(text.encode()).hexdigest()
 
     async def create_terminal(self) -> str:
         """Creates a new terminal session using tmux and returns its ID"""
@@ -136,6 +145,8 @@ class TerminalManager:
             "C-m",
         )
 
+        await asyncio.sleep(0.5)
+
         working_dir = os.path.expanduser("~")
         # Wait for output
         for _ in range(10):
@@ -154,187 +165,120 @@ class TerminalManager:
             output = stdout.decode()
 
             if start_marker in output and end_marker in output:
-                # Extract the working directory
-                output_lines = (
-                    output.split(start_marker, 1)[1]
-                    .split(end_marker, 1)[0]
-                    .strip()
-                    .split("\n")
-                )
-                if len(output_lines) >= 2:
-                    working_dir = output_lines[1].strip()
-                    # Remove prompt from the working directory output
-                    if "#" in working_dir and (
-                        "echo" in working_dir or "pwd" in working_dir
-                    ):
-                        try:
-                            if len(output_lines) >= 3:
-                                working_dir = output_lines[2].strip()
-                        except:
-                            pass
-                break
-        return working_dir
+                between = output.split(start_marker, 1)[1].split(end_marker, 1)[0]
+                lines = [line.strip() for line in between.splitlines() if line.strip()]
+
+                valid = [
+                    line
+                    for line in lines
+                    if not any(
+                        substr in line
+                        for substr in ("echo", "pwd", "print", start_marker, end_marker)
+                    )
+                    and not line.startswith("PWD_")
+                    and not line.startswith("END_")
+                    and "/" in line
+                ]
+                if valid:
+                    return valid[-1]
+
+        return "/root"  # Fallback to root if no valid directory found
 
     async def execute_command(
         self, terminal_id: Optional[str], command: str
     ) -> Tuple[str, bool]:
         """Execute a command in the specified terminal and return the output"""
         "Returns a tuple of (output, is_success)"
-        try:
-            tmux_socket_path = os.environ.get(
-                "TMUX_SOCKET_PATH", "/root/.tmux/tmux-server"
-            )
-            session_name = None
+        tmux_socket_path = os.environ.get("TMUX_SOCKET_PATH", "/root/.tmux/tmux-server")
+        if not terminal_id or terminal_id not in self.terminals:
+            terminal_id = await self.create_terminal()
 
-            if terminal_id is None or terminal_id not in self.terminals:
-                logger.warning(
-                    f"Terminal {terminal_id} does not exist, creating a new one."
-                )
-                try:
-                    terminal_id = await self.create_terminal()
-                    session_name = self.terminals[terminal_id]["session_name"]
-                except Exception as e:
-                    error_msg = f"Error creating terminal: {str(e)}"
-                    logger.error(error_msg)
-                    return error_msg, False
-            else:
-                session_name = self.terminals[terminal_id]["session_name"]
+        session_name = self.terminals[terminal_id]["session_name"]
 
-            # Check if the terminal is busy
-            if session_name:
-                is_busy = await self._is_terminal_busy(session_name, tmux_socket_path)
-                if is_busy:
-                    logger.warning(
-                        f"Terminal {terminal_id} is busy, creating a new terminal instead."
-                    )
-                    terminal_id = await self.create_terminal()
-                    session_name = self.terminals[terminal_id]["session_name"]
-            else:
-                logger.error(
-                    f"Terminal {terminal_id} does not have a valid session name."
-                )
-                return "Terminal does not have a valid session name", False
+        # Use markers to identify the start and end of command output
+        start_marker = f"===START_MARKER_{random.randint(10000, 99999)}==="
+        end_marker = f"===END_MARKER_{random.randint(10000, 99999)}==="
 
-            # Use markers to identify the start and end of command output
-            start_marker = f"===START_MARKER_{random.randint(10000, 99999)}==="
-            end_marker = f"===END_MARKER_{random.randint(10000, 99999)}==="
+        # Clear the terminal before executing the command
+        await asyncio.create_subprocess_exec(
+            "tmux",
+            "-S",
+            tmux_socket_path,
+            "send-keys",
+            "-t",
+            session_name,
+            "printf '\\033[2J\\033[H'",
+            "C-m",
+        )
+        await asyncio.sleep(0.2)
 
-            # Clear the terminal before executing the command
-            await asyncio.create_subprocess_exec(
-                "tmux",
-                "-S",
-                tmux_socket_path,
-                "send-keys",
-                "-t",
-                session_name,
-                "printf '\\033[2J\\033[H'",
-                "C-m",
-            )
-            await asyncio.sleep(0.2)
+        await asyncio.create_subprocess_exec(
+            "tmux",
+            "-S",
+            tmux_socket_path,
+            "send-keys",
+            "-t",
+            session_name,
+            f"echo {start_marker}",
+            "C-m",
+        )
+        await asyncio.sleep(0.1)
+        await asyncio.create_subprocess_exec(
+            "tmux",
+            "-S",
+            tmux_socket_path,
+            "send-keys",
+            "-t",
+            session_name,
+            command,
+            "C-m",
+        )
+        await asyncio.sleep(0.5)
 
-            await asyncio.create_subprocess_exec(
-                "tmux",
-                "-S",
-                tmux_socket_path,
-                "send-keys",
-                "-t",
-                session_name,
-                f"echo {start_marker}",
-                "C-m",
-            )
-            await asyncio.sleep(0.1)
-            await asyncio.create_subprocess_exec(
-                "tmux",
-                "-S",
-                tmux_socket_path,
-                "send-keys",
-                "-t",
-                session_name,
-                command,
-                "C-m",
-            )
+        await asyncio.create_subprocess_exec(
+            "tmux",
+            "-S",
+            tmux_socket_path,
+            "send-keys",
+            "-t",
+            session_name,
+            f"echo {end_marker}",
+            "C-m",
+        )
+
+        # Poll for output until end marker is found - up to 10 seconds
+        for _ in range(20):
             await asyncio.sleep(0.5)
-
-            await asyncio.create_subprocess_exec(
+            capture_proc = await asyncio.create_subprocess_exec(
                 "tmux",
                 "-S",
                 tmux_socket_path,
-                "send-keys",
+                "capture-pane",
+                "-p",
                 "-t",
                 session_name,
-                f"echo {end_marker}",
-                "C-m",
+                "-S",
+                "-5000",
+                stdout=asyncio.subprocess.PIPE,
             )
+            stdout, _ = await capture_proc.communicate()
+            output = stdout.decode() if stdout else ""
 
-            # Poll for output until end marker is found - up to 10 seconds
-            for _ in range(20):
-                await asyncio.sleep(0.5)
-                capture_proc = await asyncio.create_subprocess_exec(
-                    "tmux",
-                    "-S",
-                    tmux_socket_path,
-                    "capture-pane",
-                    "-p",
-                    "-t",
-                    session_name,
-                    "-S",
-                    "-5000",
-                    stdout=asyncio.subprocess.PIPE,
+            if start_marker in output and end_marker in output:
+                result = self.get_terminal_output(output, start_marker, end_marker)
+                self.terminals[terminal_id]["output"] = result
+                logger.info(
+                    f"Command executed successfull in terminal {terminal_id}: {result}"
                 )
-                stdout, _ = await capture_proc.communicate()
-                output = stdout.decode() if stdout else ""
-
-                if end_marker in output:
-                    break
-            else:
-                logger.warning(f"Command execution timed out: {command}")
-                return "Command execution timed out", False
-
-            # Extract the command output between markers using get_terminal_output
-            final_output = self.get_terminal_output(output, start_marker, end_marker)
-            logger.info(
-                f"Command executed successfully in terminal {terminal_id}: {final_output}"
-            )
-
-            if terminal_id in self.terminals:
-                self.terminals[terminal_id]["output"] = final_output
-
                 new_working_dir = await self._get_working_directory(
                     terminal_id, tmux_socket_path
                 )
-
-                # Update the working directory
                 self.terminals[terminal_id]["working_directory"] = new_working_dir
                 self.current_terminal_id = terminal_id
-
+                return result, True
             else:
-                logger.warning(
-                    f"Terminal {terminal_id} not found in terminals dictionary."
-                )
-
-                # Attempt recovery by adding it to the dictionary
-                self.terminals[terminal_id] = {
-                    "session_name": terminal_id,
-                    "output": final_output,
-                    "working_directory": await self._get_working_directory(
-                        terminal_id, tmux_socket_path
-                    ),
-                }
-                self.current_terminal_id = terminal_id
-
-            return final_output, True
-
-        except Exception as e:
-            error_msg = f"Error executing command: {str(e)}"
-            logger.error(error_msg)
-
-            working_dir = "~"
-            if terminal_id in self.terminals:
-                working_dir = self.terminals[terminal_id].get("working_directory", "~")
-            return (
-                f"Error executing command: {error_msg}\nCurrent directory: {working_dir}",
-                False,
-            )
+                logger.warning(f"Command execution timed out: {command}")
+                return "Command execution timed out", False
 
     def get_terminal_output(
         self, output: str, start_marker: str, end_marker: str
@@ -569,24 +513,18 @@ class TerminalManager:
         lines = raw_output.splitlines()
         cleaned_lines = []
 
-        prompt_line_found = False
+        skip_markers = ["START_MARKER", "END_MARKER", "PWD_", "END_", "printf", "echo"]
+
         for line in lines:
-            # Skip empty or echo lines
-            if not line.strip() or line.strip().endswith("echo"):
+            if not line.strip():
                 continue
-
-            if not prompt_line_found and "root@" in line and "#" in line:
-                prompt_parts = line.split("#", 1)
-                if len(prompt_parts) > 1 and prompt_parts[1].strip():
-                    cleaned_lines.append(line)
-                    prompt_line_found = True
-                    continue
-
-            if line.strip().startswith("root@") and "#" in line:
-                after_hash = line.split("#", 1)[1].strip()
-                if not after_hash:
-                    continue
-
+            if (
+                any(marker in line for marker in skip_markers)
+                or line.strip().endswith("echo")
+                or line.strip().startswith("pwd")
+                or line.strip().startswith("print")
+            ):
+                continue
             cleaned_lines.append(line)
 
         return "\n".join(cleaned_lines).strip()
@@ -597,11 +535,9 @@ class TerminalManager:
         """
         Continuously polls all tmux terminals and yields new output per terminal.
         """
-        logger.info("Started global terminal stream monitor")
-        last_seen = {}
 
         while True:
-            for terminal_id in self.terminals:
+            for terminal_id, terminal in self.terminals.items():
                 tmux_socket_path = os.environ.get(
                     "TMUX_SOCKET_PATH", "/root/.tmux/tmux-server"
                 )
@@ -621,17 +557,15 @@ class TerminalManager:
                 stdout, _ = await capture_proc.communicate()
                 raw_output = stdout.decode() if stdout else ""
                 cleaned_output = self._clean_tmux_output(raw_output)
-                working_directory = self.terminals[terminal_id].get(
-                    "working_directory", ""
-                )
+                output_hash = self.__get_hash(cleaned_output)
+                if self.last_seen_outputs.get(terminal_id) == output_hash:
+                    continue
+                self.last_seen_outputs[terminal_id] = output_hash
 
-                if cleaned_output and cleaned_output != last_seen.get(terminal_id, ""):
-                    last_seen[terminal_id] = cleaned_output
-
-                    yield {
-                        "summary": cleaned_output,
-                        "working_directory": working_directory,
-                        "terminal_id": terminal_id,
-                    }
+                yield {
+                    "summary": cleaned_output,
+                    "working_directory": terminal.get("working_directory", ""),
+                    "terminal_id": terminal_id,
+                }
 
             await asyncio.sleep(0.5)
