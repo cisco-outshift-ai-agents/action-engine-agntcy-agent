@@ -17,6 +17,8 @@ class TerminalManager:
     Implements a proper singleton pattern for global access.
     """
 
+    TMUX_CAPTURE_OFFSET = 3000  # Number of lines to capture from the terminal
+
     # Singleton instance storage
     _instance = None
 
@@ -42,9 +44,8 @@ class TerminalManager:
         self.terminals = {}
         self.current_terminal_id = None
         self.last_seen_outputs = {}
-
-    def __get_hash(self, text: str) -> str:
-        return hashlib.md5(text.encode()).hexdigest()
+        self.command_counter = {}
+        self.last_seen_marker_id = {}
 
     async def create_terminal(self) -> str:
         """Creates a new terminal session using tmux and returns its ID"""
@@ -147,7 +148,6 @@ class TerminalManager:
 
         await asyncio.sleep(0.5)
 
-        working_dir = os.path.expanduser("~")
         # Wait for output
         for _ in range(10):
             await asyncio.sleep(0.2)
@@ -182,7 +182,7 @@ class TerminalManager:
                 if valid:
                     return valid[-1]
 
-        return "/root"  # Fallback to root if no valid directory found
+        return "/root"
 
     async def execute_command(
         self, terminal_id: Optional[str], command: str
@@ -193,11 +193,17 @@ class TerminalManager:
         if not terminal_id or terminal_id not in self.terminals:
             terminal_id = await self.create_terminal()
 
+        self.command_counter.setdefault(terminal_id, 1)
+        self.last_seen_marker_id.setdefault(terminal_id, 0)
+
         session_name = self.terminals[terminal_id]["session_name"]
 
         # Use markers to identify the start and end of command output
-        start_marker = f"===START_MARKER_{random.randint(10000, 99999)}==="
-        end_marker = f"===END_MARKER_{random.randint(10000, 99999)}==="
+        marker_id = self.command_counter.get(terminal_id, 1)
+        self.command_counter[terminal_id] = marker_id + 1
+
+        start_marker = f"===START_MARKER_FOR_COMMAND{marker_id}==="
+        end_marker = f"===END_MARKER_FOR_COMMAND{marker_id}==="
 
         # Clear the terminal before executing the command
         await asyncio.create_subprocess_exec(
@@ -210,8 +216,9 @@ class TerminalManager:
             "printf '\\033[2J\\033[H'",
             "C-m",
         )
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.1)
 
+        # Send commands with markers to identify output
         await asyncio.create_subprocess_exec(
             "tmux",
             "-S",
@@ -219,10 +226,10 @@ class TerminalManager:
             "send-keys",
             "-t",
             session_name,
-            f"echo {start_marker}",
+            f"echo {start_marker} && echo",
             "C-m",
         )
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.2)
         await asyncio.create_subprocess_exec(
             "tmux",
             "-S",
@@ -233,7 +240,7 @@ class TerminalManager:
             command,
             "C-m",
         )
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.1)
 
         await asyncio.create_subprocess_exec(
             "tmux",
@@ -258,7 +265,7 @@ class TerminalManager:
                 "-t",
                 session_name,
                 "-S",
-                "-5000",
+                f"-{self.TMUX_CAPTURE_OFFSET}",
                 stdout=asyncio.subprocess.PIPE,
             )
             stdout, _ = await capture_proc.communicate()
@@ -506,30 +513,7 @@ class TerminalManager:
             logger.error(f"Error checking if terminal {session_name} is busy: {str(e)}")
             return False
 
-    def _clean_tmux_output(self, raw_output: str) -> str:
-        """
-        Cleans raw tmux output: strips markers, echo artifacts, empty prompts, etc.
-        """
-        lines = raw_output.splitlines()
-        cleaned_lines = []
-
-        skip_markers = ["START_MARKER", "END_MARKER", "PWD_", "END_", "printf", "echo"]
-
-        for line in lines:
-            if not line.strip():
-                continue
-            if (
-                any(marker in line for marker in skip_markers)
-                or line.strip().endswith("echo")
-                or line.strip().startswith("pwd")
-                or line.strip().startswith("print")
-            ):
-                continue
-            cleaned_lines.append(line)
-
-        return "\n".join(cleaned_lines).strip()
-
-    async def stream_terminal_updates_forever(
+    async def continuous_terminal_runner(
         self,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
@@ -551,21 +535,55 @@ class TerminalManager:
                     "-t",
                     terminal_id,
                     "-S",
-                    "-5000",
+                    f"-{self.TMUX_CAPTURE_OFFSET}",
                     stdout=asyncio.subprocess.PIPE,
                 )
                 stdout, _ = await capture_proc.communicate()
                 raw_output = stdout.decode() if stdout else ""
-                cleaned_output = self._clean_tmux_output(raw_output)
-                output_hash = self.__get_hash(cleaned_output)
-                if self.last_seen_outputs.get(terminal_id) == output_hash:
+                last_marker_id = self.last_seen_marker_id.get(terminal_id, 0)
+                for next_marker_id in range(last_marker_id + 1, last_marker_id + 20):
+                    new_output = self.get_output_between_markers(
+                        raw_output, next_marker_id
+                    )
+                    if new_output:
+                        self.last_seen_marker_id[terminal_id] = next_marker_id
+                        yield {
+                            "summary": new_output.strip(),
+                            "working_directory": terminal.get("working_directory", ""),
+                            "terminal_id": terminal_id,
+                        }
+                    else:
+                        break
+
+            await asyncio.sleep(0.9)
+
+    def get_output_between_markers(self, output: str, marker_id: int) -> Optional[str]:
+        """
+        Extracts output between the start and end markers for a given marker ID.
+        """
+        start_marker = f"===START_MARKER_FOR_COMMAND{marker_id}==="
+        end_marker = f"===END_MARKER_FOR_COMMAND{marker_id}==="
+
+        if start_marker not in output or end_marker not in output:
+            return None
+        try:
+            between = output.split(start_marker, 1)[1].split(end_marker, 1)[0]
+            lines = [line.strip() for line in between.splitlines() if line.strip()]
+            cleaned_lines = []
+            prompt_found = False
+            for line in lines:
+                if not prompt_found and "root@" in line and "#" in line:
+                    cleaned_lines.append(line)
+                    prompt_found = True
                     continue
-                self.last_seen_outputs[terminal_id] = output_hash
+                if line.startswith("root@") and "#" in line:
+                    after_hash = line.split("#", 1)[1].strip()
+                    if not after_hash:
+                        continue
+                cleaned_lines.append(line)
 
-                yield {
-                    "summary": cleaned_output,
-                    "working_directory": terminal.get("working_directory", ""),
-                    "terminal_id": terminal_id,
-                }
+            return "\n".join(cleaned_lines).strip()
 
-            await asyncio.sleep(0.5)
+        except Exception as e:
+            logger.error(f"Error extracting output between markers: {str(e)}")
+            return None

@@ -30,7 +30,7 @@ async def stream_terminal_to_all_clients():
     logger.info("Calling stream_terminal_to_all_clients")
 
     terminal_manager = TerminalManager.get_instance()
-    async for output in terminal_manager.stream_terminal_updates_forever():
+    async for output in terminal_manager.continuous_terminal_runner():
         logger.info(f"Received Streaming terminal output: {output}")
         for ws in list(active_terminal_websockets):
             try:
