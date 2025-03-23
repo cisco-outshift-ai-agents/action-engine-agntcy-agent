@@ -6,7 +6,7 @@ import time
 import logging
 import asyncio
 from typing import AsyncGenerator, Dict, Any, Optional, Tuple
-import hashlib
+
 
 logger = logging.getLogger(__name__)
 
@@ -226,7 +226,7 @@ class TerminalManager:
             "send-keys",
             "-t",
             session_name,
-            f"echo {start_marker} && echo",
+            f"echo {start_marker}",
             "C-m",
         )
         await asyncio.sleep(0.2)
@@ -348,13 +348,6 @@ class TerminalManager:
         except Exception as e:
             logger.error(f"Error extracting output: {str(e)}")
             return f"Command execution failed: {str(e)}"
-
-    async def get_terminal_output_history(self, terminal_id: str) -> str:
-        """Get the current output of the terminal session"""
-        if terminal_id not in self.terminals:
-            raise ValueError(f"Terminal {terminal_id} does not exist")
-
-        return self.terminals[terminal_id].get("output", "")
 
     async def get_terminal_state(self, terminal_id: str) -> Dict[str, Any]:
         """Get the current state of the terminal, ensuring it's still valid in tmux."""
@@ -568,7 +561,13 @@ class TerminalManager:
             return None
         try:
             between = output.split(start_marker, 1)[1].split(end_marker, 1)[0]
-            lines = [line.strip() for line in between.splitlines() if line.strip()]
+            lines = [
+                line.strip()
+                for line in between.splitlines()
+                if line.strip()
+                and "===" not in line
+                and not line.strip().startswith("echo")
+            ]
             cleaned_lines = []
             prompt_found = False
             for line in lines:
@@ -578,7 +577,7 @@ class TerminalManager:
                     continue
                 if line.startswith("root@") and "#" in line:
                     after_hash = line.split("#", 1)[1].strip()
-                    if not after_hash:
+                    if not after_hash or after_hash == "echo":
                         continue
                 cleaned_lines.append(line)
 
