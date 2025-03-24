@@ -7,5 +7,5 @@ export function cn(...inputs: ClassValue[]) {
 
 export const extractHostname = (summary: string): string => {
   const match = summary.match(/^(\S+@\S+):/);
-  return match ? match[1] : "unknown";
+  return match ? match[1] : "default-hostname";
 };

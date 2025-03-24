@@ -1,32 +1,28 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { Tabs } from "@magnetic/tabs";
 import TerminalSection, { TerminalTabConfig } from "./terminal-section";
 import { PlusCircle, X } from "lucide-react";
+import { TerminalDataZod } from "@/pages/session/types";
 
-interface TabbedTerminalContainerProps {
-  isTerminalOutput: boolean;
-  hasEmptyThought: boolean;
-  isDone: boolean;
-  terminalContent?: string;
-  terminalId?: string;
-  workingDirectory?: string;
-}
-
-const TabbedTerminalContainer: React.FC<TabbedTerminalContainerProps> = ({
-  isTerminalOutput,
-  terminalContent,
-  terminalId,
-  workingDirectory,
-}) => {
+const TabbedTerminalContainer: React.FC = ({}) => {
   const [activeTab, setActiveTab] = useState<string>("terminal");
   const [tabs, setTabs] = useState<TerminalTabConfig[]>([
     {
       id: "terminal",
       title: "Terminal",
-      workingDirectory: workingDirectory || "~",
+      workingDirectory: "~",
       isActive: true,
     },
   ]);
+  const [terminalContent, setTerminalContent] = useState<string>("");
+  const [terminalId, setTerminalId] = useState<string>("");
+  const [workingDirectory, setWorkingDirectory] = useState<string>("");
 
   const [terminalBuffers, setTerminalBuffers] = useState<
     Record<string, string>
@@ -40,6 +36,89 @@ const TabbedTerminalContainer: React.FC<TabbedTerminalContainerProps> = ({
     terminal: Date.now(),
   });
 
+  const wsTerminalRef = useRef<WebSocket | null>(null);
+
+  // Websocket connection terminal
+  useEffect(() => {
+    if (
+      wsTerminalRef.current &&
+      wsTerminalRef.current.readyState === WebSocket.OPEN
+    ) {
+      console.warn("WebSocket terminal is already connected");
+      return;
+    }
+    const useLocal = true;
+    const url = useLocal ? "localhost:7788" : window.location.host;
+    const connectWebsocket = () => {
+      const ws = new WebSocket(`ws://${url}/ws/terminal`);
+      wsTerminalRef.current = ws;
+
+      ws.onopen = () => {
+        console.log("Connected to terminal websocket");
+      };
+
+      ws.onmessage = (event: MessageEvent) => {
+        console.log("Received WebSocket terminal message:", event.data);
+        const parsedData = TerminalDataZod.safeParse(JSON.parse(event.data));
+
+        if (!parsedData.success) {
+          console.error("Invalid terminal data:", parsedData.error);
+          return;
+        }
+
+        const { summary, working_directory, terminal_id } = parsedData.data;
+
+        setWorkingDirectory((prev) =>
+          prev !== working_directory ? working_directory : prev
+        );
+        setTerminalId(terminal_id);
+
+        // setTimeout(() => {
+        //   setTerminalContent(`${summary}_${Date.now()}`);
+        // }, 10);
+
+        requestAnimationFrame(() => {
+          setTerminalContent(`${summary}_${Date.now()}`);
+        });
+
+        setTerminalBuffers((prev) => ({
+          ...prev,
+          terminal: prev.terminal ? `${prev.terminal}\n${summary}` : summary,
+        }));
+
+        setContentTimestamps((prev) => ({
+          ...prev,
+          terminal: Date.now(),
+        }));
+
+        setTabs((prevTabs) =>
+          prevTabs.map((tab) =>
+            tab.id === "terminal"
+              ? { ...tab, workingDirectory: working_directory }
+              : tab
+          )
+        );
+      };
+
+      ws.onerror = (error) => console.error("WebSocket terminal error:", error);
+      ws.onclose = () => {
+        console.warn("Disconnected from terminal WebSocket");
+        setTimeout(connectWebsocket, 3000);
+      };
+    };
+    connectWebsocket();
+
+    return () => {
+      wsTerminalRef.current?.close();
+    };
+  }, []);
+
+  // Update tabs when working directory changes
+
+  useEffect(() => {
+    console.log("initial TerminalID:", terminalId);
+  }, []);
+  0;
   useEffect(() => {
     if (workingDirectory) {
       setTabs((prevTabs) =>
@@ -49,12 +128,6 @@ const TabbedTerminalContainer: React.FC<TabbedTerminalContainerProps> = ({
       );
     }
   }, [workingDirectory]);
-
-  useEffect(() => {
-    if (isTerminalOutput && terminalContent) {
-      setActiveTab("terminal");
-    }
-  }, [isTerminalOutput, terminalContent]);
 
   useEffect(() => {
     if (terminalContent && terminalContent.trim()) {
@@ -146,19 +219,40 @@ const TabbedTerminalContainer: React.FC<TabbedTerminalContainerProps> = ({
     },
     [activeTab, tabs]
   );
-
   const handleContentUpdate = useCallback((id: string, content: string) => {
-    if (content && content.trim()) {
-      setTerminalBuffers((prev) => ({
-        ...prev,
-        [id]: prev[id] ? `${prev[id]}\n${content}` : content,
-      }));
+    if (!content.trim()) return;
+    console.log("handle content update called with:", content);
 
-      setContentTimestamps((prev) => ({
-        ...prev,
-        [id]: Date.now(),
-      }));
+    setTerminalBuffers((prev) => ({
+      ...prev,
+      [id]: prev[id] ? `${prev[id]}\n${content}` : content,
+    }));
+
+    setContentTimestamps((prev) => ({
+      ...prev,
+      [id]: Date.now(),
+    }));
+
+    if (!wsTerminalRef.current) {
+      console.warn("WebSocket terminal is not connected");
+      return;
     }
+
+    if (wsTerminalRef.current.readyState !== WebSocket.OPEN) {
+      console.warn("WebSocket is not open. Storing message in buffer.");
+      setTimeout(() => {
+        if (wsTerminalRef.current?.readyState === WebSocket.OPEN) {
+          console.log("Sending buffered command:", content);
+          wsTerminalRef.current.send(JSON.stringify({ command: content }));
+        } else {
+          console.error("WebSocket still not open. Command not sent.");
+        }
+      }, 500);
+      return;
+    }
+
+    // Send the message if WebSocket is open
+    wsTerminalRef.current.send(JSON.stringify({ command: content }));
   }, []);
 
   const terminalProps = useMemo(() => {
@@ -246,7 +340,7 @@ const TabbedTerminalContainer: React.FC<TabbedTerminalContainerProps> = ({
           style={{ height: "calc(100% - 48px)" }}
         >
           <TerminalSection
-            key={props.id}
+            key="main-terminal"
             content={props.currentContent}
             isVisible={props.isActive}
             terminalId={props.terminalIdentifier}

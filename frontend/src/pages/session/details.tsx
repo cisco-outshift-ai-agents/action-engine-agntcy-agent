@@ -1,54 +1,10 @@
 import { Layout } from "@/components/ui/layout/page";
 import { Container } from "@magnetic/container";
-import { useCallback, useState } from "react";
 import InteractiveVNC from "@/components/interactive-vnc";
 import ChatSection from "@/components/chat-section";
 import TabbedTerminalContainer from "@/components/terminal/terminal-tab";
 
 const SessionPage = () => {
-  const [terminalContent, setTerminalContent] = useState<string>("");
-  const [isTerminal, setIsTerminal] = useState<boolean>(false);
-  const [hasEmptyThought, setHasEmptyThought] = useState<boolean>(false);
-  const [isDone, setIsDone] = useState<boolean>(false);
-  const [terminalId, setTerminalId] = useState<string>("");
-  const [workingDirectory, setWorkingDirectory] = useState<string>("");
-
-  const handleTerminalUpdate = useCallback(
-    (
-      content: string,
-      isTerminal: boolean,
-      hasEmptyThought: boolean,
-      isDone: boolean,
-      terminalId?: string,
-      newWorkingDirectory?: string
-    ) => {
-      console.log("Incoming terminal update:", {
-        content,
-        newWorkingDirectory,
-      });
-
-      setWorkingDirectory((prev) => {
-        if (prev !== newWorkingDirectory) {
-          return newWorkingDirectory || "";
-        }
-        return prev;
-      });
-
-      // Delay setting terminal content to allow workingDirectory to update
-      setTimeout(() => {
-        setTerminalContent(`${content}_${Date.now()}`);
-      }, 10);
-
-      setIsTerminal((prev) => (prev !== isTerminal ? isTerminal : prev));
-      setHasEmptyThought((prev) =>
-        prev !== hasEmptyThought ? hasEmptyThought : prev
-      );
-      setIsDone((prev) => (prev !== isDone ? isDone : prev));
-      setTerminalId((prev) => (prev !== terminalId ? terminalId || "" : prev));
-    },
-    []
-  );
-
   return (
     <Layout>
       <Container className="h-full">
@@ -56,28 +12,21 @@ const SessionPage = () => {
           <div className="w-[70%] flex flex-col gap-2">
             <div
               className="rounded-lg border border-white/10 bg-[#32363c] overflow-hidden"
-              style={{ height: "70" }}
+              style={{ height: "65" }}
             >
               <InteractiveVNC />
             </div>
 
             <div
               className="rounded-lg overflow-hidden"
-              style={{ height: "30%" }}
+              style={{ height: "35%" }}
             >
-              <TabbedTerminalContainer
-                isTerminalOutput={isTerminal}
-                hasEmptyThought={hasEmptyThought}
-                isDone={isDone}
-                terminalContent={terminalContent}
-                terminalId={terminalId}
-                workingDirectory={workingDirectory}
-              />
+              <TabbedTerminalContainer />
             </div>
           </div>
 
           <div className="w-[30%]">
-            <ChatSection onTerminalUpdate={handleTerminalUpdate} />
+            <ChatSection />
           </div>
         </div>
       </Container>

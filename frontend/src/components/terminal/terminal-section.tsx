@@ -12,7 +12,7 @@ interface TerminalComponentProps {
   onContentUpdate?: (id: string, content: string) => void;
 }
 
-// Create a persistent terminal instance cache
+// Create as persistent terminal instance cache
 const terminalInstances: Record<
   string,
   {
@@ -32,7 +32,7 @@ const TerminalSection = ({
   onContentUpdate,
 }: TerminalComponentProps): JSX.Element => {
   const terminalRef = useRef<HTMLDivElement>(null);
-  const instanceIdRef = useRef<string>(terminalId || "unknown");
+  const instanceIdRef = useRef<string>(terminalId || "base");
   const [domReady, setDomReady] = useState(false);
   const currentInputRef = useRef("");
   const cursorPosRef = useRef(0);
@@ -52,33 +52,39 @@ const TerminalSection = ({
   // Get current terminal instance from cache or create a new one
   const getTerminalInstance = useCallback(() => {
     const id = instanceIdRef.current;
-    if (!terminalInstances[id]) {
-      const term = new XTerm({
-        cursorBlink: true,
-        scrollback: 10000,
-        theme: {
-          background: "#1a1a1a",
-          foreground: "#00ff00",
-          cursor: "#00ff00",
-        },
-        fontSize: 14,
-        fontFamily: "Menlo, Monaco, Consolas, monospace",
-        lineHeight: 1.2,
-        convertEol: true,
-        cols: 80,
-        rows: 24,
-      });
-
-      const fitAddon = new FitAddon();
-      term.loadAddon(fitAddon);
-
-      terminalInstances[id] = {
-        term,
-        fitAddon,
-        mounted: false,
-        processedContents: new Set(),
-      };
+    if (
+      terminalInstances[id] &&
+      terminalInstances[id].term &&
+      terminalInstances[id].fitAddon &&
+      terminalInstances[id].mounted
+    ) {
+      return terminalInstances[id];
     }
+    const term = new XTerm({
+      cursorBlink: true,
+      scrollback: 10000,
+      theme: {
+        background: "#1a1a1a",
+        foreground: "#00ff00",
+        cursor: "#00ff00",
+      },
+      fontSize: 14,
+      fontFamily: "Menlo, Monaco, Consolas, monospace",
+      lineHeight: 1.2,
+      convertEol: true,
+      cols: 80,
+      rows: 24,
+    });
+
+    const fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
+
+    terminalInstances[id] = {
+      term,
+      fitAddon,
+      mounted: false,
+      processedContents: new Set(),
+    };
 
     return terminalInstances[id];
   }, []);
@@ -92,17 +98,12 @@ const TerminalSection = ({
         historyPosRef.current = -1;
 
         term.write("\r\n");
-        term.write(`Command entered: ${command}`);
-        term.write("\r\n");
         if (onContentUpdate) {
           onContentUpdate(terminalId || "terminal", command);
         }
         currentInputRef.current = "";
 
         cursorPosRef.current = 0;
-
-        const hostname = extractHostname(content || "");
-        term.write(`${hostname}:${workingDirectory}# `);
       }
       // Backspace key
     } else if (data === "\u007F") {
@@ -310,14 +311,22 @@ const TerminalSection = ({
     // Mark as processed
     processedContents.add(contentKey);
 
-    // Write to terminal
-    term.write(`\r\n${actualContent}`);
+    term.write(`${actualContent.trim()}`);
 
     // Add prompt if needed
     setTimeout(() => {
       term.scrollToBottom();
-      const hostname = extractHostname(content || "");
-      term.write(`\r\n${hostname}:${workingDirectory || "~"}# `);
+      const buffer = term.buffer.active;
+      const lastLine = buffer
+        .getLine(buffer.length - 1)
+        ?.translateToString()
+        .trim();
+      const promptPrefix = `${extractHostname(content || "")}:${
+        workingDirectory || "~"
+      }# `;
+      if (!lastLine?.endsWith("#") || !lastLine.includes(promptPrefix)) {
+        term.write(`\r\n${promptPrefix}`);
+      }
     }, 50);
   }, [
     content,

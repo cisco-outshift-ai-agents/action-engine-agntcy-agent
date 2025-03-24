@@ -57,3 +57,11 @@ export const CleanerDataZod = z.object({
   html_content: z.string(),
 });
 export type CleanerData = z.infer<typeof CleanerDataZod>;
+
+export const TerminalDataZod = z.object({
+  summary: z.string(),
+  working_directory: z.string(),
+  terminal_id: z.string(),
+});
+
+export type TerminalData = z.infer<typeof TerminalDataZod>;
