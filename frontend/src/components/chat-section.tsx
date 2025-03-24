@@ -34,6 +34,7 @@ interface ChatSectionProps {
 
 const ChatSection: React.FC<ChatSectionProps> = () => {
   const [input, setInput] = useState("");
+  const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null); //Main websocket for tasks
   const wsStopRef = useRef<WebSocket | null>(null); //Websocket for stop requests
   const bottomOfChatRef = useRef<HTMLDivElement | null>(null);
@@ -48,7 +49,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
     setPlan,
   } = useChatStore();
 
-  useEffect(() => {
+  const connectWebSocket = () => {
     const useLocal = true;
     const url = useLocal ? "localhost:7788" : window.location.host;
     const ws = new WebSocket(`ws://${url}/ws/chat`);
@@ -58,6 +59,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
     wsStopRef.current = wsStop;
 
     ws.onopen = () => {
+      setIsConnected(true);
       console.log("Connected to chat server");
     };
 
@@ -155,15 +157,26 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
     };
 
     ws.onclose = () => {
+      setIsConnected(false);
       console.log("Disconnected from chat server");
     };
     wsStop.onclose = () => {
       console.log("Disconnected from stop server");
     };
 
+    wsRef.current = ws;
+    wsStopRef.current = wsStop;
+  };
+
+  useEffect(() => {
+    connectWebSocket();
     return () => {
-      ws.close();
-      wsStop.close();
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+      if (wsStopRef.current) {
+        wsStopRef.current.close();
+      }
     };
   }, []);
 
@@ -255,21 +268,24 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
 
   const scrollToBottom = () => {
     if (bottomOfChatRef.current && chatContainerRef.current) {
-      const SHOULD_SCROLL_PERCENTAGE = 0.9;
-
-      const shouldScroll =
-        chatContainerRef.current.scrollTop +
-          chatContainerRef.current.clientHeight >=
-        chatContainerRef.current.scrollHeight * SHOULD_SCROLL_PERCENTAGE;
-
-      if (shouldScroll) {
-        bottomOfChatRef.current.scrollIntoView({ behavior: "smooth" });
-      }
+      bottomOfChatRef.current.scrollIntoView({ behavior: "smooth" });
     }
   };
 
   return (
-    <div className="h-full rounded-lg  bg-[#32363c] w-full px-2 py-4 flex flex-col">
+    <div className="h-[95%] rounded-lg  bg-[#32363c] w-full px-2 py-4 flex flex-col border-white/10 border">
+      <div className="flex items-center justify-end">
+        <div
+          className={`rounded-full aspect-square h-2 w-2 ${
+            isConnected ? "bg-green-500" : "bg-red-500"
+          }`}
+        />
+        <p className="ml-2 text-xs text-white font-semibold">
+          {isConnected
+            ? "Connected to chat socket"
+            : "Disconnected from chat socket"}
+        </p>
+      </div>
       <PlanRenderer />
       <div
         className="flex-1 overflow-y-auto px-2 pt-2 pb-3"
@@ -298,7 +314,10 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
         <Flex
           as="form"
           align="center"
-          className="max-w-3xl mx-auto bg-[#373c42] border-2 border-[#7E868F] pr-3 pt-2 pl-5 pb-2 rounded-lg"
+          className={cn(
+            "max-w-3xl mx-auto bg-[#373c42] border-2 border-[#7E868F] pr-3 pt-2 pl-5 pb-2 rounded-lg",
+            "group focus-within:border-[#649EF5]"
+          )}
         >
           <TextareaAutosize
             tabIndex={1}
@@ -311,6 +330,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
               "w-full bg-transparent text-white",
               "font-normal text-base leading-[22px]",
               "placeholder:text-[889099] placeholder:text-sm",
+              "focus:ring-0 focus:border-0",
               "focus:outline-none resize-none"
             )}
             wrap="hard"
@@ -372,21 +392,6 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
   );
 };
 
-const getLastAITools = (data: GraphData): string[] => {
-  const lastAIMessage = data.messages
-    .filter((m) => m.type === "AIMessage")
-    .pop();
-
-  if (!lastAIMessage) {
-    return [];
-  }
-
-  return [
-    ...(lastAIMessage.tool_calls?.map((t) => {
-      return JSON.stringify(t);
-    }) || []),
-    lastAIMessage.content || "",
-  ].filter((a) => !!a);
-};
+const getLastAITools = (data: GraphData): string[] => {};
 
 export default ChatSection;

@@ -338,7 +338,7 @@ const TerminalSection = ({
   ]);
 
   return (
-    <div className="flex flex-col h-full bg-[#1a1a1a] rounded-b-lg">
+    <div className="flex flex-col h-full bg-[#1a1a1a] rounded-b-lg border-2 border-transparent focus-within:border-[#006600]">
       <div ref={terminalRef} className="flex-1 overflow-auto p-1" />
     </div>
   );

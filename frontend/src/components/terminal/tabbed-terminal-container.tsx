@@ -294,7 +294,7 @@ const TabbedTerminalContainer: React.FC = ({}) => {
                 e.preventDefault();
                 switchTab(tab.id);
               }}
-              className="text-[#D0D4D9] font-bold text-base leading-[22px] text-[#D0D4D9]"
+              className="text-[#D0D4D9] font-bold text-base leading-[22px]"
             >
               {tab.title}
             </Tabs.Link>
