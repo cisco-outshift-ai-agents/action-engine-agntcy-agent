@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from contextlib import asynccontextmanager
@@ -7,6 +8,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.agent_runner import AgentConfig, AgentRunner, LLMConfig
+from src.terminal.terminal_manager import TerminalManager
 from src.utils.default_config_settings import default_config
 
 logging.basicConfig(
@@ -17,26 +19,18 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="ActionEngine API")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 DEFAULT_CONFIG = default_config()
 
-# Create a global AgentRunner instance
 agent_runner = AgentRunner()
+active_terminal_websockets = set()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    terminal_manager = TerminalManager.get_instance()
+
     config = DEFAULT_CONFIG.copy()
-    # Persist the browser instance on startup.
     config["keep_browser_open"] = True
 
     agent_config = AgentConfig(
@@ -67,6 +61,17 @@ async def lifespan(app: FastAPI):
     yield
 
 
+app = FastAPI(title="ActionEngine API", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 @app.get("/status")
 async def status():
     return {"status": "ok"}
@@ -82,19 +87,9 @@ async def chat_endpoint(websocket: WebSocket):
         while True:
             data = await websocket.receive_text()
             logger.info(f"Client message received: {data}")
-
-            try:
-                client_payload = json.loads(data)
-                task = client_payload.get("task", DEFAULT_CONFIG.get("task", ""))
-                add_infos = client_payload.get("add_infos", "")
-                logger.info(f"Extracted task: {task}")
-                logger.info(f"Extracted additional info: {add_infos}")
-                
-            except json.JSONDecodeError as e:
-                error_msg = f"Failed to parse client message: {str(e)}"
-                logger.error(error_msg)
-                await websocket.send_text(json.dumps({"error": error_msg}))
-                continue
+            client_payload = json.loads(data)
+            task = client_payload.get("task", DEFAULT_CONFIG.get("task", ""))
+            add_infos = client_payload.get("add_infos", "")
 
             config = DEFAULT_CONFIG.copy()
             config.update({"task": task, "add_infos": add_infos})
@@ -124,112 +119,86 @@ async def chat_endpoint(websocket: WebSocket):
                 api_key=config.get("llm_api_key", ""),
             )
 
-            try:
-                async for update in agent_runner.stream_agent_updates(
-                    llm_config, agent_config
-                ):
-                    logger.info("Received update from agent")
-                    logger.info(f"Update type: {type(update)}")
-                    logger.info(f"Update content: {json.dumps(update, indent=2)}")
+            async for update in agent_runner.stream_agent_updates(
+                llm_config, agent_config
+            ):
+                response_data = {
+                    "html_content": update.get("html_content", ""),
+                    "current_state": update.get("current_state") or {},
+                    "action": update.get("action", []),
+                }
 
-                    try:
-
-                        response_data = {
-                            "html_content": update.get("html_content", ""),
-                            "current_state": update.get("current_state") or {},
-                            "action": update.get("action", []),
-                        }
-
-                        logger.info(
-                            f"Prepared response: {json.dumps(response_data, indent=2)}"
-                        )
-
-                        await websocket.send_text(json.dumps(response_data))
-                        logger.info("Successfully sent response to client")
-
-                    except Exception as serialize_error:
-                        logger.error(
-                            f"Serialization error: {str(serialize_error)}",
-                            exc_info=True,
-                        )
-                        error_response = {
-                            "error": "Response processing failed",
-                            "details": str(serialize_error),
-                        }
-                        await websocket.send_text(json.dumps(error_response))
-
-            except Exception as stream_error:
-                logger.error(
-                    f"Stream processing error: {str(stream_error)}", exc_info=True
-                )
-                await websocket.send_text(
-                    json.dumps(
-                        {
-                            "error": "Stream processing failed",
-                            "details": str(stream_error),
-                        }
-                    )
-                )
+                await websocket.send_text(json.dumps(response_data))
 
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected")
     except Exception as e:
         logger.error(f"Unexpected WebSocket error: {str(e)}", exc_info=True)
     finally:
-        logger.info("Closing WebSocket connection")
         try:
             await websocket.close()
-        except Exception as e:
-            logger.error(f"Error closing WebSocket: {str(e)}")
-
+        except Exception:
+            pass
 
 
 @app.websocket("/ws/stop")
 async def stop_endpoint(websocket: WebSocket):
     logger.info("New WebSocket connection for stop requests")
     await websocket.accept()
-    logger.info("WebSocket connection accepted")
 
     try:
         while True:
             data = await websocket.receive_text()
-            logger.info(f"Stop request received: {data}")
-
-            try:
-                client_payload = json.loads(data)
-                task = client_payload.get("task",  "")
-               
-
-                #handle stop request
-                if task == "stop":
-                    logger.info("Received stop request")
-                    response =  await agent_runner.stop_agent()
-                    await websocket.send_text(json.dumps(response))
-                    logger.info("Stop Response sent to UI")
-                    return
-                
-            except json.JSONDecodeError as e:
-                error_msg = f"Failed to parse client message: {str(e)}"
-                logger.error(error_msg)
-                await websocket.send_text(json.dumps({"error": error_msg}))
-
-
+            client_payload = json.loads(data)
+            if client_payload.get("task") == "stop":
+                response = await agent_runner.stop_agent()
+                await websocket.send_text(json.dumps(response))
+                return
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected")
-    except Exception as e:
-        logger.error(f"Unexpected WebSocket error: {str(e)}", exc_info=True)
     finally:
-        logger.info("Closing WebSocket connection")
         try:
             await websocket.close()
-        except Exception as e:
-            logger.error(f"Error closing WebSocket: {str(e)}")
+        except Exception:
+            pass
 
 
+@app.websocket("/ws/terminal")
+async def terminal_endpoint(websocket: WebSocket):
+    logger.info("New WebSocket connection for terminal commands")
+    await websocket.accept()
+    terminal_manager = TerminalManager.get_instance()
 
+    # Create a new terminal for this WebSocket
+    terminal_id = await terminal_manager.create_terminal()
+    logger.info(f"Assigned terminal {terminal_id} to new WebSocket")
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=7788)
+    try:
+        # Start polling task for streaming output from this terminal
+        async def poll_terminal():
+            logger.info(f"Polling terminal output for terminal {terminal_id}")
+            async for output in terminal_manager.poll_and_stream_output(terminal_id, 0):
+                await websocket.send_text(json.dumps(output))
+
+        poll_task = asyncio.create_task(poll_terminal())
+
+        # Command input loop (from the same client)
+        while True:
+            data = await websocket.receive_text()
+            client_payload = json.loads(data)
+
+            if "command" in client_payload:
+                command = client_payload["command"]
+                logger.info(
+                    f"Executing command from client on terminal {terminal_id}: {command}"
+                )
+                await terminal_manager.execute_command(terminal_id, command)
+
+    except WebSocketDisconnect:
+        logger.info(f"Terminal WebSocket disconnected for terminal {terminal_id}")
+    finally:
+        poll_task.cancel()
+        await websocket.close()
 
 
 if __name__ == "__main__":

@@ -7,10 +7,12 @@ import pyperclip
 from browser_use.agent.views import ActionResult
 from browser_use.browser.context import BrowserContext
 from src.terminal.terminal_views import TerminalCommandAction
-from src.terminal.terminal_manager import TerminalManager
 from browser_use.controller.service import Controller
 from pydantic import BaseModel
 from browser_use.utils import time_execution_async, time_execution_sync
+from src.terminal.terminal_manager import (
+    TerminalManager,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +51,8 @@ class CustomController(Controller):
         ) -> ActionResult:
             """Execute a command in the terminals"""
             try:
-                terminal_manager = TerminalManager()
+                # Get the terminal_manager instance directly using the singleton pattern
+                terminal_manager = TerminalManager.get_instance()
 
                 # Try to get an active terminal
                 terminal_id = await terminal_manager.get_current_terminal_id()
@@ -85,7 +88,7 @@ class CustomController(Controller):
             except Exception as e:
                 error_msg = f"Execution failed: {str(e)}"
                 logger.error(error_msg)
-                formatted_output = formatted_output
+                formatted_output = f"Error: {error_msg}"
 
                 return ActionResult(
                     extracted_content=formatted_output, include_in_memory=True
