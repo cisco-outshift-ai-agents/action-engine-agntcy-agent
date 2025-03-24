@@ -44,7 +44,7 @@ source .env && docker compose up --build
 In another tab, run the API server
 
 ```bash
-CHROME_PERSISTENT_SESSION=True && uvicorn backend.main:app --host 127.0.0.1 --port 7788 --reload
+CHROME_PERSISTENT_SESSION=True && uvicorn main:app --host 127.0.0.1 --port 7788 --reload
 ```
 
 ## Using Qwen2.5-VL as the backend model
@@ -85,26 +85,25 @@ pip install vllm
 3. Start the server (Note that the model weights are currently stored in `/home/sreadmin/action_engine/qwen_vision/qwen2.5-vl-7b-instruct`)
 
 ```bash
-vllm serve Qwen/Qwen2.5-VL-7B-Instruct --download-dir ./qwen_vision/qwen2.5-vl-7b-instruct --trust-remote-code --max-model-len 32768 --port 8000 --host 0.0.0.0 --dtype bfloat16 --limit-mm-per-prompt image=5,video=5 --api-key action_engine
+vllm serve Qwen/Qwen2.5-VL-7B-Instruct --download-dir ./qwen_vision/qwen2.5-vl-7b-instruct --trust-remote-code --max-model-len 32768 --port 8000 --host 0.0.0.0 --dtype bfloat16 --limit-mm-per-prompt image=5,video=5 --api-key action_engine --enable-auto-tool-choice --tool-call-parser hermes
 ```
 
 4. To use the quantized version of the model (the model weights are stored in `/home/sreadmin/action_engine/qwen_vision/qwen2.5-vl-7b-instruct-awq`)
 
 ```bash
-vllm serve Qwen/Qwen2.5-VL-7B-Instruct-AWQ --download-dir ./qwen_vision/qwen2.5-vl-7b-instruct-awq --quantization awq_marlin --trust-remote-code --max-model-len 128000 --port 8000 --host 0.0.0.0 --dtype float16 --limit-mm-per-prompt image=5,video=5 --api-key action_engine
+vllm serve Qwen/Qwen2.5-VL-7B-Instruct-AWQ --download-dir ./qwen_vision/qwen2.5-vl-7b-instruct-awq --quantization awq_marlin --trust-remote-code --max-model-len 128000 --port 8000 --host 0.0.0.0 --dtype float16 --limit-mm-per-prompt image=5,video=5 --api-key action_engine --enable-auto-tool-choice --tool-call-parser hermes
 ```
 
 This uses Activation-aware Weight Quantization (AWQ) to provide inference speedup. It also uses the Marlin kernel for speedup on top of AWQ!
-As with most quantization methods this comes at the cost of performance. 
+As with most quantization methods this comes at the cost of performance.
 
-5. In order to extend the context length from the original 32k to 128k we use YaRN. In order to enable YaRN please use the following command (this can be used with the non quantized model as well) 
+5. In order to extend the context length from the original 32k to 128k we use YaRN. In order to enable YaRN please use the following command (this can be used with the non quantized model as well)
 
 ```bash
-vllm serve Qwen/Qwen2.5-VL-7B-Instruct-AWQ --download-dir ./qwen_vision/qwen2.5-vl-7b-instruct-awq --quantization awq_marlin --trust-remote-code --max-model-len 128000 --port 8000 --host 0.0.0.0 --dtype float16 --limit-mm-per-prompt image=5,video=5 --api-key action_engine --rope-scaling '{"rope_type":"yarn","mrope_section": [ 16, 24, 24 ], "factor":4.0, "original_max_position_embeddings":32768}'
+vllm serve Qwen/Qwen2.5-VL-7B-Instruct-AWQ --download-dir ./qwen_vision/qwen2.5-vl-7b-instruct-awq --quantization awq_marlin --trust-remote-code --max-model-len 128000 --port 8000 --host 0.0.0.0 --dtype float16 --limit-mm-per-prompt image=5,video=5 --api-key action_engine --rope-scaling '{"rope_type":"yarn","mrope_section": [ 16, 24, 24 ], "factor":4.0, "original_max_position_embeddings":32768}' --enable-auto-tool-choice --tool-call-parser hermes
 ```
 
 Note: This has a significant impact on the performance of temporal and spatial localization tasks, and is therefore not recommended for use. It also impacts shorter context text performance since it uses static YaRN.
-
 
 6. Now the server is running. Tunnel your local machine to the server in a separate terminal window.
 

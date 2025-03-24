@@ -17,11 +17,11 @@ google-chrome \
   --disable-dev-shm-usage \
   --disable-software-rasterizer \
   --disable-setuid-sandbox \
+  --disable-web-security \
   --no-first-run \
   --no-default-browser-check \
   --no-experiments \
   --ignore-certificate-errors \
   --remote-debugging-port=${CHROME_DEBUGGING_PORT} \
-  --remote-debugging-address=${CHROME_DEBUGGING_HOST} \
-  "https://outshift.com"
+  --remote-debugging-address=${CHROME_DEBUGGING_HOST}
   # --disable-gpu \
