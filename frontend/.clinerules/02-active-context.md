@@ -8,7 +8,7 @@ This is the frontend application for Action Engine, built with React, TypeScript
 
 1. Langgraph transition
 
-   - Status: [In Progress]
+   - Status: [COMPLETE]
    - Branch: [agentify]
    - Components:
    -
@@ -17,7 +17,7 @@ This is the frontend application for Action Engine, built with React, TypeScript
 
 2. Terminal support
 
-   - Status: [In progress]
+   - Status: [COMPLETE]
    - Branch: [terminal-implementation] [xterm-integration]
    - Components:
    - TODO
