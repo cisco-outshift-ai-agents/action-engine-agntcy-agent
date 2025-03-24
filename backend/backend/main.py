@@ -9,7 +9,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.graph_runner import GraphRunner
-from graph.environments.terminal import TerminalManager
+from src.graph.environments.terminal import TerminalManager
 from src.utils.default_config_settings import default_config
 
 logging.basicConfig(

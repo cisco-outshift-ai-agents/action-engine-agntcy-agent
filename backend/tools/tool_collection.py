@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 
 from langchain.tools import BaseTool
 
-from graph.types import WorkableToolCall
+from src.graph.types import WorkableToolCall
 
 from .base import ToolResult
 

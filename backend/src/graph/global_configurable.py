@@ -5,7 +5,7 @@ from browser_use.dom.service import DomService
 from langchain_core.language_models import BaseChatModel
 from langgraph.graph import Graph
 
-from graph.environments.terminal import TerminalManager
+from src.graph.environments.terminal import TerminalManager
 from src.browser.custom_browser import CustomBrowser
 from src.browser.custom_context import CustomBrowserContext
 

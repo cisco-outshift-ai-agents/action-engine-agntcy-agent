@@ -11,10 +11,10 @@ from langchain_core.messages import (
 )
 from langchain_openai import ChatOpenAI
 
-from graph.environments.planning import PlanningEnvironment
-from graph.nodes.base_node import BaseNode
-from graph.prompts import get_executor_prompt, get_previous_tool_calls_prompt
-from graph.types import AgentState
+from src.graph.environments.planning import PlanningEnvironment
+from src.graph.nodes.base_node import BaseNode
+from src.graph.prompts import get_executor_prompt, get_previous_tool_calls_prompt
+from src.graph.types import AgentState
 from tools.browser_use import browser_use_tool
 from tools.terminal import terminal_tool
 

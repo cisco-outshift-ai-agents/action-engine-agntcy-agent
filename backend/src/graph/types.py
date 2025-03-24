@@ -7,8 +7,8 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 from typing_extensions import Annotated, TypedDict
 
-from graph.environments.planning import PlanningEnvironment
-from graph.environments.terminal import TerminalManager
+from src.graph.environments.planning import PlanningEnvironment
+from src.graph.environments.terminal import TerminalManager
 
 # Avoids circular imports
 if TYPE_CHECKING:
