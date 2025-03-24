@@ -18,7 +18,7 @@ interface ChatStoreActions {
 }
 
 export const useChatStore = create<ChatStoreState & ChatStoreActions>(
-  (set, get) => ({
+  (set) => ({
     isThinking: false,
     setisThinking: (value) => set({ isThinking: value }),
 
