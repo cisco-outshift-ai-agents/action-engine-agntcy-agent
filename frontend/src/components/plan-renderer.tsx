@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import LoaderGIF from "@/components/newsroom/newsroom-assets/loader.gif";
 import { useChatStore } from "@/stores/chat";
 
