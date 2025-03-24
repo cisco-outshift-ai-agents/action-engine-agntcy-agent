@@ -12,7 +12,7 @@ As the agent learns via generated workflows, it becomes more adept at handling c
 
 1. Langgraph transition
 
-   - Status: [In Progress]
+   - Status: [COMPLETE]
    - Branch: [agentify]
    - Components:
      - [graph.py]
@@ -23,7 +23,7 @@ As the agent learns via generated workflows, it becomes more adept at handling c
 
 2. Terminal support
 
-   - Status: [In progress]
+   - Status: [COMPLETE]
    - Branch: [terminal-implementation]
    - Components:
      - TODO
