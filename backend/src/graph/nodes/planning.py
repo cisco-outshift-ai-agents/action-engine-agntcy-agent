@@ -98,14 +98,6 @@ class PlanningNode(BaseNode):
         else:
             state["plan"] = None
 
-        # Check for and handle termination tool call
-        termination_tool_call = next(
-            (tc for tc in response.tool_calls if tc["name"] == "terminate"), None
-        )
-        if termination_tool_call:
-            state["exiting"] = True
-            state["thought"] = termination_tool_call["reason"]
-
         # Update the global state with the new messages
         state["messages"] = global_messages
         return state
