@@ -115,6 +115,7 @@ class ExecutorNode(BaseNode):
                 "1. Review what actions have already been completed\n"
                 "2. Choose the next logical action that hasn't been done yet\n"
                 "3. Do not repeat actions that were already successful\n"
+                "4. Only use the tools which are available to you in the <tools></tools> XML structure."
                 "\nWhat is the next action you should take?"
             )
         )
