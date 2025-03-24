@@ -34,7 +34,7 @@ const InteractiveVNC: React.FC = () => {
         rfbRef.current.disconnect();
       }
     };
-  });
+  }, []);
 
   return (
     <div

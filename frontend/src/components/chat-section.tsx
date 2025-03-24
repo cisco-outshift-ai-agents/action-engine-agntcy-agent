@@ -22,12 +22,18 @@ import PlanRenderer from "./plan-renderer";
 
 interface ChatSectionProps {
   className?: string;
+  onTerminalUpdate?: (
+    content: string,
+    isTerminal: boolean,
+    hasEmptyThought: boolean,
+    isDone: boolean,
+    terminalId: string,
+    workingDirectory: string
+  ) => void;
 }
 
 const ChatSection: React.FC<ChatSectionProps> = () => {
-  const [input, setInput] = useState(
-    "Go to Wikipedia and search for Cisco Systems, then click on the first link on the page"
-  );
+  const [input, setInput] = useState("");
   const wsRef = useRef<WebSocket | null>(null); //Main websocket for tasks
   const wsStopRef = useRef<WebSocket | null>(null); //Websocket for stop requests
   const bottomOfChatRef = useRef<HTMLDivElement | null>(null);

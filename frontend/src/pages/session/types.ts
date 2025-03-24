@@ -89,3 +89,11 @@ export type GraphDataWrapper = z.infer<typeof GraphDataWrapperZod>;
 export const isNodeUpdate = (data: GraphDataWrapper): data is NodeUpdate => {
   return "thinking" in data || "planning" in data || "executor" in data;
 };
+
+export const TerminalDataZod = z.object({
+  summary: z.string(),
+  working_directory: z.string(),
+  terminal_id: z.string(),
+});
+
+export type TerminalData = z.infer<typeof TerminalDataZod>;
