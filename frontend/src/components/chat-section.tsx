@@ -4,12 +4,21 @@ import { PaperPlaneRight, StopCircle } from "@magnetic/icons";
 import { Button } from "@magnetic/button";
 import { cn } from "@/utils";
 import { Flex } from "@magnetic/flex";
-import ChatMessage from "./newsroom/newsroom-components/chat-message";
+import ChatMessage, {
+  ChatMessageProps,
+  NodeType,
+} from "./newsroom/newsroom-components/chat-message";
 import CiscoAIAssistantLoader from "@/components/newsroom/newsroom-assets/thinking.gif";
 
 import { TodoFixAny } from "@/types";
 import { useChatStore } from "@/stores/chat";
-import { CleanerData, Data, DataZod, StopDataZod } from "@/pages/session/types";
+import {
+  GraphData,
+  GraphDataZod,
+  NodeUpdateZod,
+  StopDataZod,
+} from "@/pages/session/types";
+import PlanRenderer from "./plan-renderer";
 
 interface ChatSectionProps {
   className?: string;
@@ -23,21 +32,21 @@ interface ChatSectionProps {
   ) => void;
 }
 
-const ChatSection: React.FC<ChatSectionProps> = ({ onTerminalUpdate }) => {
-  const [messages, setMessages] = useState<
-    {
-      sender: string;
-      text: CleanerData;
-    }[]
-  >([]);
+const ChatSection: React.FC<ChatSectionProps> = () => {
   const [input, setInput] = useState("");
   const wsRef = useRef<WebSocket | null>(null); //Main websocket for tasks
   const wsStopRef = useRef<WebSocket | null>(null); //Websocket for stop requests
-  const onTerminalUpdateRef = useRef(onTerminalUpdate);
-  const isThinking = useChatStore((state) => state.isThinking);
-  const setisThinking = useChatStore((state) => state.setisThinking);
-  const isStopped = useChatStore((state) => state.isStopped);
-  const setIsStopped = useChatStore((state) => state.setIsStopped);
+  const bottomOfChatRef = useRef<HTMLDivElement | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement | null>(null);
+  const {
+    messages,
+    addMessage,
+    isThinking,
+    setisThinking,
+    isStopped,
+    setIsStopped,
+    setPlan,
+  } = useChatStore();
 
   useEffect(() => {
     const useLocal = true;
@@ -57,35 +66,76 @@ const ChatSection: React.FC<ChatSectionProps> = ({ onTerminalUpdate }) => {
     };
 
     ws.onmessage = (event: MessageEvent) => {
-      console.log("received websocket message:", event.data);
-      const d = JSON.parse((event as TodoFixAny).data) as Data;
-      const parse = DataZod.safeParse(d);
-      if (!parse.success) {
-        console.error(parse.error);
+      console.log("received websocket message:", JSON.parse(event.data));
+      const data = JSON.parse((event as TodoFixAny).data);
+
+      // Check if this is an error message
+      if (data.error) {
+        addMessage({
+          content: data.error,
+          role: "assistant",
+          error: data.error,
+        });
+        setisThinking(false);
         return;
       }
-      const clean = cleanData(d);
-      console.log("processed data:", clean);
 
-      if (onTerminalUpdate) {
-        checkAndNotifyTerminalContent(clean);
+      // Check if this is a node-specific update
+      const parseNodeUpdate = NodeUpdateZod.safeParse(data);
+      if (parseNodeUpdate.success) {
+        const update = parseNodeUpdate.data;
+
+        if (update.thinking) {
+          const cleanedData = cleanAPIData(update.thinking, "thinking");
+          addMessage(cleanedData);
+        }
+
+        if (update.planning) {
+          const plan = getPlanFromMessage(update.planning);
+          if (plan) setPlan(plan);
+        }
+
+        if (update.executor) {
+          const cleanedData = cleanAPIData(update.executor, "executor");
+          if (cleanedData.actions?.length) {
+            addMessage(cleanedData);
+          }
+        }
+
+        // Check if any node signals completion
+        if (
+          (update.thinking?.exiting || update.executor?.exiting) &&
+          !update.planning
+        ) {
+          setisThinking(false);
+        }
+
+        return;
       }
 
-      setMessages((messages) => [
-        ...messages,
-        {
-          sender: "agent",
-          text: clean,
-        },
-      ]);
-      if (clean.action.some((a) => a.done === true)) {
+      // Fall back to handling legacy format
+      const parseGraphData = GraphDataZod.safeParse(data);
+      if (!parseGraphData.success) {
+        console.error(parseGraphData.error);
+        return;
+      }
+
+      const cleanedData = cleanAPIData(parseGraphData.data);
+      addMessage(cleanedData);
+
+      if (cleanedData.isDone) {
         setisThinking(false);
+      }
+
+      const plan = getPlanFromMessage(parseGraphData.data);
+      if (plan) {
+        setPlan(plan);
       }
     };
 
     wsStop.onmessage = (event: MessageEvent) => {
       console.log("received stop response:", event.data);
-      const d = JSON.parse((event as TodoFixAny).data) as Data;
+      const d = JSON.parse((event as TodoFixAny).data) as GraphData;
       const parse = StopDataZod.safeParse(d);
       if (!parse.success) {
         console.error(parse.error);
@@ -98,18 +148,10 @@ const ChatSection: React.FC<ChatSectionProps> = ({ onTerminalUpdate }) => {
         setisThinking(false);
         setIsStopped(false);
       }
-
-      setMessages((messages) => [
-        ...messages,
-        {
-          sender: "agent",
-          text: {
-            action: [{ summary: stopResponse.summary }],
-            current_state: {},
-            html_content: "",
-          },
-        },
-      ]);
+      addMessage({
+        content: stopResponse.summary,
+        role: "assistant",
+      });
     };
 
     ws.onclose = () => {
@@ -125,34 +167,6 @@ const ChatSection: React.FC<ChatSectionProps> = ({ onTerminalUpdate }) => {
     };
   }, []);
 
-  const checkAndNotifyTerminalContent = (data: CleanerData) => {
-    if (!onTerminalUpdateRef.current) return;
-
-    const terminalAction = data.action.find(
-      (a) => a.is_terminal && a.thought === "" && !a.done
-    );
-
-    console.log("Checking for terminal action:", terminalAction);
-
-    if (terminalAction) {
-      const isTerminal = !!terminalAction.is_terminal;
-      const hasEmptyThought = terminalAction.thought === "";
-      const isDone = !!terminalAction.done;
-      const terminalContent = terminalAction.summary || "";
-      const terminalId = terminalAction.terminal_id || "";
-      const workingDirectory = terminalAction.working_directory || "";
-
-      onTerminalUpdateRef.current(
-        terminalContent,
-        isTerminal,
-        hasEmptyThought,
-        isDone,
-        terminalId,
-        workingDirectory
-      );
-    }
-  };
-
   const sendMessage = () => {
     if (!wsRef.current) {
       return;
@@ -163,17 +177,10 @@ const ChatSection: React.FC<ChatSectionProps> = ({ onTerminalUpdate }) => {
     };
 
     wsRef.current.send(JSON.stringify(payload));
-    setMessages((messages) => [
-      ...messages,
-      {
-        sender: "user",
-        text: cleanData({
-          action: [{ summary: input }],
-          current_state: {},
-          html_content: "",
-        }),
-      },
-    ]);
+    addMessage({
+      content: input,
+      role: "user",
+    });
 
     setInput("");
     setisThinking(true);
@@ -197,10 +204,83 @@ const ChatSection: React.FC<ChatSectionProps> = ({ onTerminalUpdate }) => {
     wsStopRef.current?.send(JSON.stringify(stopPayload));
   };
 
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const cleanAPIData = (
+    data: GraphData,
+    nodeType?: NodeType
+  ): ChatMessageProps => {
+    if (nodeType === "executor") {
+      return {
+        role: "assistant",
+        content: null, // We don't need content for executor, just actions
+        actions: getLastAITools(data),
+        error: data.error,
+        isDone: data.exiting,
+        nodeType,
+      };
+    }
+
+    if (nodeType === "planning") {
+      return {
+        role: "assistant",
+        content: null, // Planning node just shows "Updating plan..."
+        error: data.error,
+        isDone: data.exiting,
+        nodeType,
+      };
+    }
+
+    // For thinking and other nodes, show conversational UI
+    return {
+      role: "assistant",
+      content: data.brain.summary,
+      thought: data.brain.thought,
+      error: data.error,
+      isDone: data.exiting,
+      nodeType,
+    };
+  };
+
+  const getPlanFromMessage = (
+    data: GraphData
+  ): NonNullable<GraphData["plan"]> | null => {
+    if (!data.plan) {
+      return null;
+    }
+    return data.plan;
+  };
+
+  const scrollToBottom = () => {
+    if (bottomOfChatRef.current && chatContainerRef.current) {
+      const SHOULD_SCROLL_PERCENTAGE = 0.9;
+
+      const shouldScroll =
+        chatContainerRef.current.scrollTop +
+          chatContainerRef.current.clientHeight >=
+        chatContainerRef.current.scrollHeight * SHOULD_SCROLL_PERCENTAGE;
+
+      if (shouldScroll) {
+        bottomOfChatRef.current.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+  };
+
   return (
     <div className="h-full rounded-lg  bg-[#32363c] w-full px-2 py-4 flex flex-col">
-      <div className="flex-1 overflow-y-auto px-2 pt-2 pb-3">
-        <div className="flex flex-col-reverse gap-4 space-y-reverse">
+      <PlanRenderer />
+      <div
+        className="flex-1 overflow-y-auto px-2 pt-2 pb-3"
+        ref={chatContainerRef}
+      >
+        <div className="flex flex-col gap-4 space-y-reverse">
+          {[...messages].map((message, index) => (
+            <div key={index}>
+              <ChatMessage {...message} />
+            </div>
+          ))}
           {isThinking && (
             <div className="flex items-start px-2 py-2">
               <img
@@ -211,46 +291,14 @@ const ChatSection: React.FC<ChatSectionProps> = ({ onTerminalUpdate }) => {
               />
             </div>
           )}
-          {[...messages].reverse().map((message, index) => (
-            <div key={index}>
-              <ChatMessage
-                content={message.text.action.map((a) => a.summary).join("\n")}
-                isDone={message.text.action.some((a) => a.done === true)}
-                thoughts={
-                  message.text.action
-                    .map((a) => a.thought)
-                    .filter((a) => !!a) as string[]
-                }
-                actions={
-                  message.text.action
-                    .map((a) => {
-                      if (a.click_element) {
-                        return `Click element ${a.click_element.index}`;
-                      } else if (a.input_text) {
-                        return `Input text ${a.input_text.text} at index ${a.input_text.index}`;
-                      } else if (a.execute_terminal_command) {
-                        return `Execute terminal command ${a.execute_terminal_command.command}`;
-                      } else {
-                        return undefined;
-                      }
-                    })
-                    .filter((a) => !!a) as string[]
-                }
-                role={message.sender === "agent" ? "assistant" : "user"}
-                isTerminal={message.text.action.some((a) => a.is_terminal)}
-                hasEmptyThought={message.text.action.some(
-                  (a) => a.is_terminal && a.thought === ""
-                )}
-              />
-            </div>
-          ))}
         </div>
+        <div ref={bottomOfChatRef}></div>
       </div>
       <div className="px-4 pt-2 pb-3">
         <Flex
           as="form"
           align="center"
-          className="max-w-3xl mx-auto bg-[#373c42] border-2 border-[#7E868F] pr-3 pt-2 pr-3 pl-5 pb-2 rounded-lg"
+          className="max-w-3xl mx-auto bg-[#373c42] border-2 border-[#7E868F] pr-3 pt-2 pl-5 pb-2 rounded-lg"
         >
           <TextareaAutosize
             tabIndex={1}
@@ -324,43 +372,21 @@ const ChatSection: React.FC<ChatSectionProps> = ({ onTerminalUpdate }) => {
   );
 };
 
-const cleanData = (data: Data): CleanerData => {
-  console.log(data);
+const getLastAITools = (data: GraphData): string[] => {
+  const lastAIMessage = data.messages
+    .filter((m) => m.type === "AIMessage")
+    .pop();
 
-  if (typeof data === "string") {
-    return {
-      action: [{ summary: data }],
-      current_state: {},
-      html_content: "",
-    };
+  if (!lastAIMessage) {
+    return [];
   }
-  return {
-    action: data.action.map((action) => {
-      if (typeof action === "string") {
-        return {
-          summary: action,
-        };
-      }
 
-      return {
-        input_text: action.input_text,
-        click_element: action.click_element,
-        execute_terminal_command: action.execute_terminal_command,
-        prev_action_evaluation: action.prev_action_evaluation,
-        important_contents: action.important_contents,
-        task_progress: action.task_progress,
-        future_plans: action.future_plans,
-        thought: action.thought,
-        summary: action.summary,
-        done: typeof action.done === "boolean" ? action.done : false,
-        terminal_id: action.terminal_id,
-        working_directory: action.working_directory,
-        is_terminal: action.is_terminal,
-      };
-    }),
-    current_state: data.current_state,
-    html_content: data.html_content,
-  };
+  return [
+    ...(lastAIMessage.tool_calls?.map((t) => {
+      return JSON.stringify(t);
+    }) || []),
+    lastAIMessage.content || "",
+  ].filter((a) => !!a);
 };
 
 export default ChatSection;

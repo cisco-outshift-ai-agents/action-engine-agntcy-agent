@@ -6,57 +6,89 @@ export const StopDataZod = z.object({
 });
 export type StopData = z.infer<typeof StopDataZod>;
 
-export const DataZod = z.object({
-  action: z.array(
-    z.union([
-      z.string(),
-      z.object({
-        input_text: z
-          .object({ index: z.number(), text: z.string() })
-          .optional(),
-        execute_terminal_command: z.object({ command: z.string() }).optional(),
-        click_element: z.object({ index: z.number() }).optional(),
-        prev_action_evaluation: z.string().optional(),
-        important_contents: z.string().optional(),
-        task_progress: z.string().optional(),
-        future_plans: z.string().optional(),
-        thought: z.string().optional(),
-        summary: z.string().optional(),
-        done: z.union([z.boolean(), z.object({ text: z.string() })]).optional(),
-        terminal_id: z.string().optional(),
-        working_directory: z.string().optional(),
-        is_terminal: z.boolean().optional(),
-      }),
-    ])
-  ),
-  current_state: z.object({}).optional(),
-  html_content: z.string(),
-});
-export type Data = z.infer<typeof DataZod>;
-
-// Removes the union type
-export const CleanerDataZod = z.object({
-  action: z.array(
+export const GraphDataZod = z.object({
+  brain: z.object({
+    future_plans: z.string().nullish(),
+    important_contents: z.string().nullish(),
+    prev_action_evaluation: z.string().nullish(),
+    task_progress: z.string().nullish(),
+    summary: z.string().nullish(),
+    thought: z.string().nullish(),
+  }),
+  context: z.object({}),
+  error: z.any(),
+  exiting: z.boolean(),
+  plan: z
+    .object({
+      plan_id: z.string().nullish(),
+      steps: z.array(
+        z.object({
+          content: z.string(),
+          notes: z.string().nullish(),
+          status: z.union([
+            z.literal("not_started"),
+            z.literal("in_progress"),
+            z.literal("completed"),
+            z.literal("blocked"),
+          ]),
+          substeps: z.array(
+            z.object({
+              content: z.string(),
+              notes: z.string().nullish(),
+              status: z.union([
+                z.literal("not_started"),
+                z.literal("in_progress"),
+                z.literal("completed"),
+                z.literal("blocked"),
+              ]),
+            })
+          ),
+        })
+      ),
+    })
+    .nullish(),
+  messages: z.array(
     z.object({
-      input_text: z.object({ index: z.number(), text: z.string() }).optional(),
-      click_element: z.object({ index: z.number() }).optional(),
-      execute_terminal_command: z.object({ command: z.string() }).optional(),
-      prev_action_evaluation: z.string().optional(),
-      important_contents: z.string().optional(),
-      task_progress: z.string().optional(),
-      future_plans: z.string().optional(),
-      thought: z.string().optional(),
-      summary: z.string().optional(),
-      done: z.boolean().optional(),
-      terminal_id: z.string().optional(),
-      working_directory: z.string().optional(),
-      is_terminal: z.boolean().optional(),
+      type: z.union([
+        z.literal("AIMessage"),
+        z.literal("ToolMessage"),
+        z.literal("HumanMessage"),
+        z.literal("SystemMessage"),
+      ]),
+      content: z.string().nullish(),
+      tool_calls: z
+        .array(
+          z.object({
+            id: z.string(),
+            name: z.string(),
+            type: z.string(),
+            args: z.record(z.unknown()),
+          })
+        )
+        .nullish(),
     })
   ),
-  current_state: z.object({}).optional(),
-  html_content: z.string(),
+  next_node: z.string().nullish(),
+  summary: z.string().nullish(),
+  task: z.string(),
+  thought: z.string().nullish(),
+  tools_used: z.array(z.unknown()),
 });
-export type CleanerData = z.infer<typeof CleanerDataZod>;
+export type GraphData = z.infer<typeof GraphDataZod>;
+
+export const NodeUpdateZod = z.object({
+  thinking: GraphDataZod.optional(),
+  planning: GraphDataZod.optional(),
+  executor: GraphDataZod.optional(),
+});
+export type NodeUpdate = z.infer<typeof NodeUpdateZod>;
+
+export const GraphDataWrapperZod = z.union([GraphDataZod, NodeUpdateZod]);
+export type GraphDataWrapper = z.infer<typeof GraphDataWrapperZod>;
+
+export const isNodeUpdate = (data: GraphDataWrapper): data is NodeUpdate => {
+  return "thinking" in data || "planning" in data || "executor" in data;
+};
 
 export const TerminalDataZod = z.object({
   summary: z.string(),
