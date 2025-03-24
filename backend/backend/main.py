@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from dataclasses import dataclass
@@ -8,6 +9,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.graph_runner import GraphRunner
+from src.terminal.terminal_manager import TerminalManager
 from src.utils.default_config_settings import default_config
 
 logging.basicConfig(
@@ -18,23 +20,15 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="ActionEngine API")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 DEFAULT_CONFIG = default_config()
+
+terminal_manager = TerminalManager.get_instance()
 
 # Create a global GraphRunner instance
 graph_runner = GraphRunner()
 
 
-@dataclass
 class LLMConfig:
     provider: str
     model_name: str
@@ -67,6 +61,18 @@ class AgentResult:
     model_actions: str
     model_thoughts: str
     latest_video: Optional[str]
+
+
+# TODO: Add lifespan back
+app = FastAPI(title="ActionEngine API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/status")
@@ -152,18 +158,16 @@ async def chat_endpoint(websocket: WebSocket):
     except Exception as e:
         logger.error(f"Unexpected WebSocket error: {str(e)}", exc_info=True)
     finally:
-        logger.info("Closing WebSocket connection")
         try:
             await websocket.close()
-        except Exception as e:
-            logger.error(f"Error closing WebSocket: {str(e)}")
+        except Exception:
+            pass
 
 
 @app.websocket("/ws/stop")
 async def stop_endpoint(websocket: WebSocket):
     logger.info("New WebSocket connection for stop requests")
     await websocket.accept()
-    logger.info("WebSocket connection accepted")
 
     try:
         while True:
@@ -189,14 +193,49 @@ async def stop_endpoint(websocket: WebSocket):
 
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected")
-    except Exception as e:
-        logger.error(f"Unexpected WebSocket error: {str(e)}", exc_info=True)
     finally:
-        logger.info("Closing WebSocket connection")
         try:
             await websocket.close()
-        except Exception as e:
-            logger.error(f"Error closing WebSocket: {str(e)}")
+        except Exception:
+            pass
+
+
+@app.websocket("/ws/terminal")
+async def terminal_endpoint(websocket: WebSocket):
+    logger.info("New WebSocket connection for terminal commands")
+    await websocket.accept()
+    terminal_manager = TerminalManager.get_instance()
+
+    # Create a new terminal for this WebSocket
+    terminal_id = await terminal_manager.create_terminal()
+    logger.info(f"Assigned terminal {terminal_id} to new WebSocket")
+
+    try:
+        # Start polling task for streaming output from this terminal
+        async def poll_terminal():
+            logger.info(f"Polling terminal output for terminal {terminal_id}")
+            async for output in terminal_manager.poll_and_stream_output(terminal_id, 0):
+                await websocket.send_text(json.dumps(output))
+
+        poll_task = asyncio.create_task(poll_terminal())
+
+        # Command input loop (from the same client)
+        while True:
+            data = await websocket.receive_text()
+            client_payload = json.loads(data)
+
+            if "command" in client_payload:
+                command = client_payload["command"]
+                logger.info(
+                    f"Executing command from client on terminal {terminal_id}: {command}"
+                )
+                await terminal_manager.execute_command(terminal_id, command)
+
+    except WebSocketDisconnect:
+        logger.info(f"Terminal WebSocket disconnected for terminal {terminal_id}")
+    finally:
+        poll_task.cancel()
+        await websocket.close()
 
 
 if __name__ == "__main__":

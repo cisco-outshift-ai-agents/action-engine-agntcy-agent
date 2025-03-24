@@ -423,6 +423,10 @@ class CustomAgent(Agent):
                     )
                 else:
                     state_for_history = self._create_empty_state()
+                logger.info(
+                    "Terminal action executed but skipping yield to agent history"
+                )
+                return
             else:
                 result: list[ActionResult] = await self.controller.multi_act(
                     actions, self.browser_context
