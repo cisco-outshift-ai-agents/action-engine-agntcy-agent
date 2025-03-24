@@ -44,7 +44,7 @@ source .env && docker compose up --build
 In another tab, run the API server
 
 ```bash
-CHROME_PERSISTENT_SESSION=True && uvicorn backend.main:app --host 127.0.0.1 --port 7788 --reload
+CHROME_PERSISTENT_SESSION=True && uvicorn main:app --host 127.0.0.1 --port 7788 --reload
 ```
 
 ## Using Qwen2.5-VL as the backend model
