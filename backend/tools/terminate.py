@@ -68,4 +68,5 @@ async def terminate_tool(
         )
 
     message = f"Flow terminated - {status.upper()}\nReason: {reason}"
-    return ToolResult(output=message, system={"status": status, "reason": reason})
+    system_message = f"status={status},reason={reason}"
+    return ToolResult(output=message, system=system_message)
