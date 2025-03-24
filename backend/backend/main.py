@@ -9,7 +9,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.graph_runner import GraphRunner
-from src.terminal.terminal_manager import TerminalManager
+from graph.environments.terminal import TerminalManager
 from src.utils.default_config_settings import default_config
 
 logging.basicConfig(
@@ -25,8 +25,7 @@ DEFAULT_CONFIG = default_config()
 
 terminal_manager = TerminalManager.get_instance()
 
-# Create a global GraphRunner instance
-graph_runner = GraphRunner()
+graph_runner = GraphRunner(terminal_manager=terminal_manager)
 
 
 class LLMConfig:

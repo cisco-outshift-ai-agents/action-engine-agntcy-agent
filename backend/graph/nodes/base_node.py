@@ -112,16 +112,7 @@ class BaseNode:
             if isinstance(msg, SystemMessage) or not msg.content:
                 continue
 
-            if isinstance(msg, ToolMessage):
-                # Keep tool messages as passive observations
-                pruned_messages.append(
-                    AIMessage(
-                        content=f"Observed event: Previous {msg.tool_name} action completed: {msg.content}"
-                    )
-                )
-            else:
-                # Keep all other non-empty messages
-                pruned_messages.append(msg)
+            pruned_messages.append(msg)
 
         # Keep the last 15 messages
         pruned_messages = pruned_messages[-15:]

@@ -46,10 +46,10 @@ class AgentConfig:
 class GraphRunner:
     """Manages execution of the LangGraph agent system while maintaining global resources"""
 
-    def __init__(self):
+    def __init__(self, terminal_manager: TerminalManager):
         self.llm = None
         self.browser_session = BrowserSession()
-        self.terminal_manager = TerminalManager()
+        self.terminal_manager = terminal_manager or TerminalManager()
         self.planning_env = PlanningEnvironment()
         self.graph = None
 

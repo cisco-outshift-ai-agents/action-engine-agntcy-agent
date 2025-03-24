@@ -24,9 +24,10 @@ class TerminateInput(BaseModel):
     reason: Optional[str] = Field(None, description="Explanation for termination")
 
 
-@tool("terminate")
+@tool("terminate", args_schema=TerminateInput)
 async def terminate_tool(
-    status: TerminationStatus, reason: Optional[str] = None
+    status: TerminationStatus,
+    reason: Optional[str] = None,
 ) -> ToolResult:
     """
     Signal that an interaction flow should terminate. Used in two scenarios:
