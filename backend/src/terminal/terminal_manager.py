@@ -277,6 +277,8 @@ class TerminalManager:
                 logger.info(
                     f"Command executed successfull in terminal {terminal_id}: {result}"
                 )
+                await asyncio.sleep(0.9)
+
                 new_working_dir = await self._get_working_directory(
                     terminal_id, tmux_socket_path
                 )
@@ -506,50 +508,6 @@ class TerminalManager:
             logger.error(f"Error checking if terminal {session_name} is busy: {str(e)}")
             return False
 
-    async def continuous_terminal_runner(
-        self,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
-        """
-        Continuously polls all tmux terminals and yields new output per terminal.
-        """
-
-        while True:
-            for terminal_id, terminal in self.terminals.items():
-                tmux_socket_path = os.environ.get(
-                    "TMUX_SOCKET_PATH", "/root/.tmux/tmux-server"
-                )
-
-                capture_proc = await asyncio.create_subprocess_exec(
-                    "tmux",
-                    "-S",
-                    tmux_socket_path,
-                    "capture-pane",
-                    "-p",
-                    "-t",
-                    terminal_id,
-                    "-S",
-                    f"-{self.TMUX_CAPTURE_OFFSET}",
-                    stdout=asyncio.subprocess.PIPE,
-                )
-                stdout, _ = await capture_proc.communicate()
-                raw_output = stdout.decode() if stdout else ""
-                last_marker_id = self.last_seen_marker_id.get(terminal_id, 0)
-                for next_marker_id in range(last_marker_id + 1, last_marker_id + 20):
-                    new_output = self.get_output_between_markers(
-                        raw_output, next_marker_id
-                    )
-                    if new_output:
-                        self.last_seen_marker_id[terminal_id] = next_marker_id
-                        yield {
-                            "summary": new_output.strip(),
-                            "working_directory": terminal.get("working_directory", ""),
-                            "terminal_id": terminal_id,
-                        }
-                    else:
-                        break
-
-            await asyncio.sleep(0.9)
-
     def get_output_between_markers(self, output: str, marker_id: int) -> Optional[str]:
         """
         Extracts output between the start and end markers for a given marker ID.
@@ -586,3 +544,49 @@ class TerminalManager:
         except Exception as e:
             logger.error(f"Error extracting output between markers: {str(e)}")
             return None
+
+    async def poll_and_stream_output(
+        self, terminal_id: str, last_seen_marker_id: int
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Continuously yields new terminal output from `terminal_id` as soon as new markers are found.
+        """
+        tmux_socket_path = os.environ.get("TMUX_SOCKET_PATH", "/root/.tmux/tmux-server")
+        session_name = self.terminals[terminal_id]["session_name"]
+        marker_id = last_seen_marker_id
+
+        while True:
+            try:
+                capture_proc = await asyncio.create_subprocess_exec(
+                    "tmux",
+                    "-S",
+                    tmux_socket_path,
+                    "capture-pane",
+                    "-p",
+                    "-t",
+                    session_name,
+                    "-S",
+                    f"-{self.TMUX_CAPTURE_OFFSET}",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                stdout, _ = await capture_proc.communicate()
+                raw_output = stdout.decode() if stdout else ""
+
+                for next_marker in range(marker_id + 1, marker_id + 20):
+                    output = self.get_output_between_markers(raw_output, next_marker)
+                    if output:
+                        marker_id = next_marker  # update marker tracker
+                        yield {
+                            "summary": output.strip(),
+                            "terminal_id": terminal_id,
+                            "working_directory": self.terminals[terminal_id][
+                                "working_directory"
+                            ],
+                            "marker_id": marker_id,
+                        }
+                        break
+            except Exception as e:
+                logger.warning(f"Polling error in terminal {terminal_id}: {e}")
+
+            await asyncio.sleep(0.9)

@@ -26,25 +26,9 @@ agent_runner = AgentRunner()
 active_terminal_websockets = set()
 
 
-async def stream_terminal_to_all_clients():
-    logger.info("Calling stream_terminal_to_all_clients")
-
-    terminal_manager = TerminalManager.get_instance()
-    async for output in terminal_manager.continuous_terminal_runner():
-        logger.info(f"Received Streaming terminal output: {output}")
-        for ws in list(active_terminal_websockets):
-            try:
-                await ws.send_text(json.dumps(output))
-                logger.info(f"Sent terminal output to client: {output}")
-            except Exception as e:
-                logger.warning(f"Failed to stream to client: {e}")
-                active_terminal_websockets.remove(ws)
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     terminal_manager = TerminalManager.get_instance()
-    terminal_stream_task = asyncio.create_task(stream_terminal_to_all_clients())
 
     config = DEFAULT_CONFIG.copy()
     config["keep_browser_open"] = True
@@ -75,13 +59,6 @@ async def lifespan(app: FastAPI):
     logger.info("Browser pre-initialized at server startup.")
 
     yield
-
-    # Cleanup
-    terminal_stream_task.cancel()
-    try:
-        await terminal_stream_task
-    except asyncio.CancelledError:
-        logger.info("Terminal stream task cancelled")
 
 
 app = FastAPI(title="ActionEngine API", lifespan=lifespan)
@@ -190,24 +167,37 @@ async def stop_endpoint(websocket: WebSocket):
 async def terminal_endpoint(websocket: WebSocket):
     logger.info("New WebSocket connection for terminal commands")
     await websocket.accept()
-    active_terminal_websockets.add(websocket)
     terminal_manager = TerminalManager.get_instance()
 
+    # Create a new terminal for this WebSocket
+    terminal_id = await terminal_manager.create_terminal()
+    logger.info(f"Assigned terminal {terminal_id} to new WebSocket")
+
     try:
+        # Start polling task for streaming output from this terminal
+        async def poll_terminal():
+            logger.info(f"Polling terminal output for terminal {terminal_id}")
+            async for output in terminal_manager.poll_and_stream_output(terminal_id, 0):
+                await websocket.send_text(json.dumps(output))
+
+        poll_task = asyncio.create_task(poll_terminal())
+
+        # Command input loop (from the same client)
         while True:
             data = await websocket.receive_text()
-            logger.info(f"Terminal command received: {data}")
             client_payload = json.loads(data)
+
             if "command" in client_payload:
                 command = client_payload["command"]
-                terminal_id = await terminal_manager.get_current_terminal_id()
-
+                logger.info(
+                    f"Executing command from client on terminal {terminal_id}: {command}"
+                )
                 await terminal_manager.execute_command(terminal_id, command)
 
     except WebSocketDisconnect:
-        logger.info("Terminal WebSocket disconnected")
+        logger.info(f"Terminal WebSocket disconnected for terminal {terminal_id}")
     finally:
-        active_terminal_websockets.discard(websocket)
+        poll_task.cancel()
         await websocket.close()
 
 
