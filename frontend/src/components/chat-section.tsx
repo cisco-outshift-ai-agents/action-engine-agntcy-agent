@@ -36,7 +36,6 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
   const [input, setInput] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null); //Main websocket for tasks
-  const wsStopRef = useRef<WebSocket | null>(null); //Websocket for stop requests
   const bottomOfChatRef = useRef<HTMLDivElement | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -46,6 +45,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
     setisThinking,
     isStopped,
     setIsStopped,
+    plan,
     setPlan,
   } = useChatStore();
 
@@ -54,17 +54,10 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
     const url = useLocal ? "localhost:7788" : window.location.host;
     const ws = new WebSocket(`ws://${url}/ws/chat`);
     wsRef.current = ws;
-    //Websocket for stop requests
-    const wsStop = new WebSocket(`ws://${url}/ws/stop`);
-    wsStopRef.current = wsStop;
 
     ws.onopen = () => {
       setIsConnected(true);
       console.log("Connected to chat server");
-    };
-
-    wsStop.onopen = () => {
-      console.log("Connected to stop websocket");
     };
 
     ws.onmessage = (event: MessageEvent) => {
@@ -122,6 +115,23 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
         return;
       }
 
+      // Check if this is a stop response
+      if (data.stopped !== undefined) {
+        const parse = StopDataZod.safeParse(data);
+        if (parse.success) {
+          const stopResponse = parse.data;
+          if (stopResponse.stopped) {
+            setisThinking(false);
+            setIsStopped(false);
+          }
+          addMessage({
+            content: stopResponse.summary,
+            role: "assistant",
+          });
+          return;
+        }
+      }
+
       const cleanedData = cleanAPIData(parseGraphData.data);
       addMessage(cleanedData);
 
@@ -135,37 +145,12 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
       }
     };
 
-    wsStop.onmessage = (event: MessageEvent) => {
-      console.log("received stop response:", event.data);
-      const d = JSON.parse((event as TodoFixAny).data) as GraphData;
-      const parse = StopDataZod.safeParse(d);
-      if (!parse.success) {
-        console.error(parse.error);
-        return;
-      }
-
-      const stopResponse = parse.data;
-
-      if (stopResponse.stopped) {
-        setisThinking(false);
-        setIsStopped(false);
-      }
-      addMessage({
-        content: stopResponse.summary,
-        role: "assistant",
-      });
-    };
-
     ws.onclose = () => {
       setIsConnected(false);
       console.log("Disconnected from chat server");
     };
-    wsStop.onclose = () => {
-      console.log("Disconnected from stop server");
-    };
 
     wsRef.current = ws;
-    wsStopRef.current = wsStop;
   };
 
   useEffect(() => {
@@ -173,9 +158,6 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
     return () => {
       if (wsRef.current) {
         wsRef.current.close();
-      }
-      if (wsStopRef.current) {
-        wsStopRef.current.close();
       }
     };
   }, []);
@@ -200,21 +182,13 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
   };
 
   const stopTask = () => {
-    if (!wsStopRef.current) {
-      return;
-    }
-
-    if (isStopped) {
+    if (!wsRef.current || isStopped) {
       return;
     }
 
     setIsStopped(true);
 
-    const stopPayload = {
-      task: "stop",
-    };
-
-    wsStopRef.current?.send(JSON.stringify(stopPayload));
+    wsRef.current.send(JSON.stringify({ task: "stop" }));
   };
 
   useEffect(() => {
@@ -272,6 +246,22 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
     }
   };
 
+  const disableLearning = async () => {
+    await fetch(`http://localhost:7788/api/learning`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        learning_enabled: false,
+      }),
+    });
+  };
+
+  useEffect(() => {
+    disableLearning();
+  }, []);
+
   return (
     <div className="h-[95%] rounded-lg  bg-[#32363c] w-full px-2 py-4 flex flex-col border-white/10 border">
       <div className="flex items-center justify-end">
@@ -286,7 +276,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
             : "Disconnected from chat socket"}
         </p>
       </div>
-      <PlanRenderer />
+      <PlanRenderer plan={plan} />
       <div
         className="flex-1 overflow-y-auto px-2 pt-2 pb-3"
         ref={chatContainerRef}
@@ -390,6 +380,23 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
       </div>
     </div>
   );
+};
+
+const getLastAITools = (data: GraphData): string[] => {
+  const lastAIMessage = data.messages
+    .filter((m) => m.type === "AIMessage")
+    .pop();
+
+  if (!lastAIMessage) {
+    return [];
+  }
+
+  return [
+    ...(lastAIMessage.tool_calls?.map((t) => {
+      return JSON.stringify(t);
+    }) || []),
+    lastAIMessage.content || "",
+  ].filter((a) => !!a);
 };
 
 export default ChatSection;

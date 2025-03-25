@@ -39,7 +39,7 @@ const InteractiveVNC: React.FC = () => {
   return (
     <div
       ref={vncContainerRef}
-      className="min-w-4xl bg-gray-900 h-[600px] px-2 py-1 w-full"
+      className="min-w-4xl bg-gray-900 h-[585px] w-full"
     >
       {/* VNC will render here */}
     </div>
