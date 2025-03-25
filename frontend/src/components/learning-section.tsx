@@ -90,8 +90,7 @@ const LearningSection: React.FC = () => {
           </p>
         </div>
       </div>
-      <LearningSectionControls />
-      <div className="flex-1 overflow-hidden text-white text-sm">
+      <div className="flex-1 overflow-hidden text-white text-sm flex flex-col gap-1">
         <span>
           {events.length} event{events.length !== 1 && "s"} received
         </span>
@@ -100,6 +99,7 @@ const LearningSection: React.FC = () => {
             <code>{formatEvent(event)}</code>
           ))}
         </div>
+        <LearningSectionControls />
       </div>
     </div>
   );

@@ -1,4 +1,3 @@
-import { Button } from "@magnetic/button";
 import { useState } from "react";
 
 interface LearningSectionControlsProps {
@@ -36,14 +35,16 @@ const LearningSectionControls: React.FC<LearningSectionControlsProps> = () => {
   };
 
   return (
-    <div className="flex gap-4 p-4">
-      <Button
+    <div className="flex gap-4">
+      <button
         onClick={analyzeEventLog}
         disabled={isAnalyzing}
-        className="bg-green-500 hover:bg-green-600 text-white"
+        className={
+          "flex gap-2 text-sm items-center rounded-lg px-2 py-1 cursor-pointer border-2 border-white/10 bg-white/10 hover:bg-white/20 text-white font-medium"
+        }
       >
         {isAnalyzing ? "Analyzing..." : "Analyze Event Log"}
-      </Button>
+      </button>
     </div>
   );
 };

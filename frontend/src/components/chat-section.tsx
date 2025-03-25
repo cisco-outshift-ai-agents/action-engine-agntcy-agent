@@ -392,6 +392,4 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
   );
 };
 
-const getLastAITools = (data: GraphData): string[] => {};
-
 export default ChatSection;
