@@ -103,7 +103,7 @@ Given a list of user actions, your task is to extract a structured plan that cap
     "steps": [
         {
             "content": string,  // Main step description
-            "notes": string | null,  // Optional notes about the step
+            "notes": string | null,  // Optional notes about the step, include details like html or implementation details here.  They will be hidden from the user, but shown to the agent.
             "status": "not_started" | "in_progress" | "completed" | "blocked",
             "substeps": [
                 {
@@ -124,7 +124,8 @@ Requirements:
 5. All steps and substeps should start with "not_started" status
 6. Keep descriptions clear and concise
 7. Preserve the sequence and dependencies between steps
-8. DON'T reference hard-coded HTML identifiers, but rather use descriptive based on the semantic concepts of UI elements
+8. DON'T reference hard-coded HTML identifiers in the content of the steps, use the "notes" field for that
+9. The notes are user-facing, so they should be clear, concise, and easy to understand with the tone of a user manual
 
 Example:
 If a user performs a login workflow:
@@ -162,13 +163,13 @@ The plan might look like:
             "status": "not_started",
             "substeps": [
                 {
-                    "content": "Enter username/email",
-                    "notes": "Input: user@example.com",
+                    "content": "Enter username or email into form",
+                    "notes": "Input: user@example.com, HTML ID: #un-form-field",
                     "status": "not_started"
                 },
                 {
                     "content": "Enter password",
-                    "notes": "Input: password123",
+                    "notes": "Input: password123, HTML ID: #pw-form-field",
                     "status": "not_started"
                 }
             ]
@@ -180,12 +181,12 @@ The plan might look like:
             "substeps": [
                 {
                     "content": "Select 'Remember me' option",
-                    "notes": null,
+                    "notes": "Ensure the checkbox is checked, HTML ID: #remember-me, may be optional",
                     "status": "not_started"
                 },
                 {
                     "content": "Click login button",
-                    "notes": "Wait for dashboard to load",
+                    "notes": "HTML ID: #login-button",
                     "status": "not_started"
                 }
             ]

@@ -15,8 +15,8 @@ def create_agent_graph(config: RunnableConfig = None) -> Graph:
     """Creates the main agent workflow graph with agent loop behavior"""
     workflow = StateGraph(AgentState)
 
-    workflow.add_node("executor", ExecutorNode())
     workflow.add_node("planning", PlanningNode())
+    workflow.add_node("executor", ExecutorNode())
     workflow.add_node("thinking", ThinkingNode())
 
     workflow.add_edge(START, "planning")
