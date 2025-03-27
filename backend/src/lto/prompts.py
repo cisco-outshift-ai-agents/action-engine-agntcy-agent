@@ -124,8 +124,13 @@ Requirements:
 5. All steps and substeps should start with "not_started" status
 6. Keep descriptions clear and concise
 7. Preserve the sequence and dependencies between steps
-8. DON'T reference hard-coded HTML identifiers in the content of the steps, use the "notes" field for that
-9. The notes are user-facing, so they should be clear, concise, and easy to understand with the tone of a user manual
+8. DON'T reference hard-coded HTML identifiers in the "content" of the steps, use the "notes" field for that
+9. The "content" field user-facing, so they should be clear, concise, and easy to understand with the tone of a user manual.  Like 
+    "Click the 'Log in' button to access your account."
+    or 
+    "Enter your email address in the username field."
+    NOT
+    "Click the button with ID #login-button to submit the form."
 
 Example:
 If a user performs a login workflow:

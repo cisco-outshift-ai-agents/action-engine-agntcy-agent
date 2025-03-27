@@ -9,7 +9,7 @@ class Operation(BaseModel):
     original_op: str
     target: str
     value: Optional[str] = None
-    op: str  # Added for required field
+    op: str
 
 
 class LTOEvent(BaseModel):

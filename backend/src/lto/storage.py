@@ -36,11 +36,17 @@ class EventStorage:
 
         return str(event_file)
 
-    def get_session_events(self, session_id: str) -> List[LTOEvent]:
+    def get_session_events(self, session_id: Optional[str]) -> List[LTOEvent]:
         """Get all events for a session, converting them to LTOEvent objects"""
         events = []
+
+        if not session_id:
+            logger.warning("Attempted to get events with no session ID")
+            return events
+
         session_dir = self.base_dir / session_id
         if not session_dir.exists():
+            logger.info(f"No events found for session {session_id}")
             return events
 
         for event_file in sorted(session_dir.glob("event_*.json")):

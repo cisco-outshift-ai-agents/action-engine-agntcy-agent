@@ -165,6 +165,7 @@ async def analyze_event_log(events: List[LTOEvent]) -> AnalyzedLTOResult:
                     original_op="url_updated",
                     target=f"from {current_url} to {event_website}",
                     value=event_website,
+                    op="url_updated",
                 ),
                 timestamp=getattr(event, "timestamp", None),
             )

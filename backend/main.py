@@ -219,11 +219,22 @@ async def analyze_event_log_endpoint():
     logger.info(f"New request for analyzing event log for session {session_id}")
 
     try:
+        if not session_id:
+            logger.warning("No active session found")
+            return {
+                "error": "No active session",
+                "message": "Please start a new session before analyzing events",
+            }
+
         # Retrieve events for the session
         events = event_storage.get_session_events(session_id)
 
         if not events:
-            return {"error": "No events found for session"}
+            logger.info(f"No events found for session {session_id}")
+            return {
+                "error": "No events found",
+                "message": f"No events found for session {session_id}",
+            }
 
         analyzed_result = await analyze_event_log(events)
         analyzed_result.session_id = session_id
