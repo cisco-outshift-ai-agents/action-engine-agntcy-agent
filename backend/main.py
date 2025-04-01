@@ -201,40 +201,146 @@ async def stop_endpoint(websocket: WebSocket):
 
 @app.websocket("/ws/terminal")
 async def terminal_endpoint(websocket: WebSocket):
-    logger.info("New WebSocket connection for terminal commands")
+    from starlette.websockets import WebSocketState
+
+    # Get client connection info for logging
+    client_ip = websocket.client.host
+    client_port = websocket.client.port
+    connection_id = f"{client_ip}:{client_port}"
+
+    logger.info(f"New WebSocket connection for /ws/terminal from {connection_id}")
     await websocket.accept()
+
     terminal_manager = TerminalManager.get_instance()
 
-    # Create a new terminal for this WebSocket
+    # Always create a new terminal for each WebSocket connection
     terminal_id = await terminal_manager.create_terminal()
-    logger.info(f"Assigned terminal {terminal_id} to new WebSocket")
+    logger.info(
+        f"Assigned terminal {terminal_id} to WebSocket connection {connection_id}"
+    )
+    try:
+        logger.info(f"Sending initial terminal ID: {terminal_id} to client")
+        await websocket.send_text(
+            json.dumps(
+                {
+                    "terminal_id": terminal_id,
+                    "working_directory": "/root",
+                    "summary": "",
+                    "marker_id": 0,
+                }
+            )
+        )
+    except Exception as e:
+        logger.error(f"Failed to send initial terminal ID: {e}", exc_info=True)
+        return
+
+    # This tracks which terminal ID is currently being used by this websocket
+    current_terminal_id = terminal_id
+
+    poll_task = None
 
     try:
-        # Start polling task for streaming output from this terminal
-        async def poll_terminal():
-            logger.info(f"Polling terminal output for terminal {terminal_id}")
-            async for output in terminal_manager.poll_and_stream_output(terminal_id, 0):
-                await websocket.send_text(json.dumps(output))
 
-        poll_task = asyncio.create_task(poll_terminal())
+        async def poll_terminal(tid):
+            logger.info(
+                f"Polling terminal output for terminal {tid} (connection {connection_id})"
+            )
+            try:
+                async for output in terminal_manager.poll_and_stream_output(tid, 0):
+                    if websocket.client_state == WebSocketState.CONNECTED:
+                        await websocket.send_text(json.dumps(output))
+                    else:
+                        logger.warning(
+                            f"WebSocket disconnected while trying to send output for terminal {tid}"
+                        )
+                        break
+            except Exception as e:
+                logger.error(f"Error polling terminal {tid}: {e}")
 
-        # Command input loop (from the same client)
+        poll_task = asyncio.create_task(poll_terminal(terminal_id))
+
+        # Command input loop
         while True:
             data = await websocket.receive_text()
             client_payload = json.loads(data)
 
             if "command" in client_payload:
                 command = client_payload["command"]
+
+                # If client specifies a terminal ID to use, switch to it
+                request_terminal_id = client_payload.get("terminal_id")
+                if (
+                    request_terminal_id
+                    and request_terminal_id in terminal_manager.terminals
+                ):
+                    if current_terminal_id != request_terminal_id:
+                        logger.info(
+                            f"Switching from terminal {current_terminal_id} to {request_terminal_id} for connection {connection_id}"
+                        )
+
+                        # Cancel the previous polling task
+                        if poll_task:
+                            poll_task.cancel()
+                            try:
+                                await poll_task
+                            except asyncio.CancelledError:
+                                pass
+
+                        # Start polling the new terminal
+                        current_terminal_id = request_terminal_id
+                        poll_task = asyncio.create_task(
+                            poll_terminal(current_terminal_id)
+                        )
+
+                # Execute the command on the current terminal
                 logger.info(
-                    f"Executing command from client on terminal {terminal_id}: {command}"
+                    f"Executing command from connection {connection_id} on terminal {current_terminal_id}: {command}"
                 )
-                await terminal_manager.execute_command(terminal_id, command)
+                result, success = await terminal_manager.execute_command(
+                    current_terminal_id, command
+                )
+
+                if not success:
+                    logger.warning(
+                        f"Command execution failed on terminal {current_terminal_id}: {result}"
+                    )
+
+                    # Send an immediate error message back to the client
+                    error_response = {
+                        "summary": f"Command execution failed: {result}",
+                        "terminal_id": current_terminal_id,
+                        "working_directory": terminal_manager.terminals[
+                            current_terminal_id
+                        ]["working_directory"],
+                        "error": True,
+                    }
+                    await websocket.send_text(json.dumps(error_response))
 
     except WebSocketDisconnect:
-        logger.info(f"Terminal WebSocket disconnected for terminal {terminal_id}")
+        logger.info(
+            f"Terminal WebSocket disconnected for terminal {current_terminal_id} (connection {connection_id})"
+        )
+    except Exception as e:
+        logger.error(
+            f"Error in terminal WebSocket for terminal {current_terminal_id}: {str(e)}"
+        )
     finally:
-        poll_task.cancel()
-        await websocket.close()
+        # Clean up the polling task
+        if poll_task:
+            poll_task.cancel()
+            try:
+                await poll_task
+            except asyncio.CancelledError:
+                logger.info(f"Polling task for terminal {current_terminal_id} canceled")
+
+        # Close the WebSocket if it's still open
+        if websocket.client_state == WebSocketState.CONNECTED:
+            try:
+                await websocket.close()
+            except Exception as e:
+                logger.error(
+                    f"Error closing WebSocket for terminal {current_terminal_id}: {str(e)}"
+                )
 
 
 if __name__ == "__main__":
