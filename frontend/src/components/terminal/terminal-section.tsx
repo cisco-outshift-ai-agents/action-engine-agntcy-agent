@@ -119,7 +119,7 @@ const TerminalSection = ({
     return terminalInstances[id];
   }, []);
 
-  // Handle user input and special keys with improved prompt handling
+  // Handle user input and special keys and history management
   const handleUserInput = (data: string, term: XTerm) => {
     if (data === "\r") {
       const command = currentInputRef.current.trim();
