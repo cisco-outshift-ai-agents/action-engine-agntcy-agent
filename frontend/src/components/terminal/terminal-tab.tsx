@@ -15,6 +15,7 @@ const globalWebSocketMap: Record<string, WebSocket> = {};
 
 const TabbedTerminalContainer: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("terminal");
+
   const [tabs, setTabs] = useState<TerminalTabConfig[]>([
     {
       id: "terminal",
@@ -147,14 +148,12 @@ const TabbedTerminalContainer: React.FC = () => {
                   ([_, tid]) => tid === terminal_id
                 )?.[0] || tabId;
 
-              if (summary.trim()) {
-                setTerminalBuffers((prev) => ({
-                  ...prev,
-                  [targetTabForContent]: prev[targetTabForContent]
-                    ? `${prev[targetTabForContent]}\n${summary}`
-                    : summary,
-                }));
-              }
+              setTerminalBuffers((prev) => ({
+                ...prev,
+                [targetTabForContent]: prev[targetTabForContent]
+                  ? `${prev[targetTabForContent]}\n${summary}`
+                  : summary,
+              }));
 
               setContentTimestamps((prev) => ({
                 ...prev,
@@ -180,9 +179,12 @@ const TabbedTerminalContainer: React.FC = () => {
 
         // Try to reconnect only if the tab still exists
         setTimeout(() => {
-          if (tabs.some((tab) => tab.id === tabId)) {
-            connectWebsocketForTab(tabId, terminalIdMapRef.current[tabId]);
-          }
+          setTabs((prevTabs) => {
+            if (prevTabs.some((tab) => tab.id === tabId)) {
+              connectWebsocketForTab(tabId, terminalIdMapRef.current[tabId]);
+            }
+            return prevTabs;
+          });
         }, 3000);
       };
 
@@ -249,7 +251,6 @@ const TabbedTerminalContainer: React.FC = () => {
       }));
 
       // Connect a WebSocket for this new tab and associate with terminal ID
-      //   terminalIdMapRef.current[newTabId] = terminalId;
       connectWebsocketForTab(newTabId);
     } catch (error) {
       console.error("Error creating new terminal tab:", error);
@@ -274,7 +275,6 @@ const TabbedTerminalContainer: React.FC = () => {
   );
 
   // Close a tab and update the titles of the remaining tabs to maintain sequence
-
   const closeTab = useCallback(
     (tabId: string) => {
       if (tabId === "terminal") {

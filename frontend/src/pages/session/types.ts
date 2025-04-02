@@ -94,6 +94,7 @@ export const TerminalDataZod = z.object({
   summary: z.string(),
   working_directory: z.string(),
   terminal_id: z.string(),
+  marker_id: z.number(),
 });
 
 export type TerminalData = z.infer<typeof TerminalDataZod>;
