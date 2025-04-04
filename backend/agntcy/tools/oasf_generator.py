@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from langchain.schema import HumanMessage, SystemMessage
 from src.utils.utils import get_llm_model
+from langsmith import tracing_context
 
 load_dotenv()
 
@@ -64,8 +65,10 @@ Extract the tool name from the decorator and the first paragraph of the docstrin
     structured_llm = llm.with_structured_output(ToolInfo)
 
     try:
-        response = await structured_llm.ainvoke(messages)
-        return response
+        with tracing_context(enabled=False):
+            # Anything in this code block will **not** be traced to LangSmith
+            response = await structured_llm.ainvoke(messages)
+            return response
     except Exception as e:
         print(f"Error analyzing file {file_path}: {e}")
         return None
@@ -138,11 +141,24 @@ Identify the most appropriate OASF skills for this tool."""
     structured_llm = llm.with_structured_output(SkillList)
 
     try:
-        response = await structured_llm.ainvoke(messages)
-        return response.skills
+        with tracing_context(enabled=False):
+            # Anything in this code block will **not** be traced to LangSmith
+            response = await structured_llm.ainvoke(messages)
+            return response.skills
     except Exception as e:
         print(f"Error mapping skills for {tool_info.name}: {e}")
         return []
+
+
+def check_rai_assessment():
+    """Check if cloud-hosted LLM requires RAI assessment confirmation"""
+
+    response = input(
+        "If the LLM provided in the .env file is a cloud-hosted LLM, does it pass the RAI assessment? Y/n: "
+    )
+    if response.lower() != "y":
+        print("RAI assessment confirmation required. Exiting.")
+        sys.exit(1)
 
 
 async def generate_oasf_schema() -> Dict:
@@ -178,7 +194,7 @@ async def generate_oasf_schema() -> Dict:
     fingerprint = hasher.hexdigest().lower()
 
     # Read skill categories
-    with open("agntcy/lib/oasf_skills.txt", "r") as f:
+    with open("agntcy/tools/oasf_skills.txt", "r") as f:
         skill_categories = f.read()
 
     # Map tools to skills using LLM
@@ -265,9 +281,10 @@ async def generate_oasf_schema() -> Dict:
 
 if __name__ == "__main__":
     import asyncio
+    import sys
 
+    check_rai_assessment()
     schema = asyncio.run(generate_oasf_schema())
-    print(json.dumps(schema, indent=2))
 
     save_path = os.path.join(os.getcwd(), "oasf_schema.json")
     with open(save_path, "w") as f:
