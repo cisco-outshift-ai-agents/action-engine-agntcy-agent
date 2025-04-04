@@ -3,6 +3,8 @@ Utility to generate OASF schema for ActionEngine
 
 Run like this:
 $ PYTHONPATH=. python src/utils/oasf_generator.py
+
+You MUST ensure that the LLM running this script passes RAI assessment prior to running this script.
 """
 
 import hashlib
