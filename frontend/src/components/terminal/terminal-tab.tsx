@@ -6,23 +6,27 @@ import React, {
   useRef,
 } from "react";
 import { Tabs } from "@magnetic/tabs";
-import TerminalSection, { TerminalTabConfig } from "./terminal-section";
+import TerminalSection from "./terminal-section";
 import { PlusCircle, X } from "lucide-react";
 import { TerminalDataZod } from "@/pages/session/types";
 
-const TabbedTerminalContainer: React.FC = ({}) => {
+// Store all active WebSocket connections globally
+const globalWebSocketMap: Record<string, WebSocket> = {};
+
+const TabbedTerminalContainer: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("terminal");
+
   const [tabs, setTabs] = useState<TerminalTabConfig[]>([
     {
       id: "terminal",
       title: "Terminal",
       workingDirectory: "~",
+      terminalId: null,
       isActive: true,
     },
   ]);
-  const [terminalContent, setTerminalContent] = useState<string>("");
-  const [terminalId, setTerminalId] = useState<string>("");
-  const [workingDirectory, setWorkingDirectory] = useState<string>("");
+
+  // Track terminal buffers by tab ID and track timestamps to avoid duplicate content
 
   const [terminalBuffers, setTerminalBuffers] = useState<
     Record<string, string>
@@ -36,143 +40,224 @@ const TabbedTerminalContainer: React.FC = ({}) => {
     terminal: Date.now(),
   });
 
-  const wsTerminalRef = useRef<WebSocket | null>(null);
+  // Track WebSocket connections per tab and their associated terminal IDs and connect a WebSocket for a specific tab/terminal
+  const webSocketMapRef = useRef<Record<string, WebSocket>>({});
+  const terminalIdMapRef = useRef<Record<string, string>>({});
+  const initialSetupDoneRef = useRef<boolean>(false);
 
-  // Websocket connection terminal
-  useEffect(() => {
-    if (
-      wsTerminalRef.current &&
-      wsTerminalRef.current.readyState === WebSocket.OPEN
-    ) {
-      console.warn("WebSocket terminal is already connected");
-      return;
-    }
-    const useLocal = true;
-    const url = useLocal ? "localhost:7788" : window.location.host;
-    const connectWebsocket = () => {
+  const connectWebsocketForTab = useCallback(
+    (tabId: string, initialTerminalId: string | null = null) => {
+      if (
+        webSocketMapRef.current[tabId] &&
+        webSocketMapRef.current[tabId].readyState <= WebSocket.OPEN
+      ) {
+        console.log(
+          `WebSocket for tab ${tabId} is already connecting/connected`
+        );
+        return webSocketMapRef.current[tabId];
+      }
+
+      console.log(`Creating new WebSocket connection for tab ${tabId}`);
+
+      const useLocal = true;
+      const url = useLocal ? "localhost:7788" : window.location.host;
       const ws = new WebSocket(`ws://${url}/ws/terminal`);
-      wsTerminalRef.current = ws;
+
+      webSocketMapRef.current[tabId] = ws;
+      globalWebSocketMap[tabId] = ws;
 
       ws.onopen = () => {
-        console.log("Connected to terminal websocket");
+        console.log(`Connected to terminal websocket for tab ${tabId}`);
+
+        if (initialTerminalId) {
+          terminalIdMapRef.current[tabId] = initialTerminalId;
+          console.log(
+            `Associating terminal ID ${initialTerminalId} with tab ${tabId}`
+          );
+        }
       };
 
       ws.onmessage = (event: MessageEvent) => {
-        console.log("Received WebSocket terminal message:", event.data);
-        const parsedData = TerminalDataZod.safeParse(JSON.parse(event.data));
+        console.log(`Received terminal message for tab ${tabId}:`, event.data);
+        try {
+          const parsedData = TerminalDataZod.safeParse(JSON.parse(event.data));
 
-        if (!parsedData.success) {
-          console.error("Invalid terminal data:", parsedData.error);
-          return;
+          if (!parsedData.success) {
+            console.error("Invalid terminal data:", parsedData.error);
+            return;
+          }
+
+          const { summary, working_directory, terminal_id } = parsedData.data;
+
+          if (terminal_id) {
+            const isInitialTerminalAssignment =
+              tabId === "terminal" &&
+              !terminalIdMapRef.current[tabId] &&
+              !initialSetupDoneRef.current;
+
+            if (isInitialTerminalAssignment) {
+              initialSetupDoneRef.current = true;
+
+              terminalIdMapRef.current[tabId] = terminal_id;
+
+              console.log(
+                `Initial terminal ID ${terminal_id} assigned to tab ${tabId}`
+              );
+
+              setTabs((prevTabs) =>
+                prevTabs.map((tab) =>
+                  tab.id === tabId
+                    ? {
+                        ...tab,
+                        terminalId: terminal_id,
+                        workingDirectory: working_directory,
+                      }
+                    : tab
+                )
+              );
+            } else {
+              const existingTab = Object.entries(terminalIdMapRef.current).find(
+                ([_, tid]) => tid === terminal_id
+              )?.[0];
+
+              const targetTabId = existingTab || tabId;
+
+              setTabs((prevTabs) =>
+                prevTabs.map((tab) =>
+                  tab.id === targetTabId
+                    ? {
+                        ...tab,
+                        terminalId: terminal_id,
+                        workingDirectory: working_directory,
+                      }
+                    : tab
+                )
+              );
+
+              if (!existingTab && !terminalIdMapRef.current[targetTabId]) {
+                terminalIdMapRef.current[targetTabId] = terminal_id;
+                console.log(
+                  `Assigned terminal ID ${terminal_id} to tab ${targetTabId}`
+                );
+              }
+            }
+
+            if (summary) {
+              const targetTabForContent =
+                Object.entries(terminalIdMapRef.current).find(
+                  ([_, tid]) => tid === terminal_id
+                )?.[0] || tabId;
+
+              setTerminalBuffers((prev) => ({
+                ...prev,
+                [targetTabForContent]: prev[targetTabForContent]
+                  ? `${prev[targetTabForContent]}\n${summary}`
+                  : summary,
+              }));
+
+              setContentTimestamps((prev) => ({
+                ...prev,
+                [targetTabForContent]: Date.now(),
+              }));
+            }
+          }
+        } catch (error) {
+          console.error("Error processing message:", error);
         }
-
-        const { summary, working_directory, terminal_id } = parsedData.data;
-
-        setWorkingDirectory((prev) =>
-          prev !== working_directory ? working_directory : prev
-        );
-        setTerminalId(terminal_id);
-
-        // setTimeout(() => {
-        //   setTerminalContent(`${summary}_${Date.now()}`);
-        // }, 10);
-
-        requestAnimationFrame(() => {
-          setTerminalContent(`${summary}_${Date.now()}`);
-        });
-
-        setTerminalBuffers((prev) => ({
-          ...prev,
-          terminal: prev.terminal ? `${prev.terminal}\n${summary}` : summary,
-        }));
-
-        setContentTimestamps((prev) => ({
-          ...prev,
-          terminal: Date.now(),
-        }));
-
-        setTabs((prevTabs) =>
-          prevTabs.map((tab) =>
-            tab.id === "terminal"
-              ? { ...tab, workingDirectory: working_directory }
-              : tab
-          )
-        );
       };
 
-      ws.onerror = (error) => console.error("WebSocket terminal error:", error);
+      ws.onerror = (error) => {
+        console.error(`WebSocket error for tab ${tabId}:`, error);
+      };
+
       ws.onclose = () => {
-        console.warn("Disconnected from terminal WebSocket");
-        setTimeout(connectWebsocket, 3000);
+        console.warn(`WebSocket for tab ${tabId} disconnected`);
+
+        // Clean up references
+        delete webSocketMapRef.current[tabId];
+        delete globalWebSocketMap[tabId];
+
+        // Try to reconnect only if the tab still exists
+        setTimeout(() => {
+          setTabs((prevTabs) => {
+            if (prevTabs.some((tab) => tab.id === tabId)) {
+              connectWebsocketForTab(tabId, terminalIdMapRef.current[tabId]);
+            }
+            return prevTabs;
+          });
+        }, 3000);
       };
-    };
-    connectWebsocket();
 
-    return () => {
-      wsTerminalRef.current?.close();
-    };
-  }, []);
+      return ws;
+    },
+    []
+  );
 
-  // Update tabs when working directory changes
-
+  // Initialize the default terminal tab only once
   useEffect(() => {
-    console.log("initial TerminalID:", terminalId);
-  }, []);
-  0;
-  useEffect(() => {
-    if (workingDirectory) {
-      setTabs((prevTabs) =>
-        prevTabs.map((tab) =>
-          tab.id === "terminal" ? { ...tab, workingDirectory } : tab
-        )
+    if (webSocketMapRef.current["terminal"] || initialSetupDoneRef.current) {
+      console.log(
+        "WebSocket for default terminal tab already exists or setup is complete"
       );
+      return;
     }
-  }, [workingDirectory]);
 
-  useEffect(() => {
-    if (terminalContent && terminalContent.trim()) {
+    console.log("Initializing WebSocket for default terminal tab");
+    connectWebsocketForTab("terminal");
+
+    // Cleanup WebSocket connections
+    return () => {
+      console.log("Cleaning up WebSocket connections");
+      Object.values(globalWebSocketMap).forEach((socket) => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          console.log("Closing WebSocket connection");
+          socket.close();
+        }
+      });
+    };
+  }, [connectWebsocketForTab]);
+
+  const createNewTab = useCallback(async () => {
+    try {
+      const newTabId = `terminal-${Date.now()}`;
+
+      setTabs((prevTabs) => {
+        const updatedTabs = prevTabs.map((tab) => ({
+          ...tab,
+          isActive: false,
+        }));
+        return [
+          ...updatedTabs,
+          {
+            id: newTabId,
+            title: `Terminal ${updatedTabs.length + 1}`,
+            workingDirectory: "~",
+            terminalId: null,
+            isActive: true,
+          },
+        ];
+      });
+
+      setActiveTab(newTabId);
+
       setTerminalBuffers((prev) => ({
         ...prev,
-        terminal: prev.terminal
-          ? `${prev.terminal}\n${terminalContent}`
-          : terminalContent,
+        [newTabId]: "",
       }));
 
       setContentTimestamps((prev) => ({
         ...prev,
-        terminal: Date.now(),
+        [newTabId]: Date.now(),
       }));
+
+      // Connect a WebSocket for this new tab and associate with terminal ID
+      connectWebsocketForTab(newTabId);
+    } catch (error) {
+      console.error("Error creating new terminal tab:", error);
     }
-  }, [terminalContent]);
+  }, [connectWebsocketForTab]);
 
-  const createNewTab = useCallback(() => {
-    const newTabId = `terminal-${tabs.length + 1}`;
-
-    const updatedTabs = tabs.map((tab) => ({ ...tab, isActive: false }));
-
-    setTabs([
-      ...updatedTabs,
-      {
-        id: newTabId,
-        title: `Terminal ${tabs.length + 1}`,
-        workingDirectory: "~",
-        isActive: true,
-      },
-    ]);
-
-    setTerminalBuffers((prev) => ({
-      ...prev,
-      [newTabId]: "",
-    }));
-
-    setContentTimestamps((prev) => ({
-      ...prev,
-      [newTabId]: Date.now(),
-    }));
-
-    setActiveTab(newTabId);
-  }, [tabs]);
-
+  // Switch between tabs
   const switchTab = useCallback(
     (tabId: string) => {
       if (activeTab !== tabId) {
@@ -189,97 +274,124 @@ const TabbedTerminalContainer: React.FC = ({}) => {
     [activeTab]
   );
 
-  //Close tab (We can't add the close button directly in Tabs.link because of the Magnetic framework, so we have one close button which works for the active tab )
+  // Close a tab and update the titles of the remaining tabs to maintain sequence
   const closeTab = useCallback(
     (tabId: string) => {
       if (tabId === "terminal") {
         return;
       }
 
-      const updatedTabs = tabs.filter((tab) => tab.id !== tabId);
-      if (activeTab === tabId) {
-        const newActiveTab = "terminal";
-        setActiveTab(newActiveTab);
-
-        updatedTabs.forEach((tab) => {
-          tab.isActive = tab.id === newActiveTab;
-        });
+      if (webSocketMapRef.current[tabId]) {
+        webSocketMapRef.current[tabId].close();
+        delete webSocketMapRef.current[tabId];
+        delete globalWebSocketMap[tabId];
       }
-      setTabs(updatedTabs);
+
+      if (activeTab === tabId) {
+        setActiveTab("terminal");
+      }
+
+      setTabs((prevTabs) => {
+        const filteredTabs = prevTabs.filter((tab) => tab.id !== tabId);
+
+        const updatedTabs = filteredTabs.map((tab, index) => ({
+          ...tab,
+          title: index === 0 ? "Terminal" : `Terminal ${index + 1}`,
+        }));
+
+        return updatedTabs;
+      });
+
       setTerminalBuffers((prev) => {
         const newBuffers = { ...prev };
         delete newBuffers[tabId];
         return newBuffers;
       });
+
       setContentTimestamps((prev) => {
         const newTimestamps = { ...prev };
         delete newTimestamps[tabId];
         return newTimestamps;
       });
+
+      delete terminalIdMapRef.current[tabId];
     },
-    [activeTab, tabs]
+    [activeTab]
   );
-  const handleContentUpdate = useCallback((id: string, content: string) => {
-    if (!content.trim()) return;
-    console.log("handle content update called with:", content);
 
-    setTerminalBuffers((prev) => ({
-      ...prev,
-      [id]: prev[id] ? `${prev[id]}\n${content}` : content,
-    }));
+  // Handle command input
+  const handleContentUpdate = useCallback(
+    (tabId: string, content: string) => {
+      if (!content.trim()) return;
 
-    setContentTimestamps((prev) => ({
-      ...prev,
-      [id]: Date.now(),
-    }));
+      // Get the terminal ID for this tab from our mapping
+      const terminalId = terminalIdMapRef.current[tabId];
+      if (!terminalId) {
+        console.warn(`No terminal ID found for tab ${tabId}`);
+        return;
+      }
 
-    if (!wsTerminalRef.current) {
-      console.warn("WebSocket terminal is not connected");
-      return;
-    }
+      console.log(
+        `Sending command "${content}" for tab ${tabId} with terminal ID ${terminalId}`
+      );
 
-    if (wsTerminalRef.current.readyState !== WebSocket.OPEN) {
-      console.warn("WebSocket is not open. Storing message in buffer.");
-      setTimeout(() => {
-        if (wsTerminalRef.current?.readyState === WebSocket.OPEN) {
-          console.log("Sending buffered command:", content);
-          wsTerminalRef.current.send(JSON.stringify({ command: content }));
-        } else {
-          console.error("WebSocket still not open. Command not sent.");
+      // Get the WebSocket for this tab
+      const ws = webSocketMapRef.current[tabId];
+      if (!ws) {
+        console.warn(`No WebSocket found for tab ${tabId}`);
+        return;
+      }
+
+      if (ws.readyState !== WebSocket.OPEN) {
+        console.warn(
+          `WebSocket for tab ${tabId} is not open (state: ${ws.readyState})`
+        );
+
+        if (ws.readyState === WebSocket.CLOSED) {
+          connectWebsocketForTab(tabId, terminalId);
         }
-      }, 500);
-      return;
-    }
 
-    // Send the message if WebSocket is open
-    wsTerminalRef.current.send(JSON.stringify({ command: content }));
-  }, []);
+        setTimeout(() => {
+          const ws = webSocketMapRef.current[tabId];
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                command: content,
+                terminal_id: terminalId,
+              })
+            );
+          } else {
+            console.error(`Still unable to send command for tab ${tabId}`);
+          }
+        }, 1000);
+
+        return;
+      }
+
+      ws.send(
+        JSON.stringify({
+          command: content,
+          terminal_id: terminalId,
+        })
+      );
+    },
+    [connectWebsocketForTab]
+  );
 
   const terminalProps = useMemo(() => {
     return tabs.map((tab) => {
       const isActive = activeTab === tab.id;
-      const isMainTerminal = tab.id === "terminal";
       return {
         key: tab.id,
         id: tab.id,
         isActive,
-        isMainTerminal,
-        currentContent:
-          isMainTerminal && isActive ? terminalContent : undefined,
         buffer: terminalBuffers[tab.id] || "",
         tabWorkingDirectory: tab.workingDirectory,
-        terminalIdentifier: isMainTerminal ? terminalId : tab.id,
+        terminalIdentifier: tab.terminalId || tab.id,
         timestamp: contentTimestamps[tab.id] || Date.now(),
       };
     });
-  }, [
-    activeTab,
-    tabs,
-    terminalContent,
-    terminalBuffers,
-    terminalId,
-    contentTimestamps,
-  ]);
+  }, [activeTab, tabs, terminalBuffers, contentTimestamps]);
 
   const TabBar = () => (
     <div className="px-2 flex items-center justify-between">
@@ -296,7 +408,7 @@ const TabbedTerminalContainer: React.FC = ({}) => {
               }}
               className="text-[#D0D4D9] font-bold text-base leading-[22px] text-[#D0D4D9]"
             >
-              {tab.title}
+              {`${tab.title}${tab.terminalId ? ` (${tab.terminalId})` : ""}`}
             </Tabs.Link>
           ))}
         </Tabs>
@@ -340,13 +452,14 @@ const TabbedTerminalContainer: React.FC = ({}) => {
           style={{ height: "calc(100% - 48px)" }}
         >
           <TerminalSection
-            key="main-terminal"
-            content={props.currentContent}
+            key={props.id}
             isVisible={props.isActive}
             terminalId={props.terminalIdentifier}
             workingDirectory={props.tabWorkingDirectory}
             contentBuffer={props.buffer}
-            onContentUpdate={handleContentUpdate}
+            onContentUpdate={(content) =>
+              handleContentUpdate(props.id, content)
+            }
           />
         </div>
       ))}
@@ -355,3 +468,11 @@ const TabbedTerminalContainer: React.FC = ({}) => {
 };
 
 export default TabbedTerminalContainer;
+
+export interface TerminalTabConfig {
+  id: string;
+  title: string;
+  workingDirectory: string;
+  isActive: boolean;
+  terminalId?: string | null;
+}

@@ -3,16 +3,16 @@ import { Terminal as XTerm } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
 import { extractHostname } from "@/utils";
+
 interface TerminalComponentProps {
-  content?: string;
   isVisible: boolean;
   terminalId?: string;
   workingDirectory?: string;
   contentBuffer: string;
-  onContentUpdate?: (id: string, content: string) => void;
+  onContentUpdate?: (content: string) => void;
 }
 
-// Create as persistent terminal instance cache
+// Create a persistent terminal instance cache
 const terminalInstances: Record<
   string,
   {
@@ -20,11 +20,11 @@ const terminalInstances: Record<
     fitAddon: FitAddon;
     mounted: boolean;
     processedContents: Set<string>;
+    lastProcessedBuffer: string;
   }
 > = {};
 
 const TerminalSection = ({
-  content,
   isVisible,
   terminalId,
   workingDirectory,
@@ -32,12 +32,37 @@ const TerminalSection = ({
   onContentUpdate,
 }: TerminalComponentProps): JSX.Element => {
   const terminalRef = useRef<HTMLDivElement>(null);
-  const instanceIdRef = useRef<string>(terminalId || "base");
+  const instanceIdRef = useRef<string>(terminalId || "default");
   const [domReady, setDomReady] = useState(false);
   const currentInputRef = useRef("");
   const cursorPosRef = useRef(0);
   const commandHistoryRef = useRef<string[]>([]);
   const historyPosRef = useRef(-1);
+  const previousBufferRef = useRef<string>("");
+  const prevTerminalIdRef = useRef<string | undefined>(terminalId);
+
+  // Update instance ID when terminalId changes
+  useEffect(() => {
+    if (terminalId && instanceIdRef.current !== terminalId) {
+      console.log(
+        `Updating terminal instance ID from ${instanceIdRef.current} to ${terminalId}`
+      );
+
+      // Check if we already have an instance for this terminal ID and don't create a new instance if there's an existing one
+      if (terminalInstances[terminalId]) {
+        console.log(`Found existing instance for terminal ID ${terminalId}`);
+      } else if (terminalInstances[instanceIdRef.current]) {
+        console.log(
+          `Migrating instance from ${instanceIdRef.current} to ${terminalId}`
+        );
+        terminalInstances[terminalId] =
+          terminalInstances[instanceIdRef.current];
+        delete terminalInstances[instanceIdRef.current];
+      }
+      instanceIdRef.current = terminalId;
+      prevTerminalIdRef.current = terminalId;
+    }
+  }, [terminalId]);
 
   // Wait for DOM to be ready
   useEffect(() => {
@@ -52,6 +77,7 @@ const TerminalSection = ({
   // Get current terminal instance from cache or create a new one
   const getTerminalInstance = useCallback(() => {
     const id = instanceIdRef.current;
+
     if (
       terminalInstances[id] &&
       terminalInstances[id].term &&
@@ -60,6 +86,9 @@ const TerminalSection = ({
     ) {
       return terminalInstances[id];
     }
+
+    console.log(`Creating new terminal instance for ID: ${id}`);
+
     const term = new XTerm({
       cursorBlink: true,
       scrollback: 10000,
@@ -84,6 +113,7 @@ const TerminalSection = ({
       fitAddon,
       mounted: false,
       processedContents: new Set(),
+      lastProcessedBuffer: "",
     };
 
     return terminalInstances[id];
@@ -99,7 +129,7 @@ const TerminalSection = ({
 
         term.write("\r\n");
         if (onContentUpdate) {
-          onContentUpdate(terminalId || "terminal", command);
+          onContentUpdate(command);
         }
         currentInputRef.current = "";
 
@@ -115,7 +145,6 @@ const TerminalSection = ({
         cursorPosRef.current--;
 
         term.write("\b \b");
-
         term.write("\u001b[K");
         term.write(newInput.substring(cursorPosRef.current));
 
@@ -136,10 +165,9 @@ const TerminalSection = ({
         const historyCommand = commandHistoryRef.current[newPos];
 
         term.write("\u001b[2K\r");
-        const hostname = extractHostname(content || "");
+        const hostname = extractHostname(contentBuffer || "");
         term.write(`${hostname}:${workingDirectory}# ` + historyCommand);
         currentInputRef.current = historyCommand;
-
         cursorPosRef.current = historyCommand.length;
       }
       // Down Arrow Key
@@ -151,7 +179,7 @@ const TerminalSection = ({
             : historyPosRef.current + 1;
 
         term.write("\r");
-        const hostname = extractHostname(content || "");
+        const hostname = extractHostname(contentBuffer || "");
         term.write(`${hostname}:${workingDirectory}# `);
         term.write("\u001b[K");
 
@@ -162,7 +190,6 @@ const TerminalSection = ({
           const historyCommand = commandHistoryRef.current[newPos];
           term.write(historyCommand);
           currentInputRef.current = historyCommand;
-
           cursorPosRef.current = historyCommand.length;
         }
 
@@ -173,10 +200,8 @@ const TerminalSection = ({
       if (cursorPosRef.current < currentInputRef.current.length) {
         term.write("\u001b[C");
         cursorPosRef.current++;
-      } else {
-        console.warn("Cursor at the end, cannot move right!");
       }
-      //Left Arrow Key
+      // Left Arrow Key
     } else if (data === "\u001b[D") {
       if (cursorPosRef.current > 0) {
         term.write("\u001b[D");
@@ -221,44 +246,65 @@ const TerminalSection = ({
             terminalRef.current.appendChild(term.element);
           }
         }
-      } else {
-        // First time initialization
-        term.open(terminalRef.current);
 
-        term.onData((data) => {
-          handleUserInput(data, term);
-        });
-
-        // Write initial buffer content if available
-        if (contentBuffer && contentBuffer.trim()) {
-          const contentLines = contentBuffer.split("\n");
-          contentLines.forEach((line, index) => {
-            // Extract content without timestamp if present
-            const actualLine = line.includes("_")
-              ? line.substring(0, line.lastIndexOf("_"))
-              : line;
-
-            if (actualLine.trim()) {
-              term.write(`${actualLine}`);
-              if (index < contentLines.length - 1) {
-                term.write("\r\n");
-              }
-            }
-          });
-
-          if (terminalId && workingDirectory && !contentBuffer.endsWith("#")) {
-            term.write(`\r\nroot@${terminalId}:${workingDirectory}# `);
+        setTimeout(() => {
+          if (fitAddon && terminalRef.current) {
+            fitAddon.fit();
           }
-        } else {
-          // Just write the initial prompt
-          const hostname = extractHostname(content || "");
-          term.write(`${hostname}:${workingDirectory}# `);
+        }, 100);
+
+        return;
+      }
+      (term as any)._lastCommandTime = 0;
+      (term as any)._lastCommandTimeout = null;
+
+      term.open(terminalRef.current);
+
+      term.onData((data) => {
+        handleUserInput(data, term);
+      });
+
+      // Write initial buffer content if available
+      if (contentBuffer && contentBuffer.trim()) {
+        const lines = contentBuffer.split("\n");
+        let processedContent = "";
+        let lastLineWasPrompt = false;
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const isPrompt = /^root@[^:]+:[^#]+#\s*/.test(line);
+
+          if (isPrompt && lastLineWasPrompt) {
+            continue;
+          }
+
+          if (processedContent && !lastLineWasPrompt) {
+            processedContent += "\r\n";
+          }
+
+          processedContent += line;
+          lastLineWasPrompt = isPrompt;
         }
 
-        instance.mounted = true;
+        term.write(processedContent);
+        instance.lastProcessedBuffer = contentBuffer;
+
+        if (terminalId && workingDirectory) {
+          const lastLine = lines[lines.length - 1] || "";
+          const promptPattern = /^root@[^:]+:[^#]+#\s*$/;
+
+          if (!promptPattern.test(lastLine)) {
+            const hostname = extractHostname(contentBuffer || "");
+            term.write(`${hostname}:${workingDirectory}# `);
+          }
+        }
+      } else {
+        const hostname = extractHostname(contentBuffer || "");
+        term.write(`${hostname}:${workingDirectory}# `);
       }
 
-      // Fit terminal to container
+      instance.mounted = true;
+
       setTimeout(() => {
         if (fitAddon && terminalRef.current) {
           fitAddon.fit();
@@ -266,7 +312,6 @@ const TerminalSection = ({
         }
       }, 100);
 
-      // Handle window resize
       const handleResize = () => {
         if (fitAddon) fitAddon.fit();
       };
@@ -283,53 +328,114 @@ const TerminalSection = ({
     isVisible,
     domReady,
     getTerminalInstance,
-    contentBuffer,
     terminalId,
     workingDirectory,
+    contentBuffer,
   ]);
 
-  // Process new content
+  // Process new content, skip if already procesed
   useEffect(() => {
-    if (!content || !isVisible || !domReady) return;
-
-    const instance = getTerminalInstance();
-    const { term, processedContents } = instance;
-
-    if (!term) return;
-
-    // Extract actual content and create a unique key that includes the timestamp
-    const contentKey = content;
-    const actualContent = content.includes("_")
-      ? content.substring(0, content.lastIndexOf("_"))
-      : content;
-
-    // Skip if already processed this exact content with this exact timestamp
-    if (processedContents.has(contentKey)) {
+    if (!contentBuffer || !isVisible || !domReady) return;
+    if (previousBufferRef.current === contentBuffer) {
       return;
     }
 
-    // Mark as processed
-    processedContents.add(contentKey);
+    previousBufferRef.current = contentBuffer;
 
-    term.write(`${actualContent.trim()}`);
+    const instance = getTerminalInstance();
+    if (!instance || !instance.term) return;
 
-    // Add prompt if needed
-    setTimeout(() => {
-      term.scrollToBottom();
-      const buffer = term.buffer.active;
-      const lastLine = buffer
-        .getLine(buffer.length - 1)
-        ?.translateToString()
-        .trim();
-      const promptPrefix = `${extractHostname(content || "")}:${
-        workingDirectory || "~"
-      }# `;
-      if (!lastLine?.endsWith("#") || !lastLine.includes(promptPrefix)) {
-        term.write(`\r\n${promptPrefix}`);
+    const { term, lastProcessedBuffer } = instance;
+
+    if (lastProcessedBuffer === contentBuffer) {
+      return;
+    }
+
+    const wasProcessingCommand = currentInputRef.current.length > 0;
+
+    const parseCommandOutput = (buffer: string) => {
+      const commandMatch = buffer.match(/(.+?#\s*)([^\n]+)[\r\n]+(.*)/s);
+      if (commandMatch) {
+        const [_, promptPart, commandPart, outputPart] = commandMatch;
+        return {
+          prompt: promptPart,
+          command: commandPart,
+          output: outputPart,
+        };
       }
-    }, 50);
+      return null;
+    };
+
+    let newContent = contentBuffer;
+
+    if (lastProcessedBuffer) {
+      if (contentBuffer.startsWith(lastProcessedBuffer)) {
+        newContent = contentBuffer.substring(lastProcessedBuffer.length);
+        if (newContent.startsWith("\n")) {
+          newContent = newContent.substring(1);
+        }
+      } else {
+        term.clear();
+        newContent = contentBuffer;
+      }
+    }
+
+    if (newContent.trim()) {
+      const commandOutput = parseCommandOutput(newContent);
+
+      if (commandOutput && wasProcessingCommand) {
+        if (commandOutput.output.trim()) {
+          term.write(`\r\n${commandOutput.output}`);
+        }
+      } else {
+        const promptPattern = /^root@[^:]+:[^#]+#\s*/m;
+        const hasPrompt = promptPattern.test(newContent);
+
+        if (hasPrompt) {
+          const lines = newContent.split("\n");
+          let lastWasPrompt = false;
+
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const isPromptLine = promptPattern.test(line);
+
+            if (isPromptLine && lastWasPrompt) {
+              continue;
+            }
+
+            if (line.trim()) {
+              term.write(line);
+              if (i < lines.length - 1) {
+                term.write("\r\n");
+              }
+            }
+
+            lastWasPrompt = isPromptLine;
+          }
+        } else {
+          term.write(newContent);
+        }
+      }
+
+      setTimeout(() => {
+        term.scrollToBottom();
+        const buffer = term.buffer.active;
+        const lastLine =
+          buffer.getLine(buffer.length - 1)?.translateToString() || "";
+
+        const serverPrompt = `${extractHostname(contentBuffer || "")}:${
+          workingDirectory || "~"
+        }# `;
+
+        if (!lastLine.trim().endsWith("#")) {
+          term.write(`\r\n${serverPrompt}`);
+        }
+      }, 100);
+    }
+
+    instance.lastProcessedBuffer = contentBuffer;
   }, [
-    content,
+    contentBuffer,
     isVisible,
     domReady,
     getTerminalInstance,
@@ -338,7 +444,7 @@ const TerminalSection = ({
   ]);
 
   return (
-    <div className="flex flex-col h-full bg-[#1a1a1a] rounded-b-lg">
+    <div className="flex flex-col h-full bg-[#1a1a1a] rounded-b-lg overflow-hidden">
       <div ref={terminalRef} className="flex-1 overflow-auto p-1" />
     </div>
   );
@@ -351,4 +457,5 @@ export interface TerminalTabConfig {
   title: string;
   workingDirectory: string;
   isActive: boolean;
+  terminalId?: string | null;
 }
