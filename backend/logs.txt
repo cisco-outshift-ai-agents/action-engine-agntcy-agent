@@ -1,0 +1,327 @@
+ Service browser-use-webui  Building
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [browser-use-webui internal] load build definition from Dockerfile
+#1 transferring dockerfile: 2.94kB done
+#1 DONE 0.0s
+
+#2 [browser-use-webui internal] load metadata for docker.io/library/python:3.11-slim
+#2 ...
+
+#3 [browser-use-webui auth] library/python:pull token for registry-1.docker.io
+#3 DONE 0.0s
+
+#2 [browser-use-webui internal] load metadata for docker.io/library/python:3.11-slim
+#2 DONE 2.0s
+ Service browser-use-webui  Built
+
+#4 [browser-use-webui internal] load .dockerignore
+#4 transferring context: 717B done
+#4 DONE 0.0s
+
+#5 [browser-use-webui  1/17] FROM docker.io/library/python:3.11-slim@sha256:081075da77b2b55c23c088251026fb69a7b2bf92471e491ff5fd75c192fd38e5
+#5 DONE 0.0s
+
+#6 [browser-use-webui internal] load build context
+#6 transferring context: 218B done
+#6 DONE 0.0s
+
+#7 [browser-use-webui 16/17] COPY start-tmux.sh /app/
+#7 CACHED
+
+#8 [browser-use-webui  3/17] RUN git clone https://github.com/novnc/noVNC.git /opt/novnc     && git clone https://github.com/novnc/websockify /opt/novnc/utils/websockify     && ln -s /opt/novnc/vnc.html /opt/novnc/index.html
+#8 CACHED
+
+#9 [browser-use-webui 10/17] RUN apt-get update && apt-get install -y dbus
+#9 CACHED
+
+#10 [browser-use-webui 15/17] COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+#10 CACHED
+
+#11 [browser-use-webui 14/17] RUN mkdir -p /var/log/supervisor
+#11 CACHED
+
+#12 [browser-use-webui  7/17] RUN pip install --no-cache-dir -r requirements.txt
+#12 CACHED
+
+#13 [browser-use-webui  5/17] WORKDIR /app
+#13 CACHED
+
+#14 [browser-use-webui  9/17] RUN playwright install-deps
+#14 CACHED
+
+#15 [browser-use-webui 13/17] RUN mkdir -p /root/.tmux
+#15 CACHED
+
+#16 [browser-use-webui  4/17] RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg     && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list     && apt-get update     && apt-get install -y google-chrome-stable
+#16 CACHED
+
+#17 [browser-use-webui  8/17] RUN playwright install --with-deps chromium
+#17 CACHED
+
+#18 [browser-use-webui 11/17] RUN mkdir -p /run/dbus && chmod 755 /run/dbus
+#18 CACHED
+
+#19 [browser-use-webui 12/17] RUN dbus-uuidgen > /etc/machine-id && service dbus start
+#19 CACHED
+
+#20 [browser-use-webui  2/17] RUN apt-get update && apt-get install -y     wget     netcat-traditional     gnupg     curl     unzip     tmux     xvfb     libgconf-2-4     libxss1     libnss3     libnspr4     libasound2     libatk1.0-0     libatk-bridge2.0-0     libcups2     libdbus-1-3     libdrm2     libgbm1     libgtk-3-0     libxcomposite1     libxdamage1     libxfixes3     libxrandr2     xdg-utils     fonts-liberation     dbus     dbus-x11     xauth     xvfb     x11vnc     tigervnc-tools     supervisor     net-tools     procps     git     python3-numpy     fontconfig     fonts-dejavu     fonts-dejavu-core     fonts-dejavu-extra     && rm -rf /var/lib/apt/lists/*
+#20 CACHED
+
+#21 [browser-use-webui  6/17] COPY requirements.txt .
+#21 CACHED
+
+#22 [browser-use-webui 17/17] RUN chmod +x /app/start-tmux.sh
+#22 CACHED
+
+#23 [browser-use-webui] exporting to image
+#23 exporting layers done
+#23 writing image sha256:c4afdf7f8e673d111815e3f3d9716f48a589c7c4cc74a41269e731bae94ac39c done
+#23 naming to docker.io/library/action-engine-backend-browser-use-webui done
+#23 DONE 0.0s
+
+#24 [browser-use-webui] resolving provenance for metadata file
+#24 DONE 0.0s
+ Container action-engine-backend-browser-use-webui-1  Created
+Attaching to browser-use-webui-1
+browser-use-webui-1  | 2025-04-08 19:16:04,272 CRIT Supervisor is running as root.  Privileges were not dropped because no user is specified in the config file.  If you intend to run as root, you can set user=root in the config file to avoid this message.
+browser-use-webui-1  | 2025-04-08 19:16:04,272 CRIT Supervisor is running as root.  Privileges were not dropped because no user is specified in the config file.  If you intend to run as root, you can set user=root in the config file to avoid this message.
+browser-use-webui-1  | 2025-04-08 19:16:04,277 INFO supervisord started with pid 1
+browser-use-webui-1  | 2025-04-08 19:16:04,277 INFO supervisord started with pid 1
+browser-use-webui-1  | 2025-04-08 19:16:05,292 INFO spawned: 'dbus' with pid 6
+browser-use-webui-1  | 2025-04-08 19:16:05,292 INFO spawned: 'dbus' with pid 6
+browser-use-webui-1  | 2025-04-08 19:16:05,309 INFO spawned: '-bgfb' with pid 7
+browser-use-webui-1  | 2025-04-08 19:16:05,309 INFO spawned: '-bgfb' with pid 7
+browser-use-webui-1  | 2025-04-08 19:16:05,320 INFO spawned: 'tmux-server' with pid 8
+browser-use-webui-1  | 2025-04-08 19:16:05,320 INFO spawned: 'tmux-server' with pid 8
+browser-use-webui-1  | 2025-04-08 19:16:05,325 INFO spawned: 'vnc_setup' with pid 9
+browser-use-webui-1  | 2025-04-08 19:16:05,325 INFO spawned: 'vnc_setup' with pid 9
+browser-use-webui-1  | 2025-04-08 19:16:05,331 INFO spawned: 'x11vnc' with pid 10
+browser-use-webui-1  | 2025-04-08 19:16:05,331 INFO spawned: 'x11vnc' with pid 10
+browser-use-webui-1  | 2025-04-08 19:16:05,336 INFO spawned: 'x11vnc_log' with pid 11
+browser-use-webui-1  | 2025-04-08 19:16:05,336 INFO spawned: 'x11vnc_log' with pid 11
+browser-use-webui-1  | 2025-04-08 19:16:05,340 INFO spawned: 'novnc' with pid 12
+browser-use-webui-1  | 2025-04-08 19:16:05,340 INFO spawned: 'novnc' with pid 12
+browser-use-webui-1  | 2025-04-08 19:16:05,346 INFO spawned: 'backend' with pid 13
+browser-use-webui-1  | 2025-04-08 19:16:05,346 INFO spawned: 'backend' with pid 13
+browser-use-webui-1  | Xlib:  extension "DPMS" missing on display ":99".
+browser-use-webui-1  | 
+browser-use-webui-1  | The VNC desktop is:      86203213663d:0
+browser-use-webui-1  | 2025-04-08 19:16:05,372 INFO success: vnc_setup entered RUNNING state, process has stayed up for > than 0 seconds (startsecs)
+browser-use-webui-1  | 2025-04-08 19:16:05,372 INFO success: vnc_setup entered RUNNING state, process has stayed up for > than 0 seconds (startsecs)
+browser-use-webui-1  | _XSERVTransSocketCreateListener: failed to bind listener
+browser-use-webui-1  | _XSERVTransSocketUNIXCreateListener: ...SocketCreateListener() failed
+browser-use-webui-1  | _XSERVTransMakeAllCOTSServerListeners: failed to create listener for unix
+browser-use-webui-1  | -rw------- 1 root root 8 Apr  8 19:16 /root/.vnc/passwd
+browser-use-webui-1  | Creating default tmux session: terminal-session
+browser-use-webui-1  | 2025-04-08 19:16:05,550 INFO exited: vnc_setup (exit status 0; expected)
+browser-use-webui-1  | 2025-04-08 19:16:05,550 INFO exited: vnc_setup (exit status 0; expected)
+browser-use-webui-1  | INFO:     Will watch for changes in these directories: ['/app']
+browser-use-webui-1  | INFO:     Uvicorn running on http://0.0.0.0:7788 (Press CTRL+C to quit)
+browser-use-webui-1  | INFO:     Started reloader process [13] using StatReload
+browser-use-webui-1  | Default session created successfully
+browser-use-webui-1  | Active tmux sessions:
+browser-use-webui-1  | terminal-session: 1 windows (created Tue Apr  8 19:16:05 2025)
+browser-use-webui-1  | INFO     [browser_use] BrowserUse logging setup complete with level info
+browser-use-webui-1  | 2025-04-08 19:16:06,398 INFO success: x11vnc_log entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+browser-use-webui-1  | 2025-04-08 19:16:06,398 INFO success: x11vnc_log entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+browser-use-webui-1  | INFO     [src.graph.environments.terminal] TerminalManager instance created
+browser-use-webui-1  | INFO:     Started server process [33]
+browser-use-webui-1  | INFO:     Waiting for application startup.
+browser-use-webui-1  | INFO:     Application startup complete.
+browser-use-webui-1  | 2025-04-08 19:16:08,456 INFO success: dbus entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | 2025-04-08 19:16:08,456 INFO success: dbus entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | 2025-04-08 19:16:08,456 INFO success: -bgfb entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | 2025-04-08 19:16:08,456 INFO success: -bgfb entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | 2025-04-08 19:16:08,456 INFO success: tmux-server entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | 2025-04-08 19:16:08,456 INFO success: tmux-server entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | 2025-04-08 19:16:08,456 INFO success: novnc entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | 2025-04-08 19:16:08,456 INFO success: novnc entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | 2025-04-08 19:16:08,456 INFO success: backend entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | 2025-04-08 19:16:08,456 INFO success: backend entered RUNNING state, process has stayed up for > than 3 seconds (startsecs)
+browser-use-webui-1  | PORT=5900
+browser-use-webui-1  | Warning: could not find self.pem
+browser-use-webui-1  | 2025-04-08 19:16:10,548 INFO success: x11vnc entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+browser-use-webui-1  | 2025-04-08 19:16:10,548 INFO success: x11vnc entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
+browser-use-webui-1  | Using local websockify at /opt/novnc/utils/websockify/run
+browser-use-webui-1  | Starting webserver and WebSockets proxy on host 0.0.0.0 port 6080
+browser-use-webui-1  | WebSocket server settings:
+browser-use-webui-1  |   - Listen on 0.0.0.0:6080
+browser-use-webui-1  |   - Web server. Web root: /opt/novnc
+browser-use-webui-1  |   - No SSL/TLS support (no cert file)
+browser-use-webui-1  |   - proxying from 0.0.0.0:6080 to localhost:5900
+browser-use-webui-1  | 
+browser-use-webui-1  | 
+browser-use-webui-1  | Navigate to this URL:
+browser-use-webui-1  | 
+browser-use-webui-1  |     http://0.0.0.0:6080/vnc.html?host=0.0.0.0&port=6080
+browser-use-webui-1  | 
+browser-use-webui-1  | Press Ctrl-C to exit
+browser-use-webui-1  | 
+browser-use-webui-1  | 
+browser-use-webui-1  | INFO:     ('172.18.0.1', 60204) - "WebSocket /ws/terminal" [accepted]
+browser-use-webui-1  | INFO     [src.graph.environments.terminal] Generated terminal ID: 3989
+browser-use-webui-1  | INFO:     ('172.18.0.1', 60210) - "WebSocket /ws/terminal" [accepted]
+browser-use-webui-1  | INFO     [src.graph.environments.terminal] Generated terminal ID: 9143
+browser-use-webui-1  | INFO     [src.graph.environments.terminal] Terminal 3989 created with working directory: /root
+browser-use-webui-1  | INFO     [main] Assigned terminal 3989 to new WebSocket connection
+browser-use-webui-1  | INFO     [main] Polling terminal output for terminal 3989 )
+browser-use-webui-1  | INFO     [src.graph.environments.terminal] Terminal 9143 created with working directory: /root
+browser-use-webui-1  | INFO     [main] Assigned terminal 9143 to new WebSocket connection
+browser-use-webui-1  | INFO     [main] Polling terminal output for terminal 9143 )
+browser-use-webui-1  | INFO     [main] WebSocket disconnected for terminal 3989 
+browser-use-webui-1  | INFO     [main] Polling task for terminal 3989 cancelled
+browser-use-webui-1  | INFO:     ('172.18.0.1', 59006) - "WebSocket /ws/terminal" [accepted]
+browser-use-webui-1  | INFO     [src.graph.environments.terminal] Generated terminal ID: 4968
+browser-use-webui-1  | INFO     [main] New WebSocket connection attempt
+browser-use-webui-1  | INFO:     ('172.18.0.1', 59008) - "WebSocket /ws/chat" [accepted]
+browser-use-webui-1  | INFO     [main] New WebSocket connection for stop requests
+browser-use-webui-1  | INFO:     ('172.18.0.1', 59016) - "WebSocket /ws/stop" [accepted]
+browser-use-webui-1  | 172.18.0.1 - - [08/Apr/2025 19:17:29] 172.18.0.1: Plain non-SSL (ws://) WebSocket connection
+browser-use-webui-1  | 172.18.0.1 - - [08/Apr/2025 19:17:29] connecting to: localhost:5900
+browser-use-webui-1  | INFO     [main] New WebSocket connection attempt
+browser-use-webui-1  | INFO:     ('172.18.0.1', 59022) - "WebSocket /ws/chat" [accepted]
+browser-use-webui-1  | INFO:     ('172.18.0.1', 59024) - "WebSocket /ws/stop" [accepted]
+browser-use-webui-1  | INFO     [main] New WebSocket connection for stop requests
+browser-use-webui-1  | 172.18.0.1 - - [08/Apr/2025 19:17:29] 172.18.0.1: Plain non-SSL (ws://) WebSocket connection
+browser-use-webui-1  | 172.18.0.1 - - [08/Apr/2025 19:17:29] connecting to: localhost:5900
+browser-use-webui-1  | INFO     [main] WebSocket disconnected
+browser-use-webui-1  | INFO     [main] WebSocket disconnected
+browser-use-webui-1  | INFO     [src.graph.environments.terminal] Terminal 4968 created with working directory: /root
+browser-use-webui-1  | INFO     [main] Assigned terminal 4968 to new WebSocket connection
+browser-use-webui-1  | INFO     [main] Polling terminal output for terminal 4968 )
+browser-use-webui-1  | INFO     [main] Initializing graph runner for new chat session
+browser-use-webui-1  | INFO     [src.browser.custom_browser] No Chrome instance found
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Starting new Chrome instance
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Attempting to connect to new Chrome instance at 'http://localhost:9222'
+browser-use-webui-1  | INFO     [src.browser.custom_browser] Successfully connected to new Chrome instance
+browser-use-webui-1  | INFO     [src.graph.graph_runner] Starting graph execution with streaming
+browser-use-webui-1  | INFO     [src.graph.graph_runner] Thread ID: 47e54747-2f01-48de-9355-3cd71a886e6b
+browser-use-webui-1  | INFO     [src.graph.nodes.planning] PlanningNode invoked
+browser-use-webui-1  | INFO     [src.graph.nodes.base_node] Pruned 0 messages from 0 to 0
+browser-use-webui-1  | WARNING  [src.graph.nodes.base_node] planning node got response without valid tools: Understood. Let's create a plan to list the contents of the root directory `/`.
+browser-use-webui-1  | 
+browser-use-webui-1  | **Plan:**
+browser-use-webui-1  | 
+browser-use-webui-1  | 1. **Step 1:** Open a terminal window.
+browser-use-webui-1  | 2. **Step 2:** Execute the `ls /` command to list the contents of the root directory.
+browser-use-webui-1  | 
+browser-use-webui-1  | **Outcome:**
+browser-use-webui-1  | 
+browser-use-webui-1  | The terminal window should display the contents of the root directory.
+browser-use-webui-1  | 
+browser-use-webui-1  | **Verification:**
+browser-use-webui-1  | 
+browser-use-webui-1  | Check the terminal output to ensure it shows the expected directory contents.
+browser-use-webui-1  | 
+browser-use-webui-1  | **Completion:**
+browser-use-webui-1  | 
+browser-use-webui-1  | Mark the step as complete once the terminal window displays the root directory contents.
+browser-use-webui-1  | INFO     [src.graph.nodes.base_node] planning node retrying, attempt 1
+browser-use-webui-1  | WARNING  [src.graph.nodes.base_node] planning node got response without valid tools: planning create
+browser-use-webui-1  | INFO     [src.graph.nodes.base_node] planning node retrying, attempt 2
+browser-use-webui-1  | 2025-04-08 19:17:50,480 INFO reaped unknown pid 803 (exit status 0)
+browser-use-webui-1  | 2025-04-08 19:17:50,480 INFO reaped unknown pid 803 (exit status 0)
+browser-use-webui-1  | 2025-04-08 19:17:50,480 INFO reaped unknown pid 804 (exit status 0)
+browser-use-webui-1  | 2025-04-08 19:17:50,480 INFO reaped unknown pid 804 (exit status 0)
+browser-use-webui-1  | WARNING  [src.graph.nodes.base_node] planning node got response without valid tools: planning create "ls /"
+browser-use-webui-1  | INFO     [src.graph.nodes.base_node] planning node retrying, attempt 3
+browser-use-webui-1  | WARNING  [src.graph.nodes.base_node] planning node got response without valid tools: I understand. Let's create a plan to list the contents of the root directory.
+browser-use-webui-1  | 
+browser-use-webui-1  | ```xml
+browser-use-webui-1  | <tool_call tool="planning">
+browser-use-webui-1  |   <step>
+browser-use-webui-1  |     <description>Start a new plan to list the contents of the root directory.</description>
+browser-use-webui-1  |     <action>ls /</action>
+browser-use-webui-1  |   </step>
+browser-use-webui-1  | </tool_call>
+browser-use-webui-1  | ```
+browser-use-webui-1  | INFO     [src.graph.nodes.base_node] planning node retrying, attempt 4
+browser-use-webui-1  | WARNING  [src.graph.nodes.base_node] planning node got response without valid tools: I understand that you want to list the contents of the root directory `/`. However, as a planning node, I am not equipped to execute terminal commands directly. Instead, I will create a plan to guide the Executor node on how to perform this task.
+browser-use-webui-1  | 
+browser-use-webui-1  | Let's create a plan to list the contents of the root directory `/`.
+browser-use-webui-1  | 
+browser-use-webui-1  | ```xml
+browser-use-webui-1  | <tool_call tool="planning">
+browser-use-webui-1  |   <create_plan>
+browser-use-webui-1  |     <step>
+browser-use-webui-1  |       <description>Open a terminal window</description>
+browser-use-webui-1  |       <dependencies/>
+browser-use-webui-1  |       <status>in-progress</status>
+browser-use-webui-1  |     </step>
+browser-use-webui-1  |     <step>
+browser-use-webui-1  |       <description>Execute the 'ls /' command</description>
+browser-use-webui-1  |       <dependencies>
+browser-use-webui-1  |         <dependency>
+browser-use-webui-1  |           <name>terminal_window</name>
+browser-use-webui-1  |           <status>complete</status>
+browser-use-webui-1  |         </dependency>
+browser-use-webui-1  |       </dependencies>
+browser-use-webui-1  |       <status>in-progress</status>
+browser-use-webui-1  |     </step>
+browser-use-webui-1  |     <step>
+browser-use-webui-1  |       <description>Display the results</description>
+browser-use-webui-1  |       <dependencies>
+browser-use-webui-1  |         <dependency>
+browser-use-webui-1  |           <name>terminal_command</name>
+browser-use-webui-1  |           <status>complete</status>
+browser-use-webui-1  |         </dependency>
+browser-use-webui-1  |       </dependencies>
+browser-use-webui-1  |       <status>complete</status>
+browser-use-webui-1  |     </step>
+browser-use-webui-1  |   </create_plan>
+browser-use-webui-1  | </tool_call>
+browser-use-webui-1  | ```
+browser-use-webui-1  | ERROR    [src.graph.graph_runner] Graph execution error: LLM response not provided
+browser-use-webui-1  | Traceback (most recent call last):
+browser-use-webui-1  |   File "/app/src/graph/graph_runner.py", line 114, in execute
+browser-use-webui-1  |     async for step_output in self.graph.astream(agent_state, config):
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/langgraph/pregel/__init__.py", line 2305, in astream
+browser-use-webui-1  |     async for _ in runner.atick(
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/langgraph/pregel/runner.py", line 444, in atick
+browser-use-webui-1  |     await arun_with_retry(
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/langgraph/pregel/retry.py", line 128, in arun_with_retry
+browser-use-webui-1  |     return await task.proc.ainvoke(task.input, config)
+browser-use-webui-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/langgraph/utils/runnable.py", line 583, in ainvoke
+browser-use-webui-1  |     input = await step.ainvoke(input, config, **kwargs)
+browser-use-webui-1  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/usr/local/lib/python3.11/site-packages/langgraph/utils/runnable.py", line 371, in ainvoke
+browser-use-webui-1  |     ret = await asyncio.create_task(coro, context=context)
+browser-use-webui-1  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/app/src/graph/nodes/base_node.py", line 29, in __call__
+browser-use-webui-1  |     return await self.ainvoke(state, config)
+browser-use-webui-1  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+browser-use-webui-1  |   File "/app/src/graph/nodes/planning.py", line 72, in ainvoke
+browser-use-webui-1  |     raise ValueError("LLM response not provided")
+browser-use-webui-1  | ValueError: LLM response not provided
+browser-use-webui-1  | During task with name 'planning' and id '0dd8a1e3-3760-30fa-9141-4f0ead4eaf50'

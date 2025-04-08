@@ -2,7 +2,10 @@ import logging
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, Graph, StateGraph
+from langgraph.checkpoint.memory import MemorySaver
 
+
+from src.graph.nodes.approval import HumanApprovalNode
 from src.graph.nodes.executor import ExecutorNode
 from src.graph.nodes.planning import PlanningNode
 from src.graph.nodes.thinking import ThinkingNode
@@ -16,10 +19,18 @@ def create_agent_graph(config: RunnableConfig = None) -> Graph:
     workflow = StateGraph(AgentState)
 
     workflow.add_node("executor", ExecutorNode())
+    workflow.add_node("human_approval", HumanApprovalNode())
     workflow.add_node("planning", PlanningNode())
     workflow.add_node("thinking", ThinkingNode())
 
     workflow.add_edge(START, "planning")
+
+    workflow.add_edge("planning", "human_approval")
+
+    workflow.add_conditional_edges(
+        "human_approval",
+        lambda state: "executor" if state.get("approved", False) else "thinking",
+    )
 
     workflow.add_conditional_edges(
         "thinking",
@@ -35,8 +46,9 @@ def create_agent_graph(config: RunnableConfig = None) -> Graph:
         "executor",
         lambda state: (END if state.get("exiting") else "thinking"),
     )
+    checkpointer = MemorySaver()
 
-    return workflow.compile()
+    return workflow.compile(checkpointer=checkpointer)
 
 
 action_engine_graph = create_agent_graph()

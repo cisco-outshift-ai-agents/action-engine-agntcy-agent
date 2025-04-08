@@ -2,6 +2,8 @@ import logging
 import os
 from dataclasses import dataclass
 from typing import Any, AsyncIterator, Dict, Optional
+from langgraph.types import interrupt
+from uuid import uuid4
 
 from pydantic import BaseModel
 
@@ -82,7 +84,9 @@ class GraphRunner:
         context.terminal_manager = self.terminal_manager
         context.planning_environment = self.planning_env
 
-    async def execute(self, task: str) -> AsyncIterator[Dict[str, Any]]:
+    async def execute(
+        self, task: str, thread_id: Optional[str] = None
+    ) -> AsyncIterator[Dict[str, Any]]:
         """Execute task using LangGraph with proper streaming"""
         try:
             logger.info("Starting graph execution with streaming")
@@ -99,14 +103,24 @@ class GraphRunner:
                     "dom_service": context.dom_service,
                     "terminal_manager": context.terminal_manager,
                     "planning_environment": context.planning_environment,
+                    "thread_id": thread_id,
                 }
             }
+            thread_id = thread_id or str(uuid4())
+            self.thread_id = thread_id
+            logger.info(f"Thread ID: {thread_id}")
 
             # Use astream and properly await the async generator
             async for step_output in self.graph.astream(agent_state, config):
-                step_output: Dict[str, AgentState]
+                if isinstance(step_output, interrupt):
+                    yield {
+                        "type": step_output.type,
+                        "data": step_output.data,
+                        "thread_id": thread_id,
+                    }
+                else:
 
-                yield serialize_graph_response(step_output)
+                    yield serialize_graph_response(step_output)
 
         except Exception as e:
             logger.error(f"Graph execution error: {str(e)}", exc_info=True)

@@ -3,6 +3,9 @@ import json
 import logging
 from dataclasses import dataclass
 from typing import Dict, Optional
+from langgraph.types import Command
+import uuid
+
 
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -125,13 +128,36 @@ async def chat_endpoint(websocket: WebSocket):
                 await graph_runner.initialize(agent_config)
                 logger.debug("Graph runner initialized successfully")
 
+                thread_id = str(uuid.uuid4())
+
                 async for update in graph_runner.execute(task):
                     logger.debug("Received update from graph runner")
                     try:
+                        # Handle HITL interrupts
+                        if update.get("type") == "approval_request":
+                            logger.info(
+                                f"Received HITL interrupt: {update['data']['message']}"
+                            )
+                            await websocket.send_text(json.dumps(update))
+                            logger.debug(
+                                "Sent HITL interrupt to client, waiting for response"
+                            )
+                            response = await websocket.receive_text()
+                            logger.debug(f"Received HITL response: {response}")
+                            user_payload = json.loads(response)
+                            command = Command(
+                                resume={"approved": user_payload.get("approved", False)}
+                            )
+                            async for resumed_update in graph_runner.graph.astream(
+                                command
+                            ):
+                                await websocket.send_text(json.dumps(resumed_update))
+                            continue
                         # Skip None updates from graph runner
                         if update is None:
                             logger.debug("Skipping None update from graph runner")
                             continue
+                        update["thread_id"] = thread_id
 
                         await websocket.send_text(json.dumps(update))
 
