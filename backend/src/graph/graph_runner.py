@@ -2,7 +2,7 @@ import logging
 import os
 from dataclasses import dataclass
 from typing import Any, AsyncIterator, Dict, Optional
-from langgraph.types import Command
+from langgraph.types import Command, interrupt
 from uuid import uuid4
 
 from pydantic import BaseModel
@@ -120,40 +120,60 @@ class GraphRunner:
                 ):
                     logger.info(f"Step output: {step_output}")
 
-                    # Check for an interrupt in the step_output
+                    # Handle the interrupt as shown in the documentation
                     if isinstance(step_output, dict) and "__interrupt__" in step_output:
                         logger.info("Found interrupt in step_output")
 
-                        # Extract interrupt data safely
-                        interrupt_obj = step_output["__interrupt__"]
+                        # Get the interrupt data according to documentation
+                        interrupt_data = None
 
-                        # If it's a tuple, the first element should be the Interrupt object
+                        # Handle different ways interrupts might be structured
+                        interrupt_obj = step_output["__interrupt__"]
                         if isinstance(interrupt_obj, tuple) and len(interrupt_obj) > 0:
+                            # If it's a tuple, extract the first element as the data
                             interrupt_obj = interrupt_obj[0]
 
-                        # Extract data from interrupt
-                        interrupt_data = getattr(interrupt_obj, "value", {})
+                        # Get the actual message data from the interrupt
+                        if hasattr(interrupt_obj, "message"):
+                            interrupt_data = interrupt_obj.message
+                        elif hasattr(interrupt_obj, "value"):
+                            interrupt_data = interrupt_obj.value
+                        else:
+                            # Fallback - use the object itself if it's a dict
+                            interrupt_data = (
+                                interrupt_obj if isinstance(interrupt_obj, dict) else {}
+                            )
 
-                        # Format to match regular node output structure
-                        # This creates a structure like {"approval_request": {...state...}, "thread_id": "..."}
-                        response = {
-                            "approval_request": self.current_state,
+                        # Set a terminal_id if missing
+                        if (
+                            not interrupt_data.get("terminal_id")
+                            or interrupt_data.get("terminal_id") == "unknown"
+                        ):
+                            active_terminals = (
+                                await self.terminal_manager.list_terminals()
+                            )
+                            if active_terminals:
+                                terminal_id = list(active_terminals.keys())[0]
+                                interrupt_data["terminal_id"] = terminal_id
+
+                                # Also update the tool_call if needed
+                                if "tool_call" in interrupt_data and isinstance(
+                                    interrupt_data["tool_call"], dict
+                                ):
+                                    if "args" in interrupt_data["tool_call"]:
+                                        interrupt_data["tool_call"]["args"][
+                                            "terminal_id"
+                                        ] = terminal_id
+
+                        # Add a type to our response for the UI
+                        approval_request = {
+                            "type": "approval_request",
+                            "data": interrupt_data,
                             "thread_id": thread_id,
                         }
 
-                        # Add the tool_call and message to the state for UI use
-                        if isinstance(interrupt_data, dict):
-                            response["approval_request"]["tool_call"] = (
-                                interrupt_data.get("tool_call", {})
-                            )
-                            response["approval_request"]["approval_message"] = (
-                                interrupt_data.get("message", "")
-                            )
-
-                        logger.info(
-                            f"Formatted interrupt response to match node output structure"
-                        )
-                        yield response
+                        logger.info(f"Formatted interrupt response: {approval_request}")
+                        yield approval_request
                         return
 
                     # Store the last completed node's output to keep state
@@ -165,7 +185,7 @@ class GraphRunner:
                             )
                             self.current_state = step_output[node_name]
 
-                    # Add thread_id to output
+                    # Normal step output - add thread_id
                     safe_output = serialize_graph_response(step_output)
                     if isinstance(safe_output, dict):
                         safe_output["thread_id"] = thread_id
@@ -195,31 +215,17 @@ class GraphRunner:
             # Store the tool call info
             tool_call = approval.get("tool_call", {})
 
-            # Ensure pending_tool_calls exists in the state
-            if "pending_tool_calls" not in self.current_state:
-                logger.warning("No pending_tool_calls found in state, creating it")
-                self.current_state["pending_tool_calls"] = []
-
-                # Extract tool calls from messages if needed
-                if "messages" in self.current_state:
-                    for message in reversed(self.current_state["messages"]):
-                        if (
-                            message.get("type") == "AIMessage"
-                            and "tool_calls" in message
-                        ):
-                            terminal_tools = [
-                                tc
-                                for tc in message.get("tool_calls", [])
-                                if tc.get("name") == "terminal"
-                            ]
-                            if terminal_tools:
-                                self.current_state["pending_tool_calls"] = (
-                                    terminal_tools
-                                )
-                                logger.info(
-                                    f"Extracted terminal tools from messages: {terminal_tools}"
-                                )
-                                break
+            # Ensure the terminal_id is set in the tool_call
+            if tool_call and tool_call.get("name") == "terminal":
+                args = tool_call.get("args", {})
+                if not args.get("terminal_id"):
+                    active_terminals = await self.terminal_manager.list_terminals()
+                    if active_terminals:
+                        terminal_id = list(active_terminals.keys())[0]
+                        if "args" not in tool_call:
+                            tool_call["args"] = {}
+                        tool_call["args"]["terminal_id"] = terminal_id
+                        logger.info(f"Added terminal ID {terminal_id} to tool call")
 
             # Set approval state
             self.current_state["pending_approval"] = {
@@ -228,11 +234,21 @@ class GraphRunner:
             }
 
             if approved:
-                # Add to approved_tool_calls if approved
+                # Add to approved_tool_calls if approved - this is crucial!
                 if "approved_tool_calls" not in self.current_state:
                     self.current_state["approved_tool_calls"] = []
-                self.current_state["approved_tool_calls"].append(tool_call)
-                logger.info(f"Added tool call to approved_tool_calls: {tool_call}")
+
+                # Check if tool_call is already in approved_tool_calls to avoid duplicates
+                if (
+                    tool_call
+                    and tool_call not in self.current_state["approved_tool_calls"]
+                ):
+                    self.current_state["approved_tool_calls"].append(tool_call)
+                    logger.info(f"Added tool call to approved_tool_calls: {tool_call}")
+
+            # Clear pending_tool_calls to avoid reprocessing the same tools
+            if "pending_tool_calls" in self.current_state:
+                self.current_state["pending_tool_calls"] = []
 
             # Create a command to resume with the current state
             command = Command(resume=self.current_state)
@@ -244,40 +260,72 @@ class GraphRunner:
                 ):
                     logger.info(f"Post-approval step output: {step_output}")
 
-                    # Check for an interrupt in the step_output
+                    # Handle interrupts just like in the execute method
                     if isinstance(step_output, dict) and "__interrupt__" in step_output:
                         logger.info("Found interrupt in post-approval step_output")
 
-                        # Extract interrupt data safely
-                        interrupt_obj = step_output["__interrupt__"]
+                        # Get the interrupt data according to documentation
+                        interrupt_data = None
 
-                        # If it's a tuple, the first element should be the Interrupt object
+                        # Handle different ways interrupts might be structured
+                        interrupt_obj = step_output["__interrupt__"]
                         if isinstance(interrupt_obj, tuple) and len(interrupt_obj) > 0:
+                            # If it's a tuple, extract the first element as the data
                             interrupt_obj = interrupt_obj[0]
 
-                        # Extract data from interrupt
-                        interrupt_data = getattr(interrupt_obj, "value", {})
+                        # Get the actual message data from the interrupt
+                        if hasattr(interrupt_obj, "message"):
+                            interrupt_data = interrupt_obj.message
+                        elif hasattr(interrupt_obj, "value"):
+                            interrupt_data = interrupt_obj.value
+                        else:
+                            # Fallback - use the object itself if it's a dict
+                            interrupt_data = (
+                                interrupt_obj if isinstance(interrupt_obj, dict) else {}
+                            )
 
-                        # Format to match regular node output structure
-                        # This creates a structure like {"approval_request": {...state...}, "thread_id": "..."}
-                        response = {
-                            "approval_request": self.current_state,
+                        # Check if this is a duplicate interrupt for a tool call we already approved
+                        # If so, we'll skip raising another interrupt and continue
+                        if approved and "tool_call" in interrupt_data:
+                            interrupt_tool_call = interrupt_data.get("tool_call", {})
+                            if interrupt_tool_call.get("id") == tool_call.get("id"):
+                                logger.info(
+                                    "Skipping duplicate interrupt for already approved tool call"
+                                )
+                                continue
+
+                        # Set a terminal_id if missing
+                        if (
+                            not interrupt_data.get("terminal_id")
+                            or interrupt_data.get("terminal_id") == "unknown"
+                        ):
+                            active_terminals = (
+                                await self.terminal_manager.list_terminals()
+                            )
+                            if active_terminals:
+                                terminal_id = list(active_terminals.keys())[0]
+                                interrupt_data["terminal_id"] = terminal_id
+
+                                # Also update the tool_call if needed
+                                if "tool_call" in interrupt_data and isinstance(
+                                    interrupt_data["tool_call"], dict
+                                ):
+                                    if "args" in interrupt_data["tool_call"]:
+                                        interrupt_data["tool_call"]["args"][
+                                            "terminal_id"
+                                        ] = terminal_id
+
+                        # Add a type to our response for the UI
+                        approval_request = {
+                            "type": "approval_request",
+                            "data": interrupt_data,
                             "thread_id": self.thread_id,
                         }
 
-                        # Add the tool_call and message to the state for UI use
-                        if isinstance(interrupt_data, dict):
-                            response["approval_request"]["tool_call"] = (
-                                interrupt_data.get("tool_call", {})
-                            )
-                            response["approval_request"]["approval_message"] = (
-                                interrupt_data.get("message", "")
-                            )
-
                         logger.info(
-                            f"Formatted post-approval interrupt response to match node output structure"
+                            f"Formatted post-approval interrupt response: {approval_request}"
                         )
-                        yield response
+                        yield approval_request
                         return
 
                     # Store the last completed node's output to keep state
@@ -289,7 +337,7 @@ class GraphRunner:
                             )
                             self.current_state = step_output[node_name]
 
-                    # Add thread_id to output
+                    # Normal step output - add thread_id
                     safe_output = serialize_graph_response(step_output)
                     if isinstance(safe_output, dict):
                         safe_output["thread_id"] = self.thread_id

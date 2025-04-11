@@ -117,17 +117,14 @@ async def chat_endpoint(websocket: WebSocket):
                             await websocket.send_text(json.dumps(approval_update))
                             break
 
-                        # Check if this is an approval request
-                        if "approval_request" in approval_update:
-                            logger.info(
-                                "Received another approval request, waiting for next response"
-                            )
-
                         # Send the update to the client regardless of what it is
                         await websocket.send_text(json.dumps(approval_update))
 
                         # If this is another approval request, we need to exit and wait for response
-                        if "approval_request" in approval_update:
+                        if approval_update.get("type") == "approval_request":
+                            logger.info(
+                                "Received another approval request, waiting for next response"
+                            )
                             break
 
                     continue  # Go back to waiting for next message
@@ -188,7 +185,7 @@ async def chat_endpoint(websocket: WebSocket):
                         continue
 
                     # If this is an approval request, we need to exit and wait for approval
-                    if "approval_request" in update:
+                    if update.get("type") == "approval_request":
                         logger.info(
                             "Sent approval request to client, waiting for response"
                         )

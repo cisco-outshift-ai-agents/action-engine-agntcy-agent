@@ -52,6 +52,23 @@ class ExecutorNode(BaseNode):
         # Get approved tool calls
         approved_tool_calls = state.get("approved_tool_calls", [])
 
+        # Also check pending_approval for approved tools that may not have
+        # been properly transferred to approved_tool_calls
+        pending_approval = state.get("pending_approval", {})
+        if pending_approval.get("approved", False) and "tool_call" in pending_approval:
+            tool_call = pending_approval.get("tool_call")
+            if tool_call and tool_call not in approved_tool_calls:
+                approved_tool_calls.append(tool_call)
+                logger.info(
+                    f"Added pending_approval tool to approved_tool_calls: {tool_call}"
+                )
+
+                # Update the state to reflect this
+                if "approved_tool_calls" not in state:
+                    state["approved_tool_calls"] = []
+                if tool_call not in state["approved_tool_calls"]:
+                    state["approved_tool_calls"].append(tool_call)
+
         if not approved_tool_calls:
             logger.info("No approved tool calls to execute")
             return state
@@ -73,8 +90,10 @@ class ExecutorNode(BaseNode):
         global_messages.extend(serialize_messages([execute_message]))
         global_messages.extend(serialize_messages(tool_messages))
 
-        # Clear approved tool calls
+        # Clear approved tool calls and pending_approval after execution
         state["approved_tool_calls"] = []
+        if "pending_approval" in state:
+            state["pending_approval"] = {"approved": False}
 
         # Update the global state with the new messages
         state["messages"] = global_messages

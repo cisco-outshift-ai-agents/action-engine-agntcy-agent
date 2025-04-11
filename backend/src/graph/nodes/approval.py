@@ -22,13 +22,35 @@ class HumanApprovalNode(BaseNode):
         for k, v in state.items():
             logger.info(f"  {k}: {type(v)} -> {v}")
 
-        # Get pending tool calls from state
-        pending_tool_calls = state.get("pending_tool_calls", [])
-        logger.info(f"Found {len(pending_tool_calls)} pending_tool_calls in state.")
+        # Check if we already have a pending approval decision
+        pending_approval = state.get("pending_approval", {})
+        if pending_approval.get("approved", False):
+            logger.info("Found approved tool call, no need for further interruption")
 
-        # If no pending_tool_calls in state, extract them from the messages
+            # Ensure the tool call is in approved_tool_calls
+            if "approved_tool_calls" not in state:
+                state["approved_tool_calls"] = []
+
+            # Only add if not already present (avoid duplicates)
+            tool_call = pending_approval.get("tool_call")
+            if tool_call and tool_call not in state["approved_tool_calls"]:
+                logger.info(
+                    f"Adding previously approved tool call to approved_tool_calls: {tool_call}"
+                )
+                state["approved_tool_calls"].append(tool_call)
+
+            # Clear pending_tool_calls to avoid reprocessing
+            state["pending_tool_calls"] = []
+
+            return state
+
+        # Get pending tool calls from state or messages
         terminal_tool_calls = []
 
+        # First try to get from pending_tool_calls
+        pending_tool_calls = state.get("pending_tool_calls", [])
+
+        # If no pending_tool_calls, extract from messages
         if not pending_tool_calls and "messages" in state:
             logger.info("No pending_tool_calls found in state, checking messages")
             messages = state["messages"]
@@ -47,32 +69,31 @@ class HumanApprovalNode(BaseNode):
                     if terminal_tool_calls:
                         break
 
-            # If we found tool calls in messages, add them to pending_tool_calls
+            # If we found tool calls in messages, use those
             if terminal_tool_calls:
                 pending_tool_calls = terminal_tool_calls
                 # Update state with the extracted tool calls
                 state["pending_tool_calls"] = pending_tool_calls
 
-        # Now check all the pending tool calls for terminal commands
+        # Check for terminal commands in all pending tool calls
         for tool_call in pending_tool_calls:
             if tool_call.get("name") == "terminal":
                 logger.info(f"Raising HITL interrupt for terminal action: {tool_call}")
                 script = tool_call.get("args", {}).get("script", "N/A")
-                terminal_id = tool_call.get("args", {}).get("terminal_id", "N/A")
+                terminal_id = tool_call.get("args", {}).get("terminal_id", "unknown")
 
                 # Set a flag in state to track that this was approved
                 state["pending_approval"] = {"tool_call": tool_call, "approved": False}
 
-                # Create a data dict with both original data and type information
-                data = {
+                # Create a simple interrupt with just the essential information
+                interrupt_data = {
                     "tool_call": tool_call,
-                    "message": f"Do you approve executing the terminal command: '{script}' on terminal {terminal_id}?",
-                    "__interrupt_type": "approval_request",  # Add type as part of data
+                    "message": f"Do you approve executing the terminal command: '{script}'?",
+                    "terminal_id": terminal_id,
                 }
 
-                # LangGraph's interrupt() function doesn't accept 'type' parameter
-                # It only accepts a data parameter
-                raise interrupt(data)
+                # Instead of raising it as an exception, return it as an interrupt signal
+                return interrupt(interrupt_data)
 
         logger.info("No terminal tool call found, skipping HITL")
 
@@ -82,24 +103,3 @@ class HumanApprovalNode(BaseNode):
         state["pending_tool_calls"] = []
 
         return state
-
-    def decide_next_node(self, state: AgentState) -> str:
-        """Determine the next node based on approval state"""
-        pending_approval = state.get("pending_approval", {})
-
-        if pending_approval.get("approved", False):
-            # User approved the action
-            tool_call = pending_approval.get("tool_call")
-            if tool_call:
-                # Move from pending to approved
-                state["approved_tool_calls"] = state.get("approved_tool_calls", []) + [
-                    tool_call
-                ]
-                state["pending_tool_calls"] = [
-                    tc for tc in state.get("pending_tool_calls", []) if tc != tool_call
-                ]
-            return "executor"
-        else:
-            # User denied, go back to thinking/planning
-            state["pending_tool_calls"] = []
-            return "thinking"
