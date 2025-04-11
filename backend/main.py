@@ -3,9 +3,7 @@ import json
 import logging
 from dataclasses import dataclass
 from typing import Dict, Optional
-from langgraph.types import Command
-import uuid
-
+from uuid import uuid4
 
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -102,6 +100,38 @@ async def chat_endpoint(websocket: WebSocket):
                 logger.debug(f"Extracted task: {task}")
                 logger.debug(f"Extracted additional info: {add_infos}")
 
+                # Check if this is an approval response
+                if "approval_response" in client_payload:
+                    logger.info("Received approval response from client")
+                    approval_data = client_payload.get("approval_response", {})
+
+                    # Process approval response through the graph runner
+                    async for approval_update in graph_runner.handle_approval(
+                        approval_data
+                    ):
+                        # Check if there are error messages
+                        if "error" in approval_update:
+                            logger.error(
+                                f"Error in approval handling: {approval_update['error']}"
+                            )
+                            await websocket.send_text(json.dumps(approval_update))
+                            break
+
+                        # Check if this is an approval request
+                        if "approval_request" in approval_update:
+                            logger.info(
+                                "Received another approval request, waiting for next response"
+                            )
+
+                        # Send the update to the client regardless of what it is
+                        await websocket.send_text(json.dumps(approval_update))
+
+                        # If this is another approval request, we need to exit and wait for response
+                        if "approval_request" in approval_update:
+                            break
+
+                    continue  # Go back to waiting for next message
+
                 # Initialize graph runner at the start of each chat session
                 config = DEFAULT_CONFIG.copy()
                 agent_config = AgentConfig(
@@ -128,49 +158,41 @@ async def chat_endpoint(websocket: WebSocket):
                 await graph_runner.initialize(agent_config)
                 logger.debug("Graph runner initialized successfully")
 
-                thread_id = str(uuid.uuid4())
+                thread_id = str(uuid4())
 
-                async for update in graph_runner.execute(task):
+                async for update in graph_runner.execute(task, thread_id):
                     logger.debug("Received update from graph runner")
-                    try:
-                        # Handle HITL interrupts
-                        if update.get("type") == "approval_request":
-                            logger.info(
-                                f"Received HITL interrupt: {update['data']['message']}"
-                            )
-                            await websocket.send_text(json.dumps(update))
-                            logger.debug(
-                                "Sent HITL interrupt to client, waiting for response"
-                            )
-                            response = await websocket.receive_text()
-                            logger.debug(f"Received HITL response: {response}")
-                            user_payload = json.loads(response)
-                            command = Command(
-                                resume={"approved": user_payload.get("approved", False)}
-                            )
-                            async for resumed_update in graph_runner.graph.astream(
-                                command
-                            ):
-                                await websocket.send_text(json.dumps(resumed_update))
-                            continue
-                        # Skip None updates from graph runner
-                        if update is None:
-                            logger.debug("Skipping None update from graph runner")
-                            continue
-                        update["thread_id"] = thread_id
 
+                    # Check for errors
+                    if "error" in update:
+                        logger.error(f"Error during execution: {update['error']}")
                         await websocket.send_text(json.dumps(update))
+                        break
 
-                    except Exception as serialize_error:
-                        logger.error(
-                            f"Serialization error: {str(serialize_error)}",
-                            exc_info=True,
-                        )
-                        error_response = {
-                            "error": "Response processing failed",
-                            "details": str(serialize_error),
+                    # Skip None updates from graph runner
+                    if update is None:
+                        logger.debug("Skipping None update from graph runner")
+                        continue
+
+                    # Send the update to the client
+                    try:
+                        await websocket.send_text(json.dumps(update))
+                    except TypeError as e:
+                        logger.error(f"JSON serialization error: {str(e)}")
+                        # Try a fallback serialization
+                        fallback = {
+                            "error": f"Failed to serialize response: {str(e)}",
+                            "thread_id": thread_id,
                         }
-                        await websocket.send_text(json.dumps(error_response))
+                        await websocket.send_text(json.dumps(fallback))
+                        continue
+
+                    # If this is an approval request, we need to exit and wait for approval
+                    if "approval_request" in update:
+                        logger.info(
+                            "Sent approval request to client, waiting for response"
+                        )
+                        break
 
             except json.JSONDecodeError as e:
                 error_msg = f"Failed to parse client message: {str(e)}"
