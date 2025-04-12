@@ -16,13 +16,9 @@ class HumanApprovalNode(BaseNode):
     async def ainvoke(self, state: AgentState, config: dict) -> AgentState:
         logger.info("Human in the loop Node invoked")
         logger.info(f"State keys in HITL node: {list(state.keys())}")
+        logger.info(f"State before processing in HITL node: {state}")
 
-        # Print full structure of state for debugging
-        logger.info("HumanApprovalNode full state:")
-        for k, v in state.items():
-            logger.info(f"  {k}: {type(v)} -> {v}")
-
-        # Check if we already have a pending approval decision
+        # Check if there is a pending approval decision
         pending_approval = state.get("pending_approval", {})
         if pending_approval.get("approved", False):
             logger.info("Found approved tool call, no need for further interruption")
@@ -42,64 +38,68 @@ class HumanApprovalNode(BaseNode):
             # Clear pending_tool_calls to avoid reprocessing
             state["pending_tool_calls"] = []
 
+            # Log final approved tool calls
+            logger.info(f"Final approved tool calls: {state['approved_tool_calls']}")
+
             return state
 
-        # Get pending tool calls from state or messages
-        terminal_tool_calls = []
-
-        # First try to get from pending_tool_calls
+        # Get pending tool calls from state
         pending_tool_calls = state.get("pending_tool_calls", [])
 
-        # If no pending_tool_calls, extract from messages
+        # If no pending_tool_calls, extract them from messages
         if not pending_tool_calls and "messages" in state:
             logger.info("No pending_tool_calls found in state, checking messages")
             messages = state["messages"]
 
-            # Look for the most recent AIMessage with terminal tool calls
+            # Look for the most recent AIMessage with tool calls
             for message in reversed(messages):
                 if message.get("type") == "AIMessage" and "tool_calls" in message:
                     for tool_call in message.get("tool_calls", []):
-                        if tool_call.get("name") == "terminal":
-                            terminal_tool_calls.append(tool_call)
-                            logger.info(
-                                f"Found terminal tool call in messages: {tool_call}"
-                            )
+                        pending_tool_calls.append(tool_call)
+                        logger.info(f"Found tool call in messages: {tool_call}")
 
                     # Only look at the most recent message with tool calls
-                    if terminal_tool_calls:
+                    if pending_tool_calls:
                         break
 
-            # If we found tool calls in messages, use those
-            if terminal_tool_calls:
-                pending_tool_calls = terminal_tool_calls
-                # Update state with the extracted tool calls
-                state["pending_tool_calls"] = pending_tool_calls
+            # Update state with the extracted tool calls
+            state["pending_tool_calls"] = pending_tool_calls
 
-        # Check for terminal commands in all pending tool calls
-        for tool_call in pending_tool_calls:
-            if tool_call.get("name") == "terminal":
-                logger.info(f"Raising HITL interrupt for terminal action: {tool_call}")
-                script = tool_call.get("args", {}).get("script", "N/A")
-                terminal_id = tool_call.get("args", {}).get("terminal_id", "unknown")
+        # Separate terminal and non-terminal calls
+        terminal_calls = [
+            tool_call
+            for tool_call in pending_tool_calls
+            if tool_call.get("name") == "terminal"
+        ]
+        non_terminal_calls = [
+            tool_call
+            for tool_call in pending_tool_calls
+            if tool_call.get("name") != "terminal"
+        ]
 
-                # Set a flag in state to track that this was approved
-                state["pending_approval"] = {"tool_call": tool_call, "approved": False}
+        if terminal_calls:
+            tool_call = terminal_calls[0]
+            logger.info(f"Raising HITL interrupt for terminal action: {tool_call}")
+            script = tool_call.get("args", {}).get("script", "N/A")
+            terminal_id = tool_call.get("args", {}).get("terminal_id", "unknown")
 
-                # Create a simple interrupt with just the essential information
-                interrupt_data = {
-                    "tool_call": tool_call,
-                    "message": f"Do you approve executing the terminal command: '{script}'?",
-                    "terminal_id": terminal_id,
-                }
+            # Set a flag in state to track that this was approved
+            state["pending_approval"] = {"tool_call": tool_call, "approved": False}
 
-                # Instead of raising it as an exception, return it as an interrupt signal
-                return interrupt(interrupt_data)
+            interrupt_data = {
+                "tool_call": tool_call,
+                "message": f"Do you approve executing the terminal command: '{script}'?",
+                "terminal_id": terminal_id,
+            }
 
-        logger.info("No terminal tool call found, skipping HITL")
+            return interrupt(interrupt_data)
 
-        # If we reach here, there were no terminal commands or they were all approved
-        # Mark all pending tool calls as approved
-        state["approved_tool_calls"] = pending_tool_calls
-        state["pending_tool_calls"] = []
+        if non_terminal_calls:
+            logger.info("Only non-terminal tool calls found, auto-approving")
+            state["approved_tool_calls"] = non_terminal_calls
+            state["pending_tool_calls"] = []
+            logger.info(f"Final approved tool calls: {state['approved_tool_calls']}")
+            return state
 
+        logger.info("No tool calls found. Nothing to approve.")
         return state

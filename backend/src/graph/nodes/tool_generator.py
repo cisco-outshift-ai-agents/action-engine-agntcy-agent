@@ -118,7 +118,7 @@ class ToolGeneratorNode(BaseNode):
         if not raw_response:
             raise ValueError("LLM response not provided")
 
-        # Add selection identity to response
+        # Add executor identity to response
         prefixed_content = (
             f"[Tool Selection Node] Based on the current system state, "
             f"I am suggesting to: {raw_response.content}"

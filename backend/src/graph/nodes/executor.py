@@ -44,10 +44,15 @@ class ExecutorNode(BaseNode):
     async def ainvoke(self, state: AgentState, config: Dict) -> Dict:
         """Async invocation with direct tool execution of approved tools"""
         logger.info("ExecutorNode invoked")
+        logger.info(f"State in ExecutorNode: {state}")
 
         if "messages" not in state:
             state["messages"] = []
             logger.debug("Initialized empty messages list in state")
+
+        # Initialize global_messages
+        existing_messages = hydrate_messages(state["messages"])
+        global_messages = serialize_messages(existing_messages)
 
         # Get approved tool calls
         approved_tool_calls = state.get("approved_tool_calls", [])
@@ -80,14 +85,10 @@ class ExecutorNode(BaseNode):
             content="[Executor Node] Executing approved actions",
             tool_calls=approved_tool_calls,
         )
+        global_messages.extend(serialize_messages([execute_message]))
 
         # Execute the approved tool calls
         tool_messages = await self.execute_tools(message=execute_message, config=config)
-
-        # Add messages to state
-        existing_messages = hydrate_messages(state["messages"])
-        global_messages = serialize_messages(existing_messages)
-        global_messages.extend(serialize_messages([execute_message]))
         global_messages.extend(serialize_messages(tool_messages))
 
         # Clear approved tool calls and pending_approval after execution

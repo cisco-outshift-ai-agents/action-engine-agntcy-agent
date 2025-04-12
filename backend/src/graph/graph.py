@@ -20,11 +20,8 @@ def create_agent_graph(config: RunnableConfig = None) -> Graph:
     """Creates the main agent workflow graph with agent loop behavior"""
     workflow = StateGraph(AgentState)
 
-    # Add nodes - make sure names match what's in your logs
     workflow.add_node("planning", PlanningNode())
-    workflow.add_node(
-        "tool_selection", ToolGeneratorNode()
-    )  # Use the class from your import
+    workflow.add_node("tool_selection", ToolGeneratorNode())
     workflow.add_node("human_approval", HumanApprovalNode())
     workflow.add_node("executor", ExecutorNode())
     workflow.add_node("thinking", ThinkingNode())
@@ -41,11 +38,7 @@ def create_agent_graph(config: RunnableConfig = None) -> Graph:
     # Human approval conditionally routes based on approval state
     workflow.add_conditional_edges(
         "human_approval",
-        lambda state: (
-            "executor"
-            if state.get("pending_approval", {}).get("approved", False)
-            else "thinking"
-        ),
+        lambda state: ("executor" if state.get("approved_tool_calls") else "thinking"),
     )
 
     # Executor always goes to thinking
