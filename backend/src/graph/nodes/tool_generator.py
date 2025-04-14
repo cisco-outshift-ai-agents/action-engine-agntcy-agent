@@ -143,16 +143,6 @@ class ToolGeneratorNode(BaseNode):
         global_messages = serialize_messages(existing_messages)
         global_messages.extend(serialize_messages([response]))
 
-        # Check for and handle termination tool call
-        termination_tool_call = next(
-            (tc for tc in state["pending_tool_calls"] if tc["name"] == "terminate"),
-            None,
-        )
-
-        if termination_tool_call:
-            state["exiting"] = True
-            state["thought"] = termination_tool_call["args"]["reason"]
-
         # Update the global state with the new messages
         state["messages"] = global_messages
         return state

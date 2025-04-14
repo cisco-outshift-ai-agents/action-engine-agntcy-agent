@@ -15,8 +15,6 @@ class HumanApprovalNode(BaseNode):
 
     async def ainvoke(self, state: AgentState, config: dict) -> AgentState:
         logger.info("Human in the loop Node invoked")
-        logger.info(f"State keys in HITL node: {list(state.keys())}")
-        logger.info(f"State before processing in HITL node: {state}")
 
         # Check if there is a pending approval decision
         pending_approval = state.get("pending_approval", {})
@@ -38,15 +36,12 @@ class HumanApprovalNode(BaseNode):
             # Clear pending_tool_calls to avoid reprocessing
             state["pending_tool_calls"] = []
 
-            # Log final approved tool calls
-            logger.info(f"Final approved tool calls: {state['approved_tool_calls']}")
-
             return state
 
-        # Get pending tool calls from state
+        # Get pending tool calls from state. If no pending_tool_calls, extract them from messages
+
         pending_tool_calls = state.get("pending_tool_calls", [])
 
-        # If no pending_tool_calls, extract them from messages
         if not pending_tool_calls and "messages" in state:
             logger.info("No pending_tool_calls found in state, checking messages")
             messages = state["messages"]
@@ -62,10 +57,8 @@ class HumanApprovalNode(BaseNode):
                     if pending_tool_calls:
                         break
 
-            # Update state with the extracted tool calls
             state["pending_tool_calls"] = pending_tool_calls
 
-        # Separate terminal and non-terminal calls
         terminal_calls = [
             tool_call
             for tool_call in pending_tool_calls

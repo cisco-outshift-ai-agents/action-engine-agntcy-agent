@@ -127,7 +127,7 @@ async def chat_endpoint(websocket: WebSocket):
                             )
                             break
 
-                    continue  # Go back to waiting for next message
+                    continue
 
                 # Initialize graph runner at the start of each chat session
                 config = DEFAULT_CONFIG.copy()
@@ -160,29 +160,25 @@ async def chat_endpoint(websocket: WebSocket):
                 async for update in graph_runner.execute(task, thread_id):
                     logger.debug("Received update from graph runner")
 
-                    # Check for errors
-                    if "error" in update:
-                        logger.error(f"Error during execution: {update['error']}")
-                        await websocket.send_text(json.dumps(update))
-                        break
+                    try:
 
-                    # Skip None updates from graph runner
-                    if update is None:
-                        logger.debug("Skipping None update from graph runner")
-                        continue
+                        # Skip None updates from graph runner
+                        if update is None:
+                            logger.debug("Skipping None update from graph runner")
+                            continue
+                        await websocket.send_text(json.dumps(update))
 
                     # Send the update to the client
-                    try:
-                        await websocket.send_text(json.dumps(update))
-                    except TypeError as e:
-                        logger.error(f"JSON serialization error: {str(e)}")
-                        # Try a fallback serialization
-                        fallback = {
-                            "error": f"Failed to serialize response: {str(e)}",
-                            "thread_id": thread_id,
+                    except Exception as serialize_error:
+                        logger.error(
+                            f"Serialization error: {str(serialize_error)}",
+                            exc_info=True,
+                        )
+                        error_response = {
+                            "error": "Response processing failed",
+                            "details": str(serialize_error),
                         }
-                        await websocket.send_text(json.dumps(fallback))
-                        continue
+                        await websocket.send_text(json.dumps(error_response))
 
                     # If this is an approval request, we need to exit and wait for approval
                     if update.get("type") == "approval_request":
