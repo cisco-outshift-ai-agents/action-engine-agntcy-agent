@@ -144,27 +144,6 @@ class GraphRunner:
                                 interrupt_obj if isinstance(interrupt_obj, dict) else {}
                             )
 
-                        # Set a terminal_id if missing
-                        if (
-                            not interrupt_data.get("terminal_id")
-                            or interrupt_data.get("terminal_id") == "unknown"
-                        ):
-                            active_terminals = (
-                                await self.terminal_manager.list_terminals()
-                            )
-                            if active_terminals:
-                                terminal_id = list(active_terminals.keys())[0]
-                                interrupt_data["terminal_id"] = terminal_id
-
-                                # Also update the tool_call if needed
-                                if "tool_call" in interrupt_data and isinstance(
-                                    interrupt_data["tool_call"], dict
-                                ):
-                                    if "args" in interrupt_data["tool_call"]:
-                                        interrupt_data["tool_call"]["args"][
-                                            "terminal_id"
-                                        ] = terminal_id
-
                         # Add a type to our response for the UI
                         approval_request = {
                             "type": "approval_request",
@@ -173,7 +152,8 @@ class GraphRunner:
                         }
 
                         logger.info(f"Formatted interrupt response: {approval_request}")
-                        yield approval_request
+                        safe_interrupt_data = serialize_graph_response(approval_request)
+                        yield safe_interrupt_data
                         return
 
                     # Store the last completed node's output to keep state
@@ -228,8 +208,17 @@ class GraphRunner:
                 self.current_state["approved_tool_calls"].append(tool_call)
                 logger.info(f"Added tool call to approved_tool_calls: {tool_call}")
 
-            # Create a command to resume with the current state
-            command = Command(resume=self.current_state)
+                # Remove already-approved tool calls from pending_tool_calls
+
+                if "pending_tool_calls" in self.current_state:
+                    approved_ids = {
+                        tc["id"] for tc in self.current_state["approved_tool_calls"]
+                    }
+                    self.current_state["pending_tool_calls"] = [
+                        tc
+                        for tc in self.current_state["pending_tool_calls"]
+                        if tc["id"] not in approved_ids
+                    ]
 
             # Create a command to resume with the current state
             command = Command(resume=self.current_state)
@@ -243,7 +232,25 @@ class GraphRunner:
                 # Handle interrupts just like in the execute method
                 if isinstance(step_output, dict) and "__interrupt__" in step_output:
                     logger.info("Found interrupt in post-approval step_output")
-                    yield step_output
+                    interrupt_data = None
+                    interrupt_obj = step_output["__interrupt__"]
+                    if isinstance(interrupt_obj, tuple) and len(interrupt_obj) > 0:
+                        interrupt_obj = interrupt_obj[0]
+                    if hasattr(interrupt_obj, "message"):
+                        interrupt_data = interrupt_obj.message
+                    elif hasattr(interrupt_obj, "value"):
+                        interrupt_data = interrupt_obj.value
+                    else:
+                        interrupt_data = (
+                            interrupt_obj if isinstance(interrupt_obj, dict) else {}
+                        )
+                    approval_request = {
+                        "type": "approval_request",
+                        "data": interrupt_data,
+                        "thread_id": self.thread_id,
+                    }
+                    safe_interrupt_data = serialize_graph_response(approval_request)
+                    yield safe_interrupt_data
                     return
                 # Normal step output - add thread_id
                 safe_output = serialize_graph_response(step_output)

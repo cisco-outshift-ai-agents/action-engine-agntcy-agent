@@ -74,7 +74,6 @@ class HumanApprovalNode(BaseNode):
             tool_call = terminal_calls[0]
             logger.info(f"Raising HITL interrupt for terminal action: {tool_call}")
             script = tool_call.get("args", {}).get("script", "N/A")
-            terminal_id = tool_call.get("args", {}).get("terminal_id", "unknown")
 
             # Set a flag in state to track that this was approved
             state["pending_approval"] = {"tool_call": tool_call, "approved": False}
@@ -82,7 +81,6 @@ class HumanApprovalNode(BaseNode):
             interrupt_data = {
                 "tool_call": tool_call,
                 "message": f"Do you approve executing the terminal command: '{script}'?",
-                "terminal_id": terminal_id,
             }
 
             return interrupt(interrupt_data)
