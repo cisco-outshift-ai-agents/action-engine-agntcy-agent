@@ -41,9 +41,13 @@ def create_agent_graph(config: RunnableConfig = None) -> Graph:
     workflow.add_conditional_edges(
         "human_approval",
         lambda state: (
-            "executor"
-            if state.get("approved_tool_calls")
-            else (END if state.get("exiting") else "thinking")
+            END
+            if state.get("exiting")
+            else (
+                "executor"
+                if state.get("pending_approval", {}).get("approved")
+                else "thinking"
+            )
         ),
     )
 

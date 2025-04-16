@@ -130,13 +130,12 @@ class ToolGeneratorNode(BaseNode):
             ),
         )
 
-        # Store tool calls explicitly in state for downstream nodes like HITL
-        state["pending_tool_calls"] = (
-            response.tool_calls if hasattr(response, "tool_calls") else []
-        )
-        logger.info(
-            f"ToolSelectionNode selected tool calls: {state['pending_tool_calls']}"
-        )
+        # Store generated tool calls for the approval node to use
+        if hasattr(response, "tool_calls") and response.tool_calls:
+            state["tool_calls"] = response.tool_calls
+            logger.info(f"ToolSelectionNode selected tool calls: {response.tool_calls}")
+        else:
+            state["tool_calls"] = []
 
         # First hydrate any existing messages before serializing
         existing_messages = hydrate_messages(state["messages"])
