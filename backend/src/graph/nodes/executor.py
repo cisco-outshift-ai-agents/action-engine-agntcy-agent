@@ -4,17 +4,13 @@ from typing import Any, Dict, List
 
 from langchain_core.messages import (
     AIMessage,
-    BaseMessage,
-    HumanMessage,
-    SystemMessage,
-    ToolMessage,
 )
 from langchain_openai import ChatOpenAI
 
 from src.graph.environments.planning import PlanningEnvironment
 from src.graph.nodes.base_node import BaseNode
 from src.graph.prompts import get_executor_prompt, get_previous_tool_calls_prompt
-from src.graph.types import AgentState, WorkableToolCall
+from src.graph.types import AgentState
 from tools.browser_use import browser_use_tool
 from tools.terminal import terminal_tool
 from tools.terminate import terminate_tool
@@ -77,12 +73,10 @@ class ExecutorNode(BaseNode):
         # Check for termination tool call
         if tool_call.get("name") == "terminate":
             state["exiting"] = True
-            state["thought"] = tool_call.get("args", {}).get("reason", "Task completed")
+            state["thought"] = tool_call["args"]["reason"]
 
-        # Clear pending_approval after execution
+        # Clear pending_approval and tool_calls after execution
         state["pending_approval"] = {}
-
-        # Clear tool_calls after execution
         state["tool_calls"] = []
 
         # Update the global state with the new messages

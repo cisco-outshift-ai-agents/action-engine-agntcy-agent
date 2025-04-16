@@ -197,7 +197,7 @@ class GraphRunner:
             # Store the tool call info
             tool_call = approval.get("tool_call", {})
 
-            # Simply set the pending_approval with the approved value
+            # Set the pending_approval with the approved value
             self.current_state["pending_approval"] = {
                 "tool_call": tool_call,
                 "approved": approved,
@@ -206,8 +206,15 @@ class GraphRunner:
             if not approved:
                 # If not approved, we should terminate
                 logger.info("Tool call not approved, terminating")
-                self.current_state["exiting"] = True
                 self.current_state["thought"] = "User declined to execute command"
+
+                # Add a decline message to help the system understand what happened
+                if "messages" in self.current_state:
+                    decline_message = {
+                        "type": "HumanMessage",
+                        "content": f"I don't want to run the command: '{tool_call.get('args', {}).get('script', '')}'.",
+                    }
+                    self.current_state["messages"].append(decline_message)
 
             # Create a command to resume with the current state
             command = Command(resume=self.current_state)

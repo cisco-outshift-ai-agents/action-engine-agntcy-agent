@@ -96,6 +96,8 @@ EXECUTION GUIDELINES:
     - For web tasks (form filling, navigation, data extraction), use the browser tool
     - You can switch between browser and terminal as needed by the task
     - Use the `terminate` tool to end the task when you determine that it is complete
+    - IMPORTANT: If a terminal command has been declined by the user, use the `terminate` tool 
+      with a reason explaining that the user declined the command
 2. ELEMENT INTERACTION:
        - Only use indexes that exist in the provided element list
        - Each element has a unique index number (e.g., "33[:]<button>")
