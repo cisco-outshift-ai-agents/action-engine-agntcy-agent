@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from dataclasses import dataclass
@@ -12,7 +13,8 @@ from src.graph.environments.planning import PlanningEnvironment
 from src.graph.environments.terminal import TerminalManager
 from src.graph.global_configurable import context
 from src.graph.graph import action_engine_graph
-from src.graph.types import AgentState, GraphConfig, create_default_agent_state
+from src.graph.types import GraphConfig, create_default_agent_state
+from src.utils.agent_state import AgentState
 from src.utils.utils import get_llm_model
 
 logger = logging.getLogger(__name__)
@@ -56,6 +58,7 @@ class GraphRunner:
         self.thread_id = None
         self.current_config = None
         self.current_state = None  # Store the current state
+        self.agent_state = AgentState()
 
     async def initialize(self, agent_config: AgentConfig) -> None:
         """Initialize global resources and LLM"""
@@ -117,22 +120,30 @@ class GraphRunner:
             self.current_config = config
             self.current_state = agent_state
 
-            # Use astream and properly await the async generator
+            # Use astream and await the async generator
             try:
                 async for step_output in self.graph.astream(agent_state, config):
                     logger.info(f"Step output: {step_output}")
 
-                    # Handle the interrupt as shown in the documentation
+                    # Check for stop request after each step
+                    if self.agent_state.is_stop_requested():
+                        logger.info("Stop requested, terminating execution")
+                        yield {
+                            "type": "execution_stopped",
+                            "message": "Execution stopped by user request",
+                        }
+                        # Set exiting flag to ensure graph doesn't continue
+                        self.current_state["exiting"] = True
+                        break
+
+                    # Handle the interrupt
                     if isinstance(step_output, dict) and "__interrupt__" in step_output:
                         logger.info("Found interrupt in step_output")
 
-                        # Get the interrupt data according to documentation
                         interrupt_data = None
 
-                        # Handle different ways interrupts might be structured
                         interrupt_obj = step_output["__interrupt__"]
                         if isinstance(interrupt_obj, tuple) and len(interrupt_obj) > 0:
-                            # If it's a tuple, extract the first element as the data
                             interrupt_obj = interrupt_obj[0]
 
                         # Get the actual message data from the interrupt
@@ -145,17 +156,16 @@ class GraphRunner:
                             interrupt_data = (
                                 interrupt_obj if isinstance(interrupt_obj, dict) else {}
                             )
-
-                        # Add a type to our response for the UI
                         approval_request = {
                             "type": "approval_request",
                             "data": interrupt_data,
                             "thread_id": thread_id,
                         }
 
-                        logger.info(f"Formatted interrupt response: {approval_request}")
-                        safe_interrupt_data = serialize_graph_response(approval_request)
-                        yield safe_interrupt_data
+                        formatted_interrupt_data = serialize_graph_response(
+                            approval_request
+                        )
+                        yield formatted_interrupt_data
                         return
 
                     # Store the last completed node's output to keep state
@@ -167,12 +177,12 @@ class GraphRunner:
                             )
                             self.current_state = step_output[node_name]
 
-                    # Normal step output - add thread_id
-                    safe_output = serialize_graph_response(step_output)
-                    if isinstance(safe_output, dict):
-                        safe_output["thread_id"] = thread_id
+                    # Normal step output
+                    formatted_output = serialize_graph_response(step_output)
+                    if isinstance(formatted_output, dict):
+                        formatted_output["thread_id"] = thread_id
 
-                    yield safe_output
+                    yield formatted_output
 
             except Exception as e:
                 logger.error(f"Error in graph execution: {str(e)}", exc_info=True)
@@ -190,25 +200,20 @@ class GraphRunner:
             if not self.graph:
                 raise ValueError("Graph not initialized")
 
-            # Get the approved flag
             approved = approval.get("approved", False)
             logger.info(f"Handling approval: {approved}")
 
-            # Store the tool call info
             tool_call = approval.get("tool_call", {})
 
-            # Set the pending_approval with the approved value
             self.current_state["pending_approval"] = {
                 "tool_call": tool_call,
                 "approved": approved,
             }
 
             if not approved:
-                # If not approved, we should terminate
                 logger.info("Tool call not approved, terminating")
                 self.current_state["thought"] = "User declined to execute command"
 
-                # Add a decline message to help the system understand what happened
                 if "messages" in self.current_state:
                     decline_message = {
                         "type": "HumanMessage",
@@ -216,17 +221,14 @@ class GraphRunner:
                     }
                     self.current_state["messages"].append(decline_message)
 
-            # Create a command to resume with the current state
             command = Command(resume=self.current_state)
 
-            logger.info(f"Resuming graph execution with command: {command}")
+            # Update the config with required checkpoint values and add the required checkpoint values
 
-            # Update the config with required checkpoint values
             config_with_checkpoint = dict(self.current_config)
             if "configurable" not in config_with_checkpoint:
                 config_with_checkpoint["configurable"] = {}
 
-            # Add the required checkpoint values
             config_with_checkpoint["configurable"]["thread_id"] = self.thread_id
 
             logger.info(f"Current state after approval: {self.current_state}")
@@ -237,7 +239,6 @@ class GraphRunner:
             ):
                 logger.info(f"Post-approval step output: {step_output}")
 
-                # Update current state based on step output
                 if isinstance(step_output, dict) and len(step_output) == 1:
                     node_name = list(step_output.keys())[0]
                     if node_name != "__interrupt__":
@@ -269,11 +270,11 @@ class GraphRunner:
                     yield safe_interrupt_data
                     return
 
-                # Normal step output - add thread_id
-                safe_output = serialize_graph_response(step_output)
-                if isinstance(safe_output, dict):
-                    safe_output["thread_id"] = self.thread_id
-                yield safe_output
+                # Normal step output
+                formatted_output = serialize_graph_response(step_output)
+                if isinstance(formatted_output, dict):
+                    formatted_output["thread_id"] = self.thread_id
+                yield formatted_output
 
         except Exception as e:
             logger.error(f"Error handling approval: {str(e)}", exc_info=True)
@@ -282,7 +283,18 @@ class GraphRunner:
     async def stop_agent(self) -> dict:
         """Stop the agent execution"""
         try:
-            # Signal to environments to stop
+            logger.info("Stop agent called - terminating execution")
+
+            if self.current_state:
+                self.current_state["exiting"] = True
+                self.current_state["thought"] = "User requested to stop execution"
+                self.current_state["pending_approval"] = {}
+                self.current_state["tool_calls"] = []
+                logger.info("Set exiting flag in current_state")
+
+            # Signal stop through the AgentState singleton
+            self.agent_state.request_stop()
+            logger.info("Stop requested through agent state")
             await self.cleanup()
 
             stop_response = {
@@ -306,7 +318,6 @@ class GraphRunner:
         context.dom_service = None
         context.terminal_manager = None
         context.planning_environment = None
-        self.current_state = None
 
 
 def serialize_graph_response(data: Any) -> Any:
@@ -318,29 +329,22 @@ def serialize_graph_response(data: Any) -> Any:
 
     # Handle dictionaries
     elif isinstance(data, dict):
-        # Skip __interrupt__ key which contains non-serializable objects
         return {
             key: serialize_graph_response(value)
             for key, value in data.items()
             if key != "__interrupt__"
         }
 
-    # Handle lists
     elif isinstance(data, list):
         return [serialize_graph_response(item) for item in data]
 
-    # Handle tuples
     elif isinstance(data, tuple):
         return [serialize_graph_response(item) for item in data]
 
-    # Handle sets
     elif isinstance(data, set):
         return [serialize_graph_response(item) for item in data]
 
-    # Handle other potentially non-serializable objects
     try:
-        # Try to convert to string if basic serialization fails
-        import json
 
         json.dumps(data)
         return data
