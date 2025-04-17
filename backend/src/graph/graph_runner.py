@@ -134,31 +134,8 @@ class GraphRunner:
                     # Handle the interrupt
                     if isinstance(step_output, dict) and "__interrupt__" in step_output:
                         logger.info("Found interrupt in step_output")
-
-                        interrupt_data = None
-
-                        interrupt_obj = step_output["__interrupt__"]
-                        if isinstance(interrupt_obj, tuple) and len(interrupt_obj) > 0:
-                            interrupt_obj = interrupt_obj[0]
-
-                        # Get the actual message data from the interrupt
-                        if hasattr(interrupt_obj, "message"):
-                            interrupt_data = interrupt_obj.message
-                        elif hasattr(interrupt_obj, "value"):
-                            interrupt_data = interrupt_obj.value
-                        else:
-                            # Fallback - use the object itself if it's a dict
-                            interrupt_data = (
-                                interrupt_obj if isinstance(interrupt_obj, dict) else {}
-                            )
-                        approval_request = {
-                            "type": "approval_request",
-                            "data": interrupt_data,
-                            "thread_id": thread_id,
-                        }
-
-                        formatted_interrupt_data = serialize_graph_response(
-                            approval_request
+                        formatted_interrupt_data = handle_interrupt(
+                            step_output, thread_id
                         )
                         yield formatted_interrupt_data
                         return
@@ -242,27 +219,8 @@ class GraphRunner:
                 # Handle interrupts
                 if isinstance(step_output, dict) and "__interrupt__" in step_output:
                     logger.info("Found interrupt in post-approval step_output")
-                    interrupt_data = None
-                    interrupt_obj = step_output["__interrupt__"]
-                    if isinstance(interrupt_obj, tuple) and len(interrupt_obj) > 0:
-                        interrupt_obj = interrupt_obj[0]
-
-                    if hasattr(interrupt_obj, "message"):
-                        interrupt_data = interrupt_obj.message
-                    elif hasattr(interrupt_obj, "value"):
-                        interrupt_data = interrupt_obj.value
-                    else:
-                        interrupt_data = (
-                            interrupt_obj if isinstance(interrupt_obj, dict) else {}
-                        )
-
-                    approval_request = {
-                        "type": "approval_request",
-                        "data": interrupt_data,
-                        "thread_id": self.thread_id,
-                    }
-                    safe_interrupt_data = serialize_graph_response(approval_request)
-                    yield safe_interrupt_data
+                    formatted_interrupt_data = handle_interrupt(step_output)
+                    yield formatted_interrupt_data
                     return
 
                 # Normal step output
@@ -344,3 +302,31 @@ def serialize_graph_response(data: Any) -> Any:
         return data
     except (TypeError, OverflowError):
         return str(data)
+
+
+def handle_interrupt(step_output, thread_id=None) -> Dict[str, Any]:
+    """Process an interrupt from the graph and format it for client consumption"""
+    logger.info("Processing interrupt in step_output")
+
+    interrupt_data = None
+    interrupt_obj = step_output["__interrupt__"]
+
+    if isinstance(interrupt_obj, tuple) and len(interrupt_obj) > 0:
+        interrupt_obj = interrupt_obj[0]
+
+    # Get the actual message data from the interrupt
+    if hasattr(interrupt_obj, "message"):
+        interrupt_data = interrupt_obj.message
+    elif hasattr(interrupt_obj, "value"):
+        interrupt_data = interrupt_obj.value
+    else:
+        # Fallback - use the object itself if it's a dict
+        interrupt_data = interrupt_obj if isinstance(interrupt_obj, dict) else {}
+
+    approval_request = {
+        "type": "approval_request",
+        "data": interrupt_data,
+        "thread_id": thread_id,
+    }
+
+    return serialize_graph_response(approval_request)
