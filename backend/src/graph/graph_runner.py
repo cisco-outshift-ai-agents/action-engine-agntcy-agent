@@ -99,7 +99,6 @@ class GraphRunner:
 
             thread_id = thread_id or str(uuid4())
             self.thread_id = thread_id
-            logger.info(f"Thread ID: {thread_id}")
 
             if not self.llm:
                 raise RuntimeError("LLM not initialized")
@@ -125,13 +124,9 @@ class GraphRunner:
                 async for step_output in self.graph.astream(agent_state, config):
                     logger.info(f"Step output: {step_output}")
 
-                    # Check for stop request after each step
+                    # # Check for stop request after each step
                     if self.agent_state.is_stop_requested():
                         logger.info("Stop requested, terminating execution")
-                        yield {
-                            "type": "execution_stopped",
-                            "message": "Execution stopped by user request",
-                        }
                         # Set exiting flag to ensure graph doesn't continue
                         self.current_state["exiting"] = True
                         break
@@ -345,7 +340,6 @@ def serialize_graph_response(data: Any) -> Any:
         return [serialize_graph_response(item) for item in data]
 
     try:
-
         json.dumps(data)
         return data
     except (TypeError, OverflowError):
