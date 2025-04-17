@@ -161,7 +161,7 @@ class GraphRunner:
                 yield {"error": str(e), "thread_id": thread_id}
 
         except Exception as e:
-            logger.error(f"Outer graph execution error: {str(e)}", exc_info=True)
+            logger.error(f"Graph execution error: {str(e)}", exc_info=True)
             yield {"error": str(e), "thread_id": thread_id}
 
     async def handle_approval(
@@ -245,9 +245,10 @@ class GraphRunner:
                 self.current_state["tool_calls"] = []
                 logger.info("Set exiting flag in current_state")
 
-            # Signal stop through the AgentState singleton
+            # Signal stop through the AgentState
             self.agent_state.request_stop()
             logger.info("Stop requested through agent state")
+            # Signal to environments to stop
             await self.cleanup()
 
             stop_response = {
@@ -274,7 +275,7 @@ class GraphRunner:
 
 
 def serialize_graph_response(data: Any) -> Any:
-    """Convert any object to a JSON-serializable format"""
+    """Convert pydantic models to dict for serialization"""
 
     # Handle BaseModel instances
     if isinstance(data, BaseModel):
