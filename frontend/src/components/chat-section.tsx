@@ -36,6 +36,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
   const [input, setInput] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null); //Main websocket for tasks
+  const wsStopRef = useRef<WebSocket | null>(null); //Websocket for stop requests
   const bottomOfChatRef = useRef<HTMLDivElement | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -54,6 +55,11 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
     const url = useLocal ? "localhost:7788" : window.location.host;
     const ws = new WebSocket(`ws://${url}/ws/chat`);
     wsRef.current = ws;
+    window.wsRef = wsRef;
+    //Websocket for stop requests
+    const wsStop = new WebSocket(`ws://${url}/ws/stop`);
+
+    wsStopRef.current = wsStop;
 
     ws.onopen = () => {
       setIsConnected(true);
@@ -63,6 +69,19 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
     ws.onmessage = (event: MessageEvent) => {
       console.log("received websocket message:", JSON.parse(event.data));
       const data = JSON.parse((event as TodoFixAny).data);
+
+      if (data.type === "approval_request") {
+        const { message, tool_call } = data.data;
+
+        addMessage({
+          content: message,
+          role: "assistant",
+          nodeType: "approval_request",
+          toolCall: tool_call,
+        });
+
+        return;
+      }
 
       // Check if this is an error message
       if (data.error) {
