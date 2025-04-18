@@ -1,3 +1,4 @@
+import os
 import asyncio
 import logging
 from dataclasses import dataclass
@@ -8,8 +9,11 @@ from browser_use.browser.views import BrowserError, BrowserState, TabInfo
 from browser_use.dom.service import DomService
 from browser_use.dom.views import DOMBaseNode, DOMElementNode, DOMTextNode
 from browser_use.utils import time_execution_sync
-from playwright.async_api import BrowserContext as PlaywrightBrowserContext
-from playwright.async_api import Page
+from playwright.async_api import (
+    Page,
+    BrowserContext as PlaywrightBrowserContext,
+    Browser as PlaywrightBrowser,
+)
 
 from tools.utils import stringify_dom_element_node
 
@@ -152,3 +156,20 @@ class CustomBrowserContext(BrowserContext):
             return await asyncio.wait_for(page.title(), timeout=1.0)
         except asyncio.TimeoutError:
             return "Loading..."
+
+    async def _create_context(self, browser: PlaywrightBrowser):
+        """Creates a new browser context with anti-detection measures and loads cookies if available."""
+        context = await super()._create_context(browser)
+
+        logger.info("Adding custom scripts to the browser context")
+
+        path_to_js_file = os.path.join(os.path.dirname(__file__), "..", "lto", "lto.js")
+
+        # Load custom script from external file
+        learning_through_observation_script = os.path.abspath(path_to_js_file)
+        with open(learning_through_observation_script, "r") as script_file:
+            custom_script = script_file.read()
+
+        await context.add_init_script(custom_script)
+
+        return context

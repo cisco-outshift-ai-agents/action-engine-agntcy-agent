@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y \
     dbus \
     dbus-x11 \
     xauth \
-    xvfb \
+    feh \ 
     x11vnc \
     tigervnc-tools \
     supervisor \

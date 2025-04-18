@@ -6,12 +6,15 @@ from typing import Dict, Optional
 from uuid import uuid4
 
 import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.graph.environments.terminal import TerminalManager
 from src.graph.graph_runner import GraphRunner
 from src.utils.default_config_settings import default_config
+from src.lto.main import analyze_event_log, summarize_with_ai
+from src.lto.storage import EventStorage
+from src.models import AgentConfig
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,47 +24,13 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-
 DEFAULT_CONFIG = default_config()
 
 terminal_manager = TerminalManager.get_instance()
 
 graph_runner = GraphRunner(terminal_manager=terminal_manager)
 
-
-class LLMConfig:
-    provider: str
-    model_name: str
-    temperature: float
-    base_url: str
-    api_key: str
-
-
-@dataclass
-class AgentConfig:
-    use_own_browser: bool
-    keep_browser_open: bool
-    headless: bool
-    disable_security: bool
-    window_w: int
-    window_h: int
-    task: str
-    add_infos: str
-    max_steps: int
-    use_vision: bool
-    max_actions_per_step: int
-    tool_calling_method: str
-    limit_num_image_per_llm_call: Optional[int]
-
-
-@dataclass
-class AgentResult:
-    final_result: str
-    errors: str
-    model_actions: str
-    model_thoughts: str
-    latest_video: Optional[str]
-
+event_storage = EventStorage()
 
 # TODO: Add lifespan back
 app = FastAPI(title="ActionEngine API")
@@ -73,6 +42,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+learning_enabled = False
 
 
 @app.get("/status")
@@ -95,6 +66,14 @@ async def chat_endpoint(websocket: WebSocket):
 
             try:
                 client_payload = json.loads(data)
+
+                if client_payload.get("task") == "stop":
+                    logger.info("Received stop request")
+                    response = await graph_runner.stop_agent()
+                    await websocket.send_text(json.dumps(response))
+                    logger.info("Stop Response sent to UI")
+                    return
+
                 task = client_payload.get("task", DEFAULT_CONFIG.get("task", ""))
                 add_infos = client_payload.get("add_infos", "")
                 logger.debug(f"Extracted task: {task}")
@@ -204,42 +183,6 @@ async def chat_endpoint(websocket: WebSocket):
             pass
 
 
-@app.websocket("/ws/stop")
-async def stop_endpoint(websocket: WebSocket):
-    logger.info("New WebSocket connection for stop requests")
-    await websocket.accept()
-
-    try:
-        while True:
-            data = await websocket.receive_text()
-            logger.info(f"Stop request received: {data}")
-
-            try:
-                client_payload = json.loads(data)
-                task = client_payload.get("task", "")
-
-                # handle stop request
-                if task == "stop":
-                    logger.info("Received stop request")
-                    response = await graph_runner.stop_agent()
-                    await websocket.send_text(json.dumps(response))
-                    logger.info("Stop Response sent to UI")
-                    return
-
-            except json.JSONDecodeError as e:
-                error_msg = f"Failed to parse client message: {str(e)}"
-                logger.error(error_msg)
-                await websocket.send_text(json.dumps({"error": error_msg}))
-
-    except WebSocketDisconnect:
-        logger.info("WebSocket disconnected")
-    finally:
-        try:
-            await websocket.close()
-        except Exception:
-            pass
-
-
 @app.websocket("/ws/terminal")
 async def terminal_endpoint(websocket: WebSocket):
     from starlette.websockets import WebSocketState
@@ -340,6 +283,133 @@ async def terminal_endpoint(websocket: WebSocket):
                 logger.error(
                     f"Error closing WebSocket for terminal {current_terminal_id}: {e}"
                 )
+
+
+# Gathers information from the VNC server browser and stores it in event_log
+@app.post("/api/event-log")
+async def learning_through_observation_endpoint(request: Request):
+    logger.info("New request for learning observation")
+
+    if not learning_enabled:
+        return {"error": "Learning is not enabled"}
+
+    try:
+        event_data = await request.json()
+        # Create a session if it doesn't exist
+        if not event_storage.get_current_session():
+            session_id = event_storage.create_session()
+            logger.info(f"Created new session: {session_id}")
+        else:
+            session_id = event_storage.get_current_session()
+
+        # Add session_id to event data
+        event_data["session_id"] = session_id
+
+        # Store raw event data
+        file_path = event_storage.store_event(event_data)
+        logger.info(f"Stored event in {file_path}")
+
+        return {
+            "status": "success",
+            "session_id": session_id,
+            "message": "Event stored successfully",
+        }
+
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+        return {"error": str(e)}
+
+
+@app.post("/api/event-log/analyze")
+async def analyze_event_log_endpoint():
+    session_id = event_storage.current_session
+    logger.info(f"New request for analyzing event log for session {session_id}")
+
+    try:
+        if not session_id:
+            logger.warning("No active session found")
+            return {
+                "error": "No active session",
+                "message": "Please start a new session before analyzing events",
+            }
+
+        # Retrieve events for the session
+        events = event_storage.get_session_events(session_id)
+
+        if not events:
+            logger.info(f"No events found for session {session_id}")
+            return {
+                "error": "No events found",
+                "message": f"No events found for session {session_id}",
+            }
+
+        analyzed_result = await analyze_event_log(events)
+        analyzed_result.session_id = session_id
+
+        # Get summary and plan
+        lto_response = await summarize_with_ai(analyzed_result)
+        logger.info("Generated plan and summary")
+
+        # Return just the plan data matching PlanZod schema
+        return {
+            "plan": (
+                lto_response.plan.dict()
+                if lto_response.plan
+                else {"plan_id": None, "steps": []}
+            )
+        }
+
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+        return {"error": str(e)}
+
+
+@app.post("/api/learning")
+async def toggle_learning_mode(request: Request):
+    global learning_enabled
+    data = await request.json()
+    learning_enabled = data["learning_enabled"]
+    logger.info(f"Learning mode set to: {learning_enabled}")
+    return {"status": "success", "learning_enabled": learning_enabled}
+
+
+@app.get("/api/learning")
+async def get_learning_mode():
+    return {"learning_enabled": learning_enabled}
+
+
+@app.delete("/api/event-log")
+async def clear_event_log(session_id: str = None):
+    new_session = event_storage.create_session()
+    return {"status": "success", "new_session_id": new_session}
+
+
+@app.websocket("/ws/get-events")
+async def get_events_endpoint(websocket: WebSocket):
+    logger.info("New WebSocket connection for getting events")
+    await websocket.accept()
+    logger.info("WebSocket connection accepted for getting events")
+
+    try:
+        while True:
+            session_id = event_storage.get_current_session()
+            if session_id:
+                events = event_storage.get_session_events(session_id)
+                # Convert events to dict before JSON serialization
+                events_json = [event.model_dump() for event in events]
+                await websocket.send_text(json.dumps(events_json))
+            await asyncio.sleep(1)
+
+    except WebSocketDisconnect:
+        logger.info("WebSocket disconnected for getting events")
+    except Exception as e:
+        logger.error(f"Unexpected WebSocket error: {str(e)}", exc_info=True)
+    finally:
+        logger.info("Closing WebSocket connection for getting events")
+        try:
+            await websocket.close()
+        except Exception as e:
+            logger.error(f"Error closing WebSocket: {str(e)}")
 
 
 if __name__ == "__main__":
