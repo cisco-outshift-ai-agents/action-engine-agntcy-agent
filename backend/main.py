@@ -1,6 +1,9 @@
 import asyncio
 import json
 import logging
+from dataclasses import dataclass
+from typing import Dict, Optional
+from uuid import uuid4
 
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
@@ -76,6 +79,35 @@ async def chat_endpoint(websocket: WebSocket):
                 logger.debug(f"Extracted task: {task}")
                 logger.debug(f"Extracted additional info: {add_infos}")
 
+                # Check if this is an approval response
+                if "approval_response" in client_payload:
+                    logger.info("Received approval response from client")
+                    approval_data = client_payload.get("approval_response", {})
+
+                    # Process approval response through the graph runner
+                    async for approval_update in graph_runner.handle_approval(
+                        approval_data
+                    ):
+                        # Check if there are error messages
+                        if "error" in approval_update:
+                            logger.error(
+                                f"Error in approval handling: {approval_update['error']}"
+                            )
+                            await websocket.send_text(json.dumps(approval_update))
+                            break
+
+                        # Send the update to the client regardless of what it is
+                        await websocket.send_text(json.dumps(approval_update))
+
+                        # If this is another approval request, we need to exit and wait for response
+                        if approval_update.get("type") == "approval_request":
+                            logger.info(
+                                "Received another approval request, waiting for next response"
+                            )
+                            break
+
+                    continue
+
                 # Initialize graph runner at the start of each chat session
                 config = DEFAULT_CONFIG.copy()
                 agent_config = AgentConfig(
@@ -102,16 +134,20 @@ async def chat_endpoint(websocket: WebSocket):
                 await graph_runner.initialize(agent_config)
                 logger.debug("Graph runner initialized successfully")
 
-                async for update in graph_runner.execute(task):
+                thread_id = str(uuid4())
+
+                async for update in graph_runner.execute(task, thread_id):
                     logger.debug("Received update from graph runner")
+
                     try:
+
                         # Skip None updates from graph runner
                         if update is None:
                             logger.debug("Skipping None update from graph runner")
                             continue
-
                         await websocket.send_text(json.dumps(update))
 
+                    # Send the update to the client
                     except Exception as serialize_error:
                         logger.error(
                             f"Serialization error: {str(serialize_error)}",
@@ -122,6 +158,13 @@ async def chat_endpoint(websocket: WebSocket):
                             "details": str(serialize_error),
                         }
                         await websocket.send_text(json.dumps(error_response))
+
+                    # If this is an approval request, we need to exit and wait for approval
+                    if update.get("type") == "approval_request":
+                        logger.info(
+                            "Sent approval request to client, waiting for response"
+                        )
+                        break
 
             except json.JSONDecodeError as e:
                 error_msg = f"Failed to parse client message: {str(e)}"
@@ -142,40 +185,104 @@ async def chat_endpoint(websocket: WebSocket):
 
 @app.websocket("/ws/terminal")
 async def terminal_endpoint(websocket: WebSocket):
-    logger.info("New WebSocket connection for terminal commands")
+    from starlette.websockets import WebSocketState
+
     await websocket.accept()
+
     terminal_manager = TerminalManager.get_instance()
 
-    # Create a new terminal for this WebSocket
+    # Create a new terminal and associate it with this WebSocket connection
     terminal_id = await terminal_manager.create_terminal()
-    logger.info(f"Assigned terminal {terminal_id} to new WebSocket")
+    logger.info(f"Assigned terminal {terminal_id} to new WebSocket connection")
+
+    current_terminal_id = terminal_id
 
     try:
-        # Start polling task for streaming output from this terminal
-        async def poll_terminal():
-            logger.info(f"Polling terminal output for terminal {terminal_id}")
-            async for output in terminal_manager.poll_and_stream_output(terminal_id, 0):
-                await websocket.send_text(json.dumps(output))
+        # Send the initial terminal ID to frontend
+        await websocket.send_text(
+            json.dumps(
+                {
+                    "terminal_id": terminal_id,
+                    "working_directory": "/root",
+                    "summary": "",
+                    "marker_id": 0,
+                }
+            )
+        )
+    except Exception as e:
+        logger.error(f"Failed to send initial terminal ID: {e}", exc_info=True)
+        return
 
-        poll_task = asyncio.create_task(poll_terminal())
+    # Poll terminal output and send to the client
+    async def poll_terminal(tid):
+        logger.info(f"Polling terminal output for terminal {tid} )")
+        try:
+            async for output in terminal_manager.poll_and_stream_output(tid, 0):
+                if websocket.client_state == WebSocketState.CONNECTED:
+                    await websocket.send_text(json.dumps(output))
+                else:
+                    logger.warning(
+                        f"WebSocket disconnected while sending terminal {tid} output"
+                    )
+                    break
+        except Exception as e:
+            logger.error(f"Polling error for terminal {tid}: {e}")
 
-        # Command input loop (from the same client)
+    poll_task = asyncio.create_task(poll_terminal(current_terminal_id))
+
+    try:
         while True:
+            # Handle incoming commands from the client
             data = await websocket.receive_text()
             client_payload = json.loads(data)
 
             if "command" in client_payload:
                 command = client_payload["command"]
-                logger.info(
-                    f"Executing command from client on terminal {terminal_id}: {command}"
-                )
-                await terminal_manager.execute_command(terminal_id, command)
 
+                logger.info(
+                    f"Executing command on terminal {current_terminal_id}: {command}"
+                )
+                result, success = await terminal_manager.execute_command(
+                    current_terminal_id, command
+                )
+
+                if not success:
+                    await websocket.send_text(
+                        json.dumps(
+                            {
+                                "summary": f"Command execution failed: {result}",
+                                "terminal_id": current_terminal_id,
+                                "working_directory": terminal_manager.terminals[
+                                    current_terminal_id
+                                ]["working_directory"],
+                                "error": True,
+                            }
+                        )
+                    )
     except WebSocketDisconnect:
-        logger.info(f"Terminal WebSocket disconnected for terminal {terminal_id}")
+        logger.info(f"WebSocket disconnected for terminal {current_terminal_id} ")
+    except Exception as e:
+        logger.error(
+            f"Error in /ws/terminal for terminal {current_terminal_id}: {e}",
+            exc_info=True,
+        )
     finally:
-        poll_task.cancel()
-        await websocket.close()
+        if poll_task:
+            poll_task.cancel()
+            try:
+                await poll_task
+            except asyncio.CancelledError:
+                logger.info(
+                    f"Polling task for terminal {current_terminal_id} cancelled"
+                )
+
+        if websocket.client_state == WebSocketState.CONNECTED:
+            try:
+                await websocket.close()
+            except Exception as e:
+                logger.error(
+                    f"Error closing WebSocket for terminal {current_terminal_id}: {e}"
+                )
 
 
 # Gathers information from the VNC server browser and stores it in event_log

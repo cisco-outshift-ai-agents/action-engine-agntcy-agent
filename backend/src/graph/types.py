@@ -129,6 +129,10 @@ class AgentState(TypedDict, total=False):
     next_node: Annotated[Optional[str], last_value_reducer]
     exiting: Annotated[bool, last_value_reducer]
 
+    # Tool approval management
+    tool_calls: Annotated[List[Dict], last_value_reducer]
+    pending_approval: Annotated[Dict[str, Any], dict_merge_reducer]
+
     class Config:
         """Pydantic configuration"""
 
@@ -149,6 +153,9 @@ def create_default_agent_state(task: str = "") -> Dict:
         "tools_used": [],
         "error": None,
         "next_node": None,
+        "exiting": False,
+        "pending_approval": {},
+        "tool_calls": [],
     }
 
 
