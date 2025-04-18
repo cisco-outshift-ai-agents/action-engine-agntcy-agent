@@ -34,6 +34,7 @@ interface ChatSectionProps {
 
 const ChatSection: React.FC<ChatSectionProps> = () => {
   const [input, setInput] = useState("");
+  const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null); //Main websocket for tasks
   const wsStopRef = useRef<WebSocket | null>(null); //Websocket for stop requests
   const bottomOfChatRef = useRef<HTMLDivElement | null>(null);
@@ -45,10 +46,11 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
     setisThinking,
     isStopped,
     setIsStopped,
+    plan,
     setPlan,
   } = useChatStore();
 
-  useEffect(() => {
+  const connectWebSocket = () => {
     const useLocal = true;
     const url = useLocal ? "localhost:7788" : window.location.host;
     const ws = new WebSocket(`ws://${url}/ws/chat`);
@@ -56,14 +58,12 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
     window.wsRef = wsRef;
     //Websocket for stop requests
     const wsStop = new WebSocket(`ws://${url}/ws/stop`);
+
     wsStopRef.current = wsStop;
 
     ws.onopen = () => {
+      setIsConnected(true);
       console.log("Connected to chat server");
-    };
-
-    wsStop.onopen = () => {
-      console.log("Connected to stop websocket");
     };
 
     ws.onmessage = (event: MessageEvent) => {
@@ -134,6 +134,23 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
         return;
       }
 
+      // Check if this is a stop response
+      if (data.stopped !== undefined) {
+        const parse = StopDataZod.safeParse(data);
+        if (parse.success) {
+          const stopResponse = parse.data;
+          if (stopResponse.stopped) {
+            setisThinking(false);
+            setIsStopped(false);
+          }
+          addMessage({
+            content: stopResponse.summary,
+            role: "assistant",
+          });
+          return;
+        }
+      }
+
       const cleanedData = cleanAPIData(parseGraphData.data);
       addMessage(cleanedData);
 
@@ -147,37 +164,20 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
       }
     };
 
-    wsStop.onmessage = (event: MessageEvent) => {
-      console.log("received stop response:", event.data);
-      const d = JSON.parse((event as TodoFixAny).data) as GraphData;
-      const parse = StopDataZod.safeParse(d);
-      if (!parse.success) {
-        console.error(parse.error);
-        return;
-      }
-
-      const stopResponse = parse.data;
-
-      if (stopResponse.stopped) {
-        setisThinking(false);
-        setIsStopped(false);
-      }
-      addMessage({
-        content: stopResponse.summary,
-        role: "assistant",
-      });
-    };
-
     ws.onclose = () => {
+      setIsConnected(false);
       console.log("Disconnected from chat server");
     };
-    wsStop.onclose = () => {
-      console.log("Disconnected from stop server");
-    };
 
+    wsRef.current = ws;
+  };
+
+  useEffect(() => {
+    connectWebSocket();
     return () => {
-      ws.close();
-      wsStop.close();
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
     };
   }, []);
 
@@ -201,21 +201,13 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
   };
 
   const stopTask = () => {
-    if (!wsStopRef.current) {
-      return;
-    }
-
-    if (isStopped) {
+    if (!wsRef.current || isStopped) {
       return;
     }
 
     setIsStopped(true);
 
-    const stopPayload = {
-      task: "stop",
-    };
-
-    wsStopRef.current?.send(JSON.stringify(stopPayload));
+    wsRef.current.send(JSON.stringify({ task: "stop" }));
   };
 
   useEffect(() => {
@@ -269,22 +261,41 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
 
   const scrollToBottom = () => {
     if (bottomOfChatRef.current && chatContainerRef.current) {
-      const SHOULD_SCROLL_PERCENTAGE = 0.9;
-
-      const shouldScroll =
-        chatContainerRef.current.scrollTop +
-          chatContainerRef.current.clientHeight >=
-        chatContainerRef.current.scrollHeight * SHOULD_SCROLL_PERCENTAGE;
-
-      if (shouldScroll) {
-        bottomOfChatRef.current.scrollIntoView({ behavior: "smooth" });
-      }
+      bottomOfChatRef.current.scrollIntoView({ behavior: "smooth" });
     }
   };
 
+  const disableLearning = async () => {
+    await fetch(`http://localhost:7788/api/learning`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        learning_enabled: false,
+      }),
+    });
+  };
+
+  useEffect(() => {
+    disableLearning();
+  }, []);
+
   return (
-    <div className="h-full rounded-lg  bg-[#32363c] w-full px-2 py-4 flex flex-col">
-      <PlanRenderer />
+    <div className="h-[95%] rounded-lg  bg-[#32363c] w-full px-2 py-4 flex flex-col border-white/10 border">
+      <div className="flex items-center justify-end">
+        <div
+          className={`rounded-full aspect-square h-2 w-2 ${
+            isConnected ? "bg-green-500" : "bg-red-500"
+          }`}
+        />
+        <p className="ml-2 text-xs text-white font-semibold">
+          {isConnected
+            ? "Connected to chat socket"
+            : "Disconnected from chat socket"}
+        </p>
+      </div>
+      <PlanRenderer plan={plan} />
       <div
         className="flex-1 overflow-y-auto px-2 pt-2 pb-3"
         ref={chatContainerRef}
@@ -312,7 +323,10 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
         <Flex
           as="form"
           align="center"
-          className="max-w-3xl mx-auto bg-[#373c42] border-2 border-[#7E868F] pr-3 pt-2 pl-5 pb-2 rounded-lg"
+          className={cn(
+            "max-w-3xl mx-auto bg-[#373c42] border-2 border-[#7E868F] pr-3 pt-2 pl-5 pb-2 rounded-lg",
+            "group focus-within:border-[#649EF5]"
+          )}
         >
           <TextareaAutosize
             tabIndex={1}
@@ -325,6 +339,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
               "w-full bg-transparent text-white",
               "font-normal text-base leading-[22px]",
               "placeholder:text-[889099] placeholder:text-sm",
+              "focus:ring-0 focus:border-0",
               "focus:outline-none resize-none"
             )}
             wrap="hard"

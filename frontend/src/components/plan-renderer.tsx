@@ -1,9 +1,7 @@
 import LoaderGIF from "@/components/newsroom/newsroom-assets/loader.gif";
-import { useChatStore } from "@/stores/chat";
+import { Plan } from "@/pages/session/types";
 
-const PlanRenderer: React.FC = () => {
-  const { plan } = useChatStore();
-
+const PlanRenderer: React.FC<PlanRendererProps> = ({ plan }) => {
   if (!plan) {
     return null;
   }
@@ -115,5 +113,9 @@ const PlanRenderer: React.FC = () => {
     </div>
   );
 };
+
+interface PlanRendererProps {
+  plan: Plan | null;
+}
 
 export default PlanRenderer;
