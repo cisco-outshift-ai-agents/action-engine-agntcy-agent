@@ -15,7 +15,7 @@ from src.graph.environments.planning import PlanningEnvironment
 from src.graph.nodes.base_node import BaseNode
 from src.graph.prompts import get_thinking_prompt
 from src.graph.types import AgentState, BrainState
-from tools.utils import hydrate_messages, serialize_messages
+from src.tools.utils import hydrate_messages, serialize_messages
 
 logger = logging.getLogger(__name__)
 

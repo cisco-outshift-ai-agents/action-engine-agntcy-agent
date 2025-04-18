@@ -11,11 +11,11 @@ from src.graph.environments.planning import PlanningEnvironment
 from src.graph.nodes.base_node import BaseNode
 from src.graph.prompts import get_executor_prompt, get_previous_tool_calls_prompt
 from src.graph.types import AgentState
-from tools.browser_use import browser_use_tool
-from tools.terminal import terminal_tool
-from tools.terminate import terminate_tool
-from tools.tool_collection import ActionEngineToolCollection
-from tools.utils import (
+from src.tools.browser_use import browser_use_tool
+from src.tools.terminal import terminal_tool
+from src.tools.terminate import terminate_tool
+from src.tools.tool_collection import ActionEngineToolCollection
+from src.tools.utils import (
     get_executor_system_prompt_context,
     hydrate_messages,
     serialize_messages,
