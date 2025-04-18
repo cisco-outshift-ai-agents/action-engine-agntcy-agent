@@ -6,6 +6,35 @@ export const StopDataZod = z.object({
 });
 export type StopData = z.infer<typeof StopDataZod>;
 
+export const PlanZod = z.object({
+  plan_id: z.string().nullish(),
+  steps: z.array(
+    z.object({
+      content: z.string(),
+      notes: z.string().nullish(),
+      status: z.union([
+        z.literal("not_started"),
+        z.literal("in_progress"),
+        z.literal("completed"),
+        z.literal("blocked"),
+      ]),
+      substeps: z.array(
+        z.object({
+          content: z.string(),
+          notes: z.string().nullish(),
+          status: z.union([
+            z.literal("not_started"),
+            z.literal("in_progress"),
+            z.literal("completed"),
+            z.literal("blocked"),
+          ]),
+        })
+      ),
+    })
+  ),
+});
+export type Plan = z.infer<typeof PlanZod>;
+
 export const GraphDataZod = z.object({
   brain: z.object({
     future_plans: z.string().nullish(),
@@ -18,35 +47,7 @@ export const GraphDataZod = z.object({
   context: z.object({}),
   error: z.any(),
   exiting: z.boolean(),
-  plan: z
-    .object({
-      plan_id: z.string().nullish(),
-      steps: z.array(
-        z.object({
-          content: z.string(),
-          notes: z.string().nullish(),
-          status: z.union([
-            z.literal("not_started"),
-            z.literal("in_progress"),
-            z.literal("completed"),
-            z.literal("blocked"),
-          ]),
-          substeps: z.array(
-            z.object({
-              content: z.string(),
-              notes: z.string().nullish(),
-              status: z.union([
-                z.literal("not_started"),
-                z.literal("in_progress"),
-                z.literal("completed"),
-                z.literal("blocked"),
-              ]),
-            })
-          ),
-        })
-      ),
-    })
-    .nullish(),
+  plan: PlanZod.nullish(),
   messages: z.array(
     z.object({
       type: z.union([
