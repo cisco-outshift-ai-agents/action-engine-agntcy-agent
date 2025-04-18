@@ -40,4 +40,9 @@
   body {
     min-height: 100vh;
   }
+  body > div:last-child {
+    /* XTerm adds some random 5000px wide element to the page 
+    for some reason and it makes the page go crazy */
+    width: 0 !important;
+  }
 }
