@@ -24,7 +24,6 @@ def create_agent_graph(config: RunnableConfig = None) -> Graph:
     workflow.add_node("human_approval", HumanApprovalNode())
     workflow.add_node("executor", ExecutorNode())
     workflow.add_node("planning", PlanningNode())
-    workflow.add_node("executor", ExecutorNode())
     workflow.add_node("thinking", ThinkingNode())
 
     workflow.add_edge(START, "planning")
