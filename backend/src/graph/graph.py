@@ -1,9 +1,11 @@
-import logging
+"""Graph-based execution engine."""
 
+import logging
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, Graph, StateGraph
 from langgraph.checkpoint.memory import MemorySaver
 
+from src.graph.agents import ThreadEnvironmentAgent
 from src.graph.nodes.approval import HumanApprovalNode
 from src.graph.nodes.executor import ExecutorNode
 from src.graph.nodes.planning import PlanningNode
@@ -15,9 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_agent_graph(config: RunnableConfig = None) -> Graph:
-    """Creates the main agent workflow graph with agent loop behavior and Human in the loop
-    functionality"""
-
+    """Creates the core LangGraph workflow."""
     workflow = StateGraph(AgentState)
 
     workflow.add_node("tool_selection", ToolGeneratorNode())
@@ -60,4 +60,8 @@ def create_agent_graph(config: RunnableConfig = None) -> Graph:
     return workflow.compile(checkpointer=checkpointer)
 
 
-action_engine_graph = create_agent_graph()
+# Create the base graph
+base_graph = create_agent_graph()
+
+# Wrap it in our ThreadEnvironmentAgent that handles environment management
+action_engine_graph = ThreadEnvironmentAgent(base_graph)

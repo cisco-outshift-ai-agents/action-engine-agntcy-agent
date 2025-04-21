@@ -1,9 +1,10 @@
+"""Global context for sharing resources across thread-specific environments."""
+
 import logging
 from typing import Any, Dict, Optional
 
 from browser_use.dom.service import DomService
 from langchain_core.language_models import BaseChatModel
-from langgraph.graph import Graph
 
 from src.browser.custom_browser import CustomBrowser
 from src.browser.custom_context import CustomBrowserContext
@@ -25,7 +26,6 @@ class GlobalConfigurableContext:
             cls._instance._dom_service = None
             cls._instance._terminal_manager = None
             cls._instance._llm = None
-            cls._instance._graph = None
         return cls._instance
 
     @property
@@ -68,14 +68,6 @@ class GlobalConfigurableContext:
     def llm(self, value: BaseChatModel):
         self._llm = value
 
-    @property
-    def graph(self) -> Optional[Graph]:
-        return self._graph
-
-    @graph.setter
-    def graph(self, value: Graph):
-        self._graph = value
-
 
 # Global singleton instance
 context = GlobalConfigurableContext()
@@ -100,7 +92,3 @@ def get_terminal_manager() -> Optional[TerminalManager]:
 
 def get_llm() -> Optional[BaseChatModel]:
     return context.llm
-
-
-def get_graph() -> Optional[Graph]:
-    return context.graph
