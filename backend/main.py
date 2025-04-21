@@ -16,7 +16,6 @@ from dotenv import load_dotenv
 
 # Initialize our core components
 from src.graph.environments.terminal import TerminalManager
-from src.graph.graph_runner import GraphRunner
 from src.utils.default_config_settings import default_config
 from src.lto.main import analyze_event_log, summarize_with_ai
 from src.lto.storage import EventStorage
@@ -47,7 +46,6 @@ from agent_workflow_server.services.queue import start_workers
 
 # Initialize components
 DEFAULT_CONFIG = default_config()
-graph_runner = GraphRunner()
 event_storage = EventStorage()
 
 # Load agents before using the app
