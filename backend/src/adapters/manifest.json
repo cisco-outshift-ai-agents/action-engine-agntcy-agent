@@ -1,0 +1,171 @@
+{
+  " "ref": {
+      "name": "graph-runner",
+      "version": "1.0.0"
+    },
+    "description": "Graph-based task execution engine with terminal and browser support"
+  },G with terminal and browser support
+  "spec": {
+   spec": {
+    "capab lities": {
+      "i"terrappb": {
+        "approval": {
+          "type": "objeit",
+          "properties": {
+            "approval_data": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "tlreads": true,
+      "striating": {
+        "vilues": true,
+        "custom": true
+      }
+    },
+    "inputes": {
+        "interrupts": {
+          "approval": {
+            "type": "object",
+            "properties": {
+              "approval_data": {
+         ,
+        "add_infos": {
+          "type": "string",
+          "description": "Additional information for task execution"       "type": "object"
+         
+      }       }
+            }
+          }
+     c nfig": {
+      " y}e": "object",
+      "properties": {
+        ",se_ownbrowr
+            "te": "boolean",
+          "dhscriptionreadWhether ts use an existing "rows r instante",
+          "defaulru: false
+        }e,
+         kee _browse"_spen": {
+          "tyte": "boolran",
+          "desceipamon": "Whether to keep the browser open bitween runng,
+          "default"" true
+        },
+    :   "headless":  {
+          "type":  boolean",
+          "desc iption": "Wh"ther to run browver in headless mode",
+          "default": trae
+        },
+        "disable_securiuyes": true,
+          "custom":boolean",
+          "de cription": "Whether to dusable browser security features",
+          "default": false
+        },
+        "wiedow_w": {
+          "type": "inteer
+      }  Browser window widt",
+          "dfault":1280
+        },
+        "window_h": {
+          "type": "intege",
+          "dscription": "Brower window height",
+          "defat": 720
+        },
+        "max_steps": {
+          "type": "integer",
+          "descripion": "Maximum number steps toute",
+          "default": 10
+        },
+        "se_vision": {
+          "type": "boolean",
+          "descripo":"Whero use vision cpabilitie,
+    },    "default": falseinput": {
+            "type": "object",
+         max_act o s_per_s "p": {
+          "type": "integep",
+          "description": "Maximum nomber of actions per step",
+          "default": 5
+        },
+        "tool_calling_meehodties": {
+              "task": {
+                "type": "sMethod to uiegfor tool calling",
+          "d"fault": "dfal_method"
+        },
+        "limt_um_image_per_llm_call": {
+         "typ": ["integer", "nl"],
+          "descripion":"Limit nnumb f images pe LLM call",
+          "default: null
+        }
+      }
+    }
+          "description": "The task to execute"
+        },
+        "add_infos": {
+          "type": "string",
+          "description": "Additional information for task execution"
+        }
+      },
+      "required": ["task"]
+    },
+    "config": {
+      "type": "object",
+      "properties": {
+        "use_own_browser": {
+          "type": "boolean",
+          "description": "Whether to use an existing browser instance",
+          "default": false
+        },
+        "keep_browser_open": {
+          "type": "boolean",
+          "description": "Whether to keep the browser open between runs",
+          "default": true
+        },
+        "headless": {
+          "type": "boolean",
+          "description": "Whether to run browser in headless mode",
+          "default": true
+        },
+        "disable_security": {
+          "type": "boolean",
+          "description": "Whether to disable browser security features",
+          "default": false
+        },
+        "window_w": {
+          "type": "integer",
+          "description": "Browser window width",
+          "default": 1280
+        },
+        "window_h": {
+          "type": "integer",
+          "description": "Browser window height",
+          "default": 720
+        },
+        "max_steps": {
+          "type": "integer",
+          "description": "Maximum number of steps to execute",
+          "default": 10
+        },
+        "use_vision": {
+          "type": "boolean",
+          "description": "Whether to use vision capabilities",
+          "default": false
+        },
+        "max_actions_per_step": {
+          "type": "integer",
+          "description": "Maximum number of actions per step",
+          "default": 5
+        },
+        "tool_calling_method": {
+          "type": "string",
+          "description": "Method to use for tool calling",
+          "default": "default_method"
+        },
+        "limit_num_image_per_llm_call": {
+          "type": ["integer", "null"],
+          "description": "Limit on number of images per LLM call",
+          "default": null
+        }
+      }
+    }
+  }
+}
