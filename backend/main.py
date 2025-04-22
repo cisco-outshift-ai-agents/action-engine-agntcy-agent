@@ -8,6 +8,7 @@ from uuid import uuid4
 
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends
+from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocketState
 from dotenv import load_dotenv
@@ -65,7 +66,12 @@ app.add_middleware(
 )
 
 
-# Add our endpoints
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Starting worker queue")
+    asyncio.create_task(start_workers(int(os.environ["NUM_WORKERS"])))
+
+
 @app.get("/status")
 async def status():
     return {"status": "ok"}
