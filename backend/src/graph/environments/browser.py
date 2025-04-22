@@ -14,14 +14,14 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
-class BrowserSession:
+class BrowserEnvironment:
     """Manages browser session state as a singleton"""
 
     _instance = None
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(BrowserSession, cls).__new__(cls)
+            cls._instance = super(BrowserEnvironment, cls).__new__(cls)
             cls._instance.lock = asyncio.Lock()
             cls._instance.browser = None
             cls._instance.browser_context = None

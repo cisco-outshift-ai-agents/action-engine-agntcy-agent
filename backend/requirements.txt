@@ -1,37 +1,24 @@
-# Core dependencies with looser version constraints
-fastapi>=0.115.8,<0.116.0
-uvicorn>=0.34.0,<0.35.0
-pydantic>=2.7.4,<3.0.0  # Loosened to work with all packages
-python-dotenv>=1.0.1
-langgraph>=0.3.5
-tenacity>=8.2.0,<10.0.0  # Loosened for llama-index compatibility
+# Core dependencies
+fastapi==0.115.12
+uvicorn==0.34.0
+websockets==12.0
+pydantic==2.10.6
+python-dotenv==1.0.1
 
-# LangChain ecosystem
-langchain>=0.3.14
-langchain-core>=0.3.33
-langchain-anthropic>=0.3.3
-langchain-openai>=0.3.1
-langsmith>=0.2.11
+# LLM and Agent Framework
+langchain==0.3.14
+langchain-core==0.3.35
+langgraph==0.3.16
+openai==1.61.1
 
-# Browser and automation
-browser-use>=0.1.29
-playwright>=1.50.0
+# Browser control
+browser-use==0.1.39
+playwright==1.50.0
+html5lib==1.1
+beautifulsoup4==4.13.3
 
-# Google integration
-google-ai-generativelanguage>=0.6.15
-google-api-core>=2.24.1
-google-api-python-client>=2.160.0
-google-auth>=2.38.0
-google-auth-httplib2>=0.2.0
-google-cloud-aiplatform>=1.80.0
+# Tools
+aiofiles==24.1.0
 
-# API validators
-openapi-spec-validator>=0.7.1,<0.8.0
-
-# Other utilities
-aiofiles>=24.1.0
-beautifulsoup4>=4.13.3
-httpx>=0.28.1
-requests>=2.32.3
-websockets>=12.0
-llama-index>=0.12.0,<0.13.0
+# Manifest Generation
+agntcy-acp

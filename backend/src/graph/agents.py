@@ -1,5 +1,6 @@
 """LangGraph agent implementations with environment management."""
 
+import logging
 from typing import Any, AsyncIterator, Dict, Optional
 from uuid import uuid4
 import os
@@ -7,8 +8,8 @@ from dataclasses import dataclass
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.constants import INTERRUPT
+from langgraph.graph import StateGraph
 from langgraph.graph.graph import CompiledGraph
-from langgraph.types import Command
 
 from agent_workflow_server.agents.adapters.langgraph import LangGraphAgent
 from agent_workflow_server.services.message import Message
@@ -17,6 +18,7 @@ from agent_workflow_server.storage.models import Run
 from src.graph.environments.manager import environment_manager
 from src.utils.utils import get_llm_model
 from src.utils.agent_state import AgentState
+from src.graph.utils import serialize_graph_response, handle_interrupt
 
 
 @dataclass
@@ -49,16 +51,14 @@ class EnvironmentConfig:
     tool_calling_method: str = "auto"
 
 
-class ThreadEnvironmentAgent(LangGraphAgent):
+class ThreadEnvironmentAgent(CompiledGraph):
     """LangGraph agent that manages per-thread environments.
 
-    Handles initialization and cleanup of browser, terminal and other environments
-    for each execution thread. This ensures that each thread gets its own isolated
-    set of environments that persist across the entire graph execution
+    Inherits from CompiledGraph to be compatible with workflow_srv's adapter.
     """
 
-    def __init__(self, agent: CompiledGraph):
-        super().__init__(agent)
+    def __init__(self, graph: CompiledGraph):
+        self.graph = graph
         self._thread_envs: Dict[str, Dict] = {}
         self._thread_configs: Dict[str, EnvironmentConfig] = {}
         self._thread_llms: Dict[str, Any] = {}
@@ -68,18 +68,14 @@ class ThreadEnvironmentAgent(LangGraphAgent):
     ) -> EnvironmentConfig:
         """Parse raw config dict into EnvironmentConfig."""
         config_dict = {
-            # Default LLM settings from env
             "llm_provider": os.getenv("LLM_PROVIDER", "openai"),
             "llm_model": os.getenv("LLM_MODEL_NAME", "gpt-4"),
             "llm_temperature": float(os.getenv("LLM_TEMPERATURE", 0.7)),
             "llm_base_url": os.getenv("LLM_BASE_URL"),
             "llm_api_key": os.getenv("LLM_API_KEY"),
         }
-
-        # Update with provided config
         if config:
             config_dict.update(config)
-
         return EnvironmentConfig(
             **{
                 k: config_dict.get(k, getattr(EnvironmentConfig, k))
@@ -122,6 +118,7 @@ class ThreadEnvironmentAgent(LangGraphAgent):
                 }
             )
 
+            # Store thread environments
             self._thread_envs[thread_id] = {
                 "llm": self._thread_llms[thread_id],
                 "browser": envs.browser_manager.browser,
@@ -133,62 +130,46 @@ class ThreadEnvironmentAgent(LangGraphAgent):
 
         return self._thread_envs[thread_id]
 
-    async def astream(self, run: Run) -> AsyncIterator[Message]:
-        """Stream execution results with environment management."""
-        thread_id = run.get("thread_id", str(uuid4()))
+    async def ainvoke(
+        self, state: Any, config: Optional[RunnableConfig] = None
+    ) -> Dict[str, Any]:
+        """Implements CompiledGraph's ainvoke interface."""
+        if isinstance(state, dict):
+            thread_id = state.get("thread_id", str(uuid4()))
+            env_config = await self.setup_environments(thread_id, config)
 
-        # Setup environments first
-        env_config = await self.setup_environments(thread_id, run.get("config", {}))
+            if config:
+                config.setdefault("configurable", {})
+                config["configurable"].update(env_config)
+                config["configurable"]["thread_id"] = thread_id
 
-        # Create agent state with task
-        config = run.get("config", {})
-        thread_config = self._thread_configs[thread_id]
-        agent_state = AgentState(
-            task=run["input"]["task"],
-            max_steps=thread_config.max_steps,
-            max_actions_per_step=thread_config.max_actions_per_step,
-            tool_calling_method=thread_config.tool_calling_method,
-        )
+            result = await self.graph.ainvoke(state, config)
+            return result
+        return await self.graph.ainvoke(state, config)
 
-        # Add environments to config
-        configurable = config.get("configurable", {})
-        configurable.update(env_config)
-        configurable["thread_id"] = thread_id
+    async def astream(
+        self, state: Any, config: Optional[RunnableConfig] = None
+    ) -> AsyncIterator[Dict[str, Any]]:
+        """Implements CompiledGraph's astream interface."""
+        if isinstance(state, dict):
+            thread_id = state.get("thread_id", str(uuid4()))
+            env_config = await self.setup_environments(thread_id, config)
 
-        # Handle interrupts
-        if "interrupt" in run and "user_data" in run["interrupt"]:
-            agent_state = run["interrupt"]["user_data"]
-            input_data = Command(resume=agent_state)
+            if config:
+                config.setdefault("configurable", {})
+                config["configurable"].update(env_config)
+                config["configurable"]["thread_id"] = thread_id
+
+            async for event in self.graph.astream(state, config):
+                yield event
         else:
-            input_data = agent_state
-
-        # Execute graph with environments
-        async for event in self.agent.astream(
-            input=input_data,
-            config=RunnableConfig(
-                configurable=configurable,
-                tags=config.get("tags"),
-                recursion_limit=config.get("recursion_limit", 25),
-            ),
-        ):
-            for k, v in event.items():
-                if k == INTERRUPT:
-                    yield Message(
-                        type="interrupt",
-                        event=k,
-                        data=v[0].value,
-                    )
-                else:
-                    yield Message(
-                        type="message",
-                        event=k,
-                        data=v,
-                    )
+            async for event in self.graph.astream(state, config):
+                yield event
 
     async def cleanup(self, thread_id: str):
         """Clean up environments for a thread."""
         if thread_id in self._thread_envs:
-            # Clear thread state
+            await environment_manager.cleanup(thread_id)
             del self._thread_envs[thread_id]
             del self._thread_configs[thread_id]
             del self._thread_llms[thread_id]

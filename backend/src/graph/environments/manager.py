@@ -5,7 +5,7 @@ from typing import Dict, Optional
 from uuid import uuid4
 
 from src.graph.environments.terminal import TerminalManager
-from src.graph.environments.browser import BrowserSession
+from src.graph.environments.browser import BrowserEnvironment
 from src.graph.environments.planning import PlanningEnvironment
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class EnvironmentManager:
             terminal_manager = (
                 TerminalManager.get_instance()
             )  # TODO: Make thread-specific
-            browser_manager = BrowserSession()
+            browser_manager = BrowserEnvironment()
             planning_manager = PlanningEnvironment()
 
             self._environments[thread_id] = ThreadEnvironments(
@@ -48,7 +48,7 @@ class ThreadEnvironments:
     def __init__(
         self,
         terminal_manager: TerminalManager,
-        browser_manager: BrowserSession,
+        browser_manager: BrowserEnvironment,
         planning_manager: PlanningEnvironment,
         thread_id: str,
     ):

@@ -1,5 +1,4 @@
 {
-  "version": "1.0.0",
   "metadata": {
     "ref": {
       "name": "graph-runner",
@@ -7,112 +6,94 @@
     },
     "description": "Graph-based task execution engine with managed thread-specific environments"
   },
-  "spec": {
+  "specs": {
     "capabilities": {
-      "interrupts": {
-        "approval": {
-          "type": "object",
-          "properties": {
-            "approval_data": {
-              "type": "object"
-            }
-          }
-        }
-      },
       "threads": true,
+      "interrupts": true,
       "streaming": {
-        "values": true,
+        "result": true,
         "custom": true
       }
     },
     "input": {
-      "type": "object",
+      "description": "Input format for agent tasks.",
       "properties": {
         "task": {
-          "type": "string",
-          "description": "The task to execute"
+          "description": "The task to execute",
+          "title": "Task",
+          "type": "string"
         },
         "add_infos": {
-          "type": "string",
-          "description": "Additional information for task execution"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Additional information for task execution",
+          "title": "Add Infos"
         }
       },
-      "required": ["task"]
+      "required": [
+        "task"
+      ],
+      "type": "object"
+    },
+    "output": {
+      "description": "Output format for agent results.",
+      "properties": {
+        "success": {
+          "description": "Whether the task was completed successfully",
+          "title": "Success",
+          "type": "boolean"
+        },
+        "message": {
+          "description": "Status or error message",
+          "title": "Message",
+          "type": "string"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Result data if any",
+          "title": "Data"
+        }
+      },
+      "required": [
+        "success",
+        "message"
+      ],
+      "type": "object"
     },
     "config": {
-      "type": "object",
+      "description": "Full agent configuration.",
       "properties": {
         "browser": {
-          "type": "object",
-          "properties": {
-            "use_own_browser": {
-              "type": "boolean",
-              "description": "Whether to use an existing browser instance",
-              "default": false
-            },
-            "keep_browser_open": {
-              "type": "boolean",
-              "description": "Whether to keep the browser open between runs",
-              "default": true
-            },
-            "headless": {
-              "type": "boolean",
-              "description": "Whether to run browser in headless mode",
-              "default": true
-            },
-            "disable_security": {
-              "type": "boolean",
-              "description": "Whether to disable browser security features",
-              "default": false
-            },
-            "window_w": {
-              "type": "integer",
-              "description": "Browser window width",
-              "default": 1920
-            },
-            "window_h": {
-              "type": "integer",
-              "description": "Browser window height",
-              "default": 1080
-            }
-          }
+          "$ref": "#/$defs/BrowserConfig"
         },
         "execution": {
-          "type": "object",
-          "properties": {
-            "max_steps": {
-              "type": "integer",
-              "description": "Maximum number of steps to execute",
-              "default": 100
-            },
-            "max_actions_per_step": {
-              "type": "integer",
-              "description": "Maximum number of actions per step",
-              "default": 10
-            },
-            "tool_calling_method": {
-              "type": "string",
-              "description": "Method to use for tool calling",
-              "default": "auto"
-            }
-          }
+          "$ref": "#/$defs/ExecutionConfig"
         },
         "vision": {
-          "type": "object",
-          "properties": {
-            "enabled": {
-              "type": "boolean",
-              "description": "Whether to use vision capabilities",
-              "default": false
-            },
-            "max_images_per_call": {
-              "type": ["integer", "null"],
-              "description": "Limit on number of images per LLM call",
-              "default": null
-            }
-          }
+          "$ref": "#/$defs/VisionConfig"
         }
-      }
+      },
+      "required": [
+        "browser",
+        "execution",
+        "vision"
+      ],
+      "type": "object"
     }
   }
 }

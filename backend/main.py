@@ -1,5 +1,3 @@
-"""Main application entry point integrating workflow-srv."""
-
 import os
 import json
 import asyncio
