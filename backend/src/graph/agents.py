@@ -147,10 +147,36 @@ class ThreadEnvironmentAgent(CompiledGraph):
             return result
         return await self.graph.ainvoke(state, config)
 
-    async def astream(
-        self, state: Any, config: Optional[RunnableConfig] = None
-    ) -> AsyncIterator[Dict[str, Any]]:
-        """Implements CompiledGraph's astream interface."""
+    async def astream(self, *args, **kwargs) -> AsyncIterator[Dict[str, Any]]:
+        """Implements CompiledGraph's astream interface.
+
+        Handles both state dict and input= style calls.
+        """
+        # Handle input= style calls by converting to state dict
+        if "input" in kwargs:
+            state = {"input": kwargs.pop("input")}
+            if "config" in kwargs:
+                config = kwargs.pop("config")
+            else:
+                config = None
+
+            thread_id = str(uuid4())
+            state["thread_id"] = thread_id
+
+            env_config = await self.setup_environments(thread_id, config)
+            if config:
+                config.setdefault("configurable", {})
+                config["configurable"].update(env_config)
+                config["configurable"]["thread_id"] = thread_id
+
+            async for event in self.graph.astream(state, config):
+                yield event
+            return
+
+        # Handle normal state dict calls
+        state = args[0] if args else kwargs.get("state", {})
+        config = args[1] if len(args) > 1 else kwargs.get("config")
+
         if isinstance(state, dict):
             thread_id = state.get("thread_id", str(uuid4()))
             env_config = await self.setup_environments(thread_id, config)

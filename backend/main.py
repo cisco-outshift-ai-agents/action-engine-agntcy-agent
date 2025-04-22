@@ -33,7 +33,7 @@ load_dotenv()
 
 # Initialize workflow_srv first
 from agent_workflow_server.agents.load import load_agents
-from agent_workflow_server.main import app
+from agent_workflow_server.main import app as WorkflowSrvApp
 from agent_workflow_server.apis.agents import public_router as PublicAgentsApiRouter
 from agent_workflow_server.apis.agents import router as AgentsApiRouter
 from agent_workflow_server.apis.authentication import (
@@ -43,6 +43,11 @@ from agent_workflow_server.apis.authentication import (
 from agent_workflow_server.apis.stateless_runs import router as StatelessRunsApiRouter
 from agent_workflow_server.services.queue import start_workers
 
+from src.utils.queue_patch import (
+    start_workers,
+    stop_workers,
+)
+
 # Initialize components
 DEFAULT_CONFIG = default_config()
 event_storage = EventStorage()
@@ -50,8 +55,26 @@ event_storage = EventStorage()
 # Load agents before using the app
 load_agents()
 
-# Use workflow-srv's app instance
-app = app
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Starting worker queue")
+    workers = await start_workers(int(os.environ["NUM_WORKERS"]))
+    yield
+    logger.info("Stopping worker queue")
+    await stop_workers()
+
+
+app = FastAPI(lifespan=lifespan)
+
+# Copy over routes from base app
+for route in WorkflowSrvApp.routes:
+    app.router.routes.append(route)
+
+# Copy over middleware
+app.middleware = WorkflowSrvApp.middleware
+app.user_middleware = WorkflowSrvApp.user_middleware
+app.middleware_stack = WorkflowSrvApp.middleware_stack
 
 # Initialize authentication
 setup_api_key_auth(app)
@@ -64,12 +87,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    logger.info("Starting worker queue")
-    asyncio.create_task(start_workers(int(os.environ["NUM_WORKERS"])))
 
 
 @app.get("/status")
