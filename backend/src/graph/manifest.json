@@ -1,19 +1,15 @@
 {
   "metadata": {
     "ref": {
-      "name": "graph-runner",
+      "name": "ActionEngine Browser Agent",
       "version": "1.0.0"
     },
-    "description": "Graph-based task execution engine with managed thread-specific environments"
+    "description": "# ActionEngine Browser Agent\n\n## Overview\nActionEngine is a user/agent collaborative playground designed to assist network engineers by enabling direct interaction with Cisco products, SaaS services, web browsers, terminal environments, and code editors.\n\n## Core Capabilities\n- **Collaborative Environment**: Users and agents work in tandem towards achieving goals\n- **Learning from Observation**: Ability to learn from user behavior to autonomously execute complex workflows\n- **Cross-Environment Operation**: Seamlessly works across browsers, terminals, and various network tools\n- **Vision and UI Understanding**: Uses advanced vision capabilities to interpret and interact with interfaces\n- **Session Management**: Maintains browser sessions and context between operations\n- **Adaptive Decision Making**: Autonomously handles UI changes and unexpected situations\n\n## Trust and Transparency\nActionEngine builds trust through:\n- Interactive validation of agent behavior\n- Human-in-the-loop interventions when needed\n- Clear presentation of planned actions\n- Real-time error detection and resolution\n\n## PurpleBadge Integration\nAs a core component of the PurpleBadge project, this agent comes pre-trained with networking-specific capabilities while remaining flexible enough to learn new workflows through observation.\n\n## Example Use Cases\n- Certificate management across multiple systems\n- Cross-platform automation tasks\n- Network configuration workflows\n- System monitoring and maintenance\n- Enterprise tool integration\n\nThe agent serves as a bridge between traditional applications and the emerging Internet of Agents, enabling agentic behavior in systems not originally designed for it."
   },
   "specs": {
     "capabilities": {
       "threads": true,
-      "interrupts": true,
-      "streaming": {
-        "result": true,
-        "custom": true
-      }
+      "interrupts": true
     },
     "input": {
       "description": "Input format for agent tasks.",
@@ -93,7 +89,103 @@
         "execution",
         "vision"
       ],
-      "type": "object"
+      "type": "object",
+      "$defs": {
+        "BrowserConfig": {
+          "description": "Browser environment configuration.",
+          "properties": {
+            "use_own_browser": {
+              "default": false,
+              "description": "Whether to use an existing browser instance",
+              "title": "Use Own Browser",
+              "type": "boolean"
+            },
+            "keep_browser_open": {
+              "default": true,
+              "description": "Whether to keep the browser open between runs",
+              "title": "Keep Browser Open",
+              "type": "boolean"
+            },
+            "headless": {
+              "default": true,
+              "description": "Whether to run browser in headless mode",
+              "title": "Headless",
+              "type": "boolean"
+            },
+            "disable_security": {
+              "default": false,
+              "description": "Whether to disable browser security features",
+              "title": "Disable Security",
+              "type": "boolean"
+            },
+            "window_w": {
+              "default": 1920,
+              "description": "Browser window width",
+              "title": "Window W",
+              "type": "integer"
+            },
+            "window_h": {
+              "default": 1080,
+              "description": "Browser window height",
+              "title": "Window H",
+              "type": "integer"
+            }
+          },
+          "title": "BrowserConfig",
+          "type": "object"
+        },
+        "ExecutionConfig": {
+          "description": "Task execution configuration.",
+          "properties": {
+            "max_steps": {
+              "default": 100,
+              "description": "Maximum number of steps to execute",
+              "title": "Max Steps",
+              "type": "integer"
+            },
+            "max_actions_per_step": {
+              "default": 10,
+              "description": "Maximum number of actions per step",
+              "title": "Max Actions Per Step",
+              "type": "integer"
+            },
+            "tool_calling_method": {
+              "default": "auto",
+              "description": "Method to use for tool calling",
+              "title": "Tool Calling Method",
+              "type": "string"
+            }
+          },
+          "title": "ExecutionConfig",
+          "type": "object"
+        },
+        "VisionConfig": {
+          "description": "Vision capabilities configuration.",
+          "properties": {
+            "enabled": {
+              "default": false,
+              "description": "Whether to use vision capabilities",
+              "title": "Enabled",
+              "type": "boolean"
+            },
+            "max_images_per_call": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Limit on number of images per LLM call",
+              "title": "Max Images Per Call"
+            }
+          },
+          "title": "VisionConfig",
+          "type": "object"
+        }
+      }
     }
   }
 }
