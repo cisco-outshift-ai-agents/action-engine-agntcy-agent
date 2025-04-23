@@ -32,11 +32,11 @@ interface ChatSectionProps {
   ) => void;
 }
 
+const AGENT_ID = "62f53991-0fec-4ff9-9b5c-ba1130d7bace";
+
 const ChatSection: React.FC<ChatSectionProps> = () => {
   const [input, setInput] = useState("");
-  const [isConnected, setIsConnected] = useState(false);
-  const wsRef = useRef<WebSocket | null>(null); //Main websocket for tasks
-  const wsStopRef = useRef<WebSocket | null>(null); //Websocket for stop requests
+  const eventSourceRef = useRef<EventSource | null>(null);
   const bottomOfChatRef = useRef<HTMLDivElement | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -50,189 +50,98 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
     setPlan,
   } = useChatStore();
 
-  const connectWebSocket = () => {
-    const useLocal = true;
-    const url = useLocal ? "localhost:7788" : window.location.host;
-    const ws = new WebSocket(`ws://${url}/ws/chat`);
-    wsRef.current = ws;
-    window.wsRef = wsRef;
-    //Websocket for stop requests
-    const wsStop = new WebSocket(`ws://${url}/ws/stop`);
+  const sendMessage = async () => {
+    try {
+      // 1. Create a run
+      const response = await fetch("http://localhost:7788/runs", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          agent_id: AGENT_ID,
+          input: { task: input },
+          metadata: {},
+          config: {
+            recursion_limit: 25,
+            configurable: {},
+          },
+        }),
+      });
 
-    wsStopRef.current = wsStop;
+      const run = await response.json();
 
-    ws.onopen = () => {
-      setIsConnected(true);
-      console.log("Connected to chat server");
-    };
+      // 2. Start streaming the results
+      const events = new EventSource(
+        `http://localhost:7788/runs/${run.run_id}/stream`
+      );
 
-    ws.onmessage = (event: MessageEvent) => {
-      console.log("received websocket message:", JSON.parse(event.data));
-      const data = JSON.parse((event as TodoFixAny).data);
+      events.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        addMessage(getMessageFromSSEData(data.data, data.event, data.type));
+      };
 
-      if (data.type === "approval_request") {
-        const { message, tool_call } = data.data;
-
-        addMessage({
-          content: message,
-          role: "assistant",
-          nodeType: "approval_request",
-          toolCall: tool_call,
-        });
-
-        return;
-      }
-
-      // Check if this is an error message
-      if (data.error) {
-        addMessage({
-          content: data.error,
-          role: "assistant",
-          error: data.error,
-        });
-        setisThinking(false);
-        return;
-      }
-
-      // Check if this is a node-specific update
-      const parseNodeUpdate = NodeUpdateZod.safeParse(data);
-      if (parseNodeUpdate.success) {
-        const update = parseNodeUpdate.data;
-
-        if (update.thinking) {
-          const cleanedData = cleanAPIData(update.thinking, "thinking");
-          addMessage(cleanedData);
-        }
-
-        if (update.planning) {
-          const plan = getPlanFromMessage(update.planning);
-          if (plan) setPlan(plan);
-        }
-
-        if (update.executor) {
-          const cleanedData = cleanAPIData(update.executor, "executor");
-          if (cleanedData.actions?.length) {
-            addMessage(cleanedData);
-          }
-        }
-
-        // Check if any node signals completion
-        if (
-          (update.thinking?.exiting || update.executor?.exiting) &&
-          !update.planning
-        ) {
-          setisThinking(false);
-        }
-
-        return;
-      }
-
-      // Fall back to handling legacy format
-      const parseGraphData = GraphDataZod.safeParse(data);
-      if (!parseGraphData.success) {
-        console.error(parseGraphData.error);
-        return;
-      }
-
-      // Check if this is a stop response
-      if (data.stopped !== undefined) {
-        const parse = StopDataZod.safeParse(data);
-        if (parse.success) {
-          const stopResponse = parse.data;
-          if (stopResponse.stopped) {
-            setisThinking(false);
-            setIsStopped(false);
-          }
-          addMessage({
-            content: stopResponse.summary,
-            role: "assistant",
-          });
-          return;
-        }
-      }
-
-      const cleanedData = cleanAPIData(parseGraphData.data);
-      addMessage(cleanedData);
-
-      if (cleanedData.isDone) {
-        setisThinking(false);
-      }
-
-      const plan = getPlanFromMessage(parseGraphData.data);
-      if (plan) {
-        setPlan(plan);
-      }
-    };
-
-    ws.onclose = () => {
-      setIsConnected(false);
-      console.log("Disconnected from chat server");
-    };
-
-    wsRef.current = ws;
-  };
-
-  useEffect(() => {
-    connectWebSocket();
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
-  }, []);
-
-  const sendMessage = () => {
-    if (!wsRef.current) {
-      return;
+      eventSourceRef.current = events;
+      addMessage({
+        content: input,
+        role: "user",
+      });
+      setInput("");
+      setisThinking(true);
+    } catch (error) {
+      console.error("Failed:", error);
+      setisThinking(false);
     }
-
-    const payload = {
-      task: input,
-    };
-
-    wsRef.current.send(JSON.stringify(payload));
-    addMessage({
-      content: input,
-      role: "user",
-    });
-
-    setInput("");
-    setisThinking(true);
   };
 
   const stopTask = () => {
-    if (!wsRef.current || isStopped) {
+    if (isStopped) {
       return;
     }
 
     setIsStopped(true);
 
-    wsRef.current.send(JSON.stringify({ task: "stop" }));
+    // TODO: Add delete run functionality here I think?
   };
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  const cleanAPIData = (
+  const getMessageFromSSEData = (
     data: GraphData,
-    nodeType?: NodeType
+    nodeType: NodeType,
+    acpMessageType: "interrupt" | "error" | "message"
   ): ChatMessageProps => {
-    if (nodeType === "executor") {
+    if (acpMessageType === "interrupt") {
       return {
         role: "assistant",
-        content: null, // We don't need content for executor, just actions
-        actions: getLastAITools(data),
+        // TODO: REAL CONTENT
+        content: "Please confirm",
+        nodeType: "approval_request",
+      };
+    }
+
+    if (acpMessageType === "error") {
+      return {
+        role: "assistant",
+        content: data.error,
         error: data.error,
         isDone: data.exiting,
         nodeType,
       };
     }
 
+    // For planning, just set the plan state
     if (nodeType === "planning") {
+      setPlan(getPlanFromMessage(data));
+    }
+
+    if (nodeType === "executor") {
       return {
         role: "assistant",
-        content: null, // Planning node just shows "Updating plan..."
+        content: null, // We don't need content for executor, just actions
+        actions: getLastAITools(data),
         error: data.error,
         isDone: data.exiting,
         nodeType,
@@ -283,18 +192,6 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
 
   return (
     <div className="h-[95%] rounded-lg  bg-[#32363c] w-full px-2 py-4 flex flex-col border-white/10 border">
-      <div className="flex items-center justify-end">
-        <div
-          className={`rounded-full aspect-square h-2 w-2 ${
-            isConnected ? "bg-green-500" : "bg-red-500"
-          }`}
-        />
-        <p className="ml-2 text-xs text-white font-semibold">
-          {isConnected
-            ? "Connected to chat socket"
-            : "Disconnected from chat socket"}
-        </p>
-      </div>
       <PlanRenderer plan={plan} />
       <div
         className="flex-1 overflow-y-auto px-2 pt-2 pb-3"
