@@ -39,19 +39,23 @@
       "type": "object"
     },
     "output": {
-      "description": "Output format for agent results.",
+      "additionalProperties": true,
+      "description": "Pydantic model matching AgentState structure",
       "properties": {
-        "success": {
-          "description": "Whether the task was completed successfully",
-          "title": "Success",
-          "type": "boolean"
+        "task": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The task to execute",
+          "title": "Task"
         },
-        "message": {
-          "description": "Status or error message",
-          "title": "Message",
-          "type": "string"
-        },
-        "data": {
+        "plan": {
           "anyOf": [
             {
               "type": "object"
@@ -61,14 +65,162 @@
             }
           ],
           "default": null,
-          "description": "Result data if any",
-          "title": "Data"
+          "description": "Current plan state",
+          "title": "Plan"
+        },
+        "brain": {
+          "anyOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Brain state tracking",
+          "title": "Brain"
+        },
+        "thought": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Current reasoning process",
+          "title": "Thought"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Brief summary of current state and progress",
+          "title": "Summary"
+        },
+        "context": {
+          "anyOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Context information",
+          "title": "Context"
+        },
+        "messages": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Message history",
+          "title": "Messages"
+        },
+        "tools_used": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "History of used tools",
+          "title": "Tools Used"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Error message if any",
+          "title": "Error"
+        },
+        "next_node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Next node to execute",
+          "title": "Next Node"
+        },
+        "exiting": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Whether execution is complete",
+          "title": "Exiting"
+        },
+        "tool_calls": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Pending tool calls",
+          "title": "Tool Calls"
+        },
+        "pending_approval": {
+          "anyOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tool calls pending approval",
+          "title": "Pending Approval"
         }
       },
-      "required": [
-        "success",
-        "message"
-      ],
       "type": "object"
     },
     "config": {

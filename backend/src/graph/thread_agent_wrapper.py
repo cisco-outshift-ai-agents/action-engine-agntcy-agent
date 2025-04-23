@@ -51,7 +51,7 @@ class EnvironmentConfig:
     tool_calling_method: str = "auto"
 
 
-class ThreadEnvironmentAgent(CompiledGraph):
+class ThreadAgentWrapper(CompiledGraph):
     """LangGraph agent that manages per-thread environments.
 
     Inherits from CompiledGraph to be compatible with workflow_srv's adapter.
@@ -130,67 +130,48 @@ class ThreadEnvironmentAgent(CompiledGraph):
 
         return self._thread_envs[thread_id]
 
+    async def _prepare_request(
+        self, state: Any, config: Optional[RunnableConfig] = None, **kwargs
+    ) -> tuple[Dict[str, Any], Optional[RunnableConfig]]:
+        """Prepares environments and thread handling for graph execution."""
+        # Ensure state is a dict and has thread_id
+        if isinstance(state, dict):
+            if "thread_id" not in state:
+                state["thread_id"] = str(uuid4())
+
+            # Setup environments
+            env_config = await self.setup_environments(state["thread_id"], config)
+            if config is not None:
+                config.setdefault("configurable", {})
+                config["configurable"].update(env_config)
+                config["configurable"]["thread_id"] = state["thread_id"]
+
+        return state, config
+
     async def ainvoke(
-        self, state: Any, config: Optional[RunnableConfig] = None
+        self,
+        input: Optional[Any] = None,
+        config: Optional[RunnableConfig] = None,
+        **kwargs
     ) -> Dict[str, Any]:
         """Implements CompiledGraph's ainvoke interface."""
-        if isinstance(state, dict):
-            thread_id = state.get("thread_id", str(uuid4()))
-            env_config = await self.setup_environments(thread_id, config)
-
-            if config:
-                config.setdefault("configurable", {})
-                config["configurable"].update(env_config)
-                config["configurable"]["thread_id"] = thread_id
-
-            result = await self.graph.ainvoke(state, config)
-            return result
+        # Pass input directly as state since it's already the right format from adapter
+        state = input if input is not None else kwargs
+        state, config = await self._prepare_request(state, config)
         return await self.graph.ainvoke(state, config)
 
-    async def astream(self, *args, **kwargs) -> AsyncIterator[Dict[str, Any]]:
-        """Implements CompiledGraph's astream interface.
-
-        Handles both state dict and input= style calls.
-        """
-        # Handle input= style calls by converting to state dict
-        if "input" in kwargs:
-            state = {"input": kwargs.pop("input")}
-            if "config" in kwargs:
-                config = kwargs.pop("config")
-            else:
-                config = None
-
-            thread_id = str(uuid4())
-            state["thread_id"] = thread_id
-
-            env_config = await self.setup_environments(thread_id, config)
-            if config:
-                config.setdefault("configurable", {})
-                config["configurable"].update(env_config)
-                config["configurable"]["thread_id"] = thread_id
-
-            async for event in self.graph.astream(state, config):
-                yield event
-            return
-
-        # Handle normal state dict calls
-        state = args[0] if args else kwargs.get("state", {})
-        config = args[1] if len(args) > 1 else kwargs.get("config")
-
-        if isinstance(state, dict):
-            thread_id = state.get("thread_id", str(uuid4()))
-            env_config = await self.setup_environments(thread_id, config)
-
-            if config:
-                config.setdefault("configurable", {})
-                config["configurable"].update(env_config)
-                config["configurable"]["thread_id"] = thread_id
-
-            async for event in self.graph.astream(state, config):
-                yield event
-        else:
-            async for event in self.graph.astream(state, config):
-                yield event
+    async def astream(
+        self,
+        input: Optional[Any] = None,
+        config: Optional[RunnableConfig] = None,
+        **kwargs
+    ) -> AsyncIterator[Dict[str, Any]]:
+        """Implements CompiledGraph's astream interface."""
+        # Pass input directly as state since it's already the right format from adapter
+        state = input if input is not None else kwargs
+        state, config = await self._prepare_request(state, config)
+        async for event in self.graph.astream(state, config):
+            yield event
 
     async def cleanup(self, thread_id: str):
         """Clean up environments for a thread."""

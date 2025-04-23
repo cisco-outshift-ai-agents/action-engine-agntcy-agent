@@ -5,7 +5,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, Graph, StateGraph
 from langgraph.checkpoint.memory import MemorySaver
 
-from src.graph.agents import ThreadEnvironmentAgent
+from src.graph.thread_agent_wrapper import ThreadAgentWrapper
 from src.graph.nodes.approval import HumanApprovalNode
 from src.graph.nodes.executor import ExecutorNode
 from src.graph.nodes.planning import PlanningNode
@@ -64,4 +64,4 @@ def create_agent_graph(config: RunnableConfig = None) -> Graph:
 base_graph = create_agent_graph()
 
 # Wrap it in our ThreadEnvironmentAgent that handles environment management
-action_engine_graph = ThreadEnvironmentAgent(base_graph)
+action_engine_graph = ThreadAgentWrapper(base_graph)

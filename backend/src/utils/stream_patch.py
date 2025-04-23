@@ -7,6 +7,7 @@ from typing import Any, AsyncGenerator, Dict
 from fastapi import HTTPException, Path
 from fastapi.responses import StreamingResponse
 from typing_extensions import Annotated
+from pydantic import SecretStr
 
 from agent_workflow_server.services.runs import Runs
 from agent_workflow_server.generated.models.run_output_stream import RunOutputStream
@@ -48,13 +49,12 @@ async def generate_sse_events(run_id: str) -> AsyncGenerator[str, None]:
         # Convert config to dict format LangGraph expects
         config = {}
         if run.creation.config:
-            # Convert Pydantic config to dict
             config = run.creation.config.model_dump()
             # Ensure required fields exist
             config.setdefault("configurable", {})
             config.setdefault("tags", [])
             config.setdefault("recursion_limit", 25)
-            logger.debug(f"Processed config: {json.dumps(config)}")
+            # Skip logging config since it contains secrets
 
         # Convert to dict format that stream_run expects
         run_dict = {
@@ -68,7 +68,7 @@ async def generate_sse_events(run_id: str) -> AsyncGenerator[str, None]:
             "created_at": run.created_at,
             "updated_at": run.updated_at,
         }
-        logger.debug(f"Created run dict: {json.dumps(run_dict, default=str)}")
+        logger.debug(f"Created run dict with keys: {list(run_dict.keys())}")
 
         # Stream using the dict format
         try:
