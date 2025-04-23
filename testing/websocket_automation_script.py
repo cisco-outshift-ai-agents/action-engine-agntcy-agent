@@ -41,11 +41,18 @@ class WebAutomation:
                 await websocket.send(json.dumps(message))
                 self.logger.info("Task sent to WebSocket")
 
-                # Get initial response which should contain run ID
-                run_id = await self.get_run_id(websocket)
-                self.logger.info(f"Received run ID: {run_id}")
+                # Wait for execution_started message with run_id
+                while True:
+                    message = await websocket.recv()
+                    data = json.loads(message)
 
-                return run_id
+                    if data.get("type") == "execution_started":
+                        run_id = data.get("run_id")
+                        self.logger.info(f"Received run_id: {run_id}")
+
+                        # Start monitoring execution
+                        await self.monitor_execution(websocket, run_id)
+                        return run_id
 
         except websockets.exceptions.ConnectionError as e:
             self.logger.error(f"Failed to connect to WebSocket: {str(e)}")
@@ -54,71 +61,89 @@ class WebAutomation:
             self.logger.error(f"Unexpected error during WebSocket connection: {str(e)}")
             raise
 
-    async def get_run_id(self, websocket):
-        """Extract run ID from WebSocket response"""
+    async def monitor_execution(self, websocket, run_id: str):
+        """Monitor the execution and collect outputs"""
         try:
             while True:
                 message = await websocket.recv()
-                self.logger.debug(f"Received message: {message}")
+                data = json.loads(message)
 
-                try:
-                    data = json.loads(message)
-                    # The run ID should be in the first message after sending the task
-                    if isinstance(data, dict):
-                        if "run_id" in data:
-                            return data["run_id"]
-                        elif "metadata" in data and "run_id" in data["metadata"]:
-                            return data["metadata"]["run_id"]
-                        # Log the message structure to help debug run ID extraction
-                        self.logger.debug(
-                            f"Message structure: {json.dumps(data, indent=2)}"
-                        )
-                except json.JSONDecodeError:
-                    self.logger.error("Failed to parse WebSocket message as JSON")
-                    continue
+                # Store outputs
+                if "output" in data:
+                    self.chat_output.append(data["output"])
 
-        except websockets.exceptions.ConnectionClosed as e:
-            self.logger.error(f"WebSocket connection closed prematurely: {str(e)}")
-            raise
-        except Exception as e:
-            self.logger.error(f"Error while waiting for run ID: {str(e)}")
-            raise
-
-    async def monitor_langsmith_execution(self, run_id):
-        try:
-            while True:
-                # Get current run state
-                run = self.langsmith_client.read_run(run_id)
-
-                # Capture intermediate outputs regardless of status
-                child_runs = self.langsmith_client.list_runs(
-                    project_name=self.project_name,
-                    parent_run_id=run_id,
-                    execution_order="asc",
-                )
-                self.capture_outputs(child_runs)  # Save outputs seen so far
-
-                if run.status == "completed":
+                # Check completion
+                if data.get("type") == "execution_completed":
+                    self.logger.info("Execution completed")
                     break
-                elif run.status == "failed":
-                    error_msg = str(run.error)
-                    # Even on error, we've already captured partial outputs
-                    raise Exception(error_msg)
 
-                await asyncio.sleep(1)
-        except Exception as e:
-            # Save what we have before exiting
-            self.save_results(error=str(e))
+                # Store any error messages
+                if "error" in data:
+                    self.logger.error(f"Execution error: {data['error']}")
+                    raise Exception(data["error"])
+
+        except websockets.exceptions.ConnectionClosed:
+            self.logger.error("WebSocket connection closed unexpectedly")
             raise
 
-    def save_results(self):
-        """Save the task results to a file"""
+    async def get_langsmith_trace(self, run_id: str):
+        """Fetch the trace data from Langsmith"""
+        try:
+            run = self.langsmith_client.read_run(run_id)
+            trace_data = {
+                "run_info": {
+                    "id": run.id,
+                    "name": run.name,
+                    "status": run.status,
+                    "error": str(run.error) if run.error else None,
+                    "start_time": (
+                        run.start_time.isoformat() if run.start_time else None
+                    ),
+                    "end_time": run.end_time.isoformat() if run.end_time else None,
+                },
+                "execution_steps": [],
+            }
+
+            # Get all child runs to capture execution steps
+            child_runs = self.langsmith_client.list_runs(
+                project_name=self.project_name,
+                parent_run_id=run_id,
+                execution_order="asc",
+            )
+
+            for child_run in child_runs:
+                step_data = {
+                    "id": child_run.id,
+                    "name": child_run.name,
+                    "status": child_run.status,
+                    "inputs": child_run.inputs,
+                    "outputs": child_run.outputs,
+                    "start_time": (
+                        child_run.start_time.isoformat()
+                        if child_run.start_time
+                        else None
+                    ),
+                    "end_time": (
+                        child_run.end_time.isoformat() if child_run.end_time else None
+                    ),
+                }
+                trace_data["execution_steps"].append(step_data)
+
+            return trace_data
+        except Exception as e:
+            self.logger.error(f"Failed to get trace data: {str(e)}")
+            raise
+
+    def save_results(self, run_id: str, trace_data: dict):
+        """Save the task results and trace data to a file"""
         try:
             output_data = {
                 "task": self.task,
+                "run_id": run_id,
                 "chat_output": self.chat_output,
                 "status": "completed" if self.chat_output else "error",
                 "timestamp": datetime.now().isoformat(),
+                "trace": trace_data,
             }
 
             filename = f"task_output_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
@@ -137,11 +162,14 @@ class WebAutomation:
             # Connect to WebSocket and get run ID
             run_id = await self.connect_websocket()
 
-            # Monitor execution through LangSmith
-            await self.monitor_langsmith_execution(run_id)
+            # Wait for a short time to ensure execution is complete
+            await asyncio.sleep(2)
 
-            # Save results
-            output_file = self.save_results()
+            # Get trace data from Langsmith
+            trace_data = await self.get_langsmith_trace(run_id)
+
+            # Save results with trace
+            output_file = self.save_results(run_id, trace_data)
             return output_file
         except Exception as e:
             self.logger.error(f"Automation failed: {str(e)}")
