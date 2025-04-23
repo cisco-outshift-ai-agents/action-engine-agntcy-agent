@@ -7,7 +7,7 @@ from typing import Dict, Optional
 from uuid import uuid4
 
 import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, APIRouter
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocketState
@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 # Initialize our core components
 from src.graph.environments.terminal import TerminalManager
 from src.utils.default_config_settings import default_config
+from src.utils.stream_patch import stream_stateless_run_output
 from src.lto.main import analyze_event_log, summarize_with_ai
 from src.lto.storage import EventStorage
 
@@ -67,9 +68,24 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# Create router for our overrides
+override_router = APIRouter()
+
+
+# Add a stream endpoint since as of 4/23/2025, the streaming endpoint doesn't exist in WorkflowSrv
+@override_router.get("/runs/{run_id}/stream")
+async def stream_endpoint(run_id: str):
+    return await stream_stateless_run_output(run_id)
+
+
+# Include override router first so it takes precedence
+app.include_router(override_router)
+
+
 # Copy over routes from base app
 for route in WorkflowSrvApp.routes:
-    app.router.routes.append(route)
+    if route.path != "/runs/{run_id}/stream":
+        app.router.routes.append(route)
 
 # Copy over middleware
 app.middleware = WorkflowSrvApp.middleware
@@ -78,6 +94,8 @@ app.middleware_stack = WorkflowSrvApp.middleware_stack
 
 # Initialize authentication
 setup_api_key_auth(app)
+
+app.get("/runs/{run_id}/stream")(stream_stateless_run_output)
 
 # Add CORS middleware
 app.add_middleware(
