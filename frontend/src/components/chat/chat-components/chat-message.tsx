@@ -1,5 +1,5 @@
 import ChatMessageText from "./chat-message-text";
-import CiscoAIAssistantLogo from "@/components/newsroom/newsroom-assets/cisco-ai-assistant.png";
+import CiscoAIAssistantLogo from "@/components/chat/chat-assets/cisco-ai-assistant.png";
 import { Circle, Check, XCircle } from "lucide-react";
 import { ReactNode, useState } from "react";
 import {

@@ -7,8 +7,8 @@ import { cn } from "@/utils";
 import ChatMessage, {
   ChatMessageProps,
   NodeType,
-} from "./newsroom/newsroom-components/chat-message";
-import CiscoAIAssistantLoader from "@/components/newsroom/newsroom-assets/thinking.gif";
+} from "./chat/chat-components/chat-message";
+import CiscoAIAssistantLoader from "@/components/chat/chat-assets/thinking.gif";
 
 import { TodoFixAny } from "@/types";
 import { useChatStore } from "@/stores/chat";
