@@ -16,6 +16,8 @@ class HumanApprovalNode(BaseNode):
 
         # Get tool calls from state and check if there's a terminate tool call
         tool_calls = state.get("tool_calls", [])
+        if tool_calls:
+            state["pending_approval"] = {}
         terminate_call = next(
             (tc for tc in tool_calls if tc.get("name") == "terminate"), None
         )
