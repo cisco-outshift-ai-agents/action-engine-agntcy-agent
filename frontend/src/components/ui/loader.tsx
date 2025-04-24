@@ -1,7 +1,10 @@
-import { Spinner, SpinnerProps } from "@magnetic/spinner";
+interface LoaderProps extends React.ImgHTMLAttributes<HTMLImageElement> {}
+import LoaderImage from "@/assets/images/loader.gif";
 
-interface LoaderProps extends SpinnerProps {}
-
-export const Loader: React.FC<LoaderProps> = ({ ...props }) => {
-  return <Spinner size="lg" {...props} />;
+export const Loader: React.FC<LoaderProps> = (props) => {
+  return (
+    <div className="flex items-center justify-center">
+      <img src={LoaderImage} {...props} />
+    </div>
+  );
 };
