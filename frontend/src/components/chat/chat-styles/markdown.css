@@ -4,7 +4,7 @@
  sindresorhus/github-markdown-css  | MIT     | https://github.com/sindresorhus/github-markdown-css/blob/main/github-markdown-light.css
 */
 
-.newsroom-markdown-body {
+.chat-markdown-body {
   -ms-text-size-adjust: 100%;
   -webkit-text-size-adjust: 100%;
   margin: 0;
@@ -14,18 +14,18 @@
   word-break: break-word;
 }
 
-.newsroom-markdown-body .octicon {
+.chat-markdown-body .octicon {
   display: inline-block;
   fill: currentColor;
   vertical-align: text-bottom;
 }
 
-.newsroom-markdown-body h1:hover .anchor .octicon-link:before,
-.newsroom-markdown-body h2:hover .anchor .octicon-link:before,
-.newsroom-markdown-body h3:hover .anchor .octicon-link:before,
-.newsroom-markdown-body h4:hover .anchor .octicon-link:before,
-.newsroom-markdown-body h5:hover .anchor .octicon-link:before,
-.newsroom-markdown-body h6:hover .anchor .octicon-link:before {
+.chat-markdown-body h1:hover .anchor .octicon-link:before,
+.chat-markdown-body h2:hover .anchor .octicon-link:before,
+.chat-markdown-body h3:hover .anchor .octicon-link:before,
+.chat-markdown-body h4:hover .anchor .octicon-link:before,
+.chat-markdown-body h5:hover .anchor .octicon-link:before,
+.chat-markdown-body h6:hover .anchor .octicon-link:before {
   width: 14px;
   height: 14px;
   content: " ";
@@ -35,46 +35,46 @@
   mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' version='1.1' aria-hidden='true'><path fill-rule='evenodd' d='M7.775 3.275a.75.75 0 001.06 1.06l1.25-1.25a2 2 0 112.83 2.83l-2.5 2.5a2 2 0 01-2.83 0 .75.75 0 00-1.06 1.06 3.5 3.5 0 004.95 0l2.5-2.5a3.5 3.5 0 00-4.95-4.95l-1.25 1.25zm-4.69 9.64a2 2 0 010-2.83l2.5-2.5a2 2 0 012.83 0 .75.75 0 001.06-1.06 3.5 3.5 0 00-4.95 0l-2.5 2.5a3.5 3.5 0 004.95 4.95l1.25-1.25a.75.75 0 00-1.06-1.06l-1.25 1.25a2 2 0 01-2.83 0z'></path></svg>");
 }
 
-.newsroom-markdown-body details,
-.newsroom-markdown-body figcaption,
-.newsroom-markdown-body figure {
+.chat-markdown-body details,
+.chat-markdown-body figcaption,
+.chat-markdown-body figure {
   display: block;
 }
 
-.newsroom-markdown-body summary {
+.chat-markdown-body summary {
   display: list-item;
 }
 
-.newsroom-markdown-body [hidden] {
+.chat-markdown-body [hidden] {
   display: none !important;
 }
 
-.newsroom-markdown-body a {
+.chat-markdown-body a {
   background-color: transparent;
   color: var(--primary);
   text-decoration: none;
 }
 
-.newsroom-markdown-body a:active,
-.newsroom-markdown-body a:hover {
+.chat-markdown-body a:active,
+.chat-markdown-body a:hover {
   outline-width: 0;
 }
 
-.newsroom-markdown-body abbr[title] {
+.chat-markdown-body abbr[title] {
   border-bottom: none;
   text-decoration: underline dotted;
 }
 
-.newsroom-markdown-body b,
-.newsroom-markdown-body strong {
+.chat-markdown-body b,
+.chat-markdown-body strong {
   font-weight: 600;
 }
 
-.newsroom-markdown-body dfn {
+.chat-markdown-body dfn {
   font-style: italic;
 }
 
-.newsroom-markdown-body h1 {
+.chat-markdown-body h1 {
   margin: 0.67em 0;
   font-weight: 600;
   padding-bottom: 0.3em;
@@ -82,50 +82,50 @@
   border-bottom: 1px solid var(--border);
 }
 
-.newsroom-markdown-body mark {
+.chat-markdown-body mark {
   background-color: var(--background-tertiary);
 }
 
-.newsroom-markdown-body small {
+.chat-markdown-body small {
   font-size: 90%;
 }
 
-.newsroom-markdown-body sub,
-.newsroom-markdown-body sup {
+.chat-markdown-body sub,
+.chat-markdown-body sup {
   font-size: 75%;
   line-height: 0;
   position: relative;
   vertical-align: baseline;
 }
 
-.newsroom-markdown-body sub {
+.chat-markdown-body sub {
   bottom: -0.25em;
 }
 
-.newsroom-markdown-body sup {
+.chat-markdown-body sup {
   top: -0.5em;
 }
 
-.newsroom-markdown-body img {
+.chat-markdown-body img {
   border-style: none;
   max-width: 100%;
   box-sizing: content-box;
   background-color: var(--background);
 }
 
-.newsroom-markdown-body code,
-.newsroom-markdown-body kbd,
-.newsroom-markdown-body pre,
-.newsroom-markdown-body samp {
+.chat-markdown-body code,
+.chat-markdown-body kbd,
+.chat-markdown-body pre,
+.chat-markdown-body samp {
   font-family: monospace, monospace;
   font-size: 1em;
 }
 
-.newsroom-markdown-body figure {
+.chat-markdown-body figure {
   margin: 1em 40px;
 }
 
-.newsroom-markdown-body hr {
+.chat-markdown-body hr {
   box-sizing: content-box;
   overflow: hidden;
   background: transparent;
@@ -137,7 +137,7 @@
   border: 0;
 }
 
-.newsroom-markdown-body input {
+.chat-markdown-body input {
   font: inherit;
   margin: 0;
   overflow: visible;
@@ -146,72 +146,72 @@
   line-height: inherit;
 }
 
-.newsroom-markdown-body [type="button"],
-.newsroom-markdown-body [type="reset"],
-.newsroom-markdown-body [type="submit"] {
+.chat-markdown-body [type="button"],
+.chat-markdown-body [type="reset"],
+.chat-markdown-body [type="submit"] {
   -webkit-appearance: button;
 }
 
-.newsroom-markdown-body [type="button"]::-moz-focus-inner,
-.newsroom-markdown-body [type="reset"]::-moz-focus-inner,
-.newsroom-markdown-body [type="submit"]::-moz-focus-inner {
+.chat-markdown-body [type="button"]::-moz-focus-inner,
+.chat-markdown-body [type="reset"]::-moz-focus-inner,
+.chat-markdown-body [type="submit"]::-moz-focus-inner {
   border-style: none;
   padding: 0;
 }
 
-.newsroom-markdown-body [type="button"]:-moz-focusring,
-.newsroom-markdown-body [type="reset"]:-moz-focusring,
-.newsroom-markdown-body [type="submit"]:-moz-focusring {
+.chat-markdown-body [type="button"]:-moz-focusring,
+.chat-markdown-body [type="reset"]:-moz-focusring,
+.chat-markdown-body [type="submit"]:-moz-focusring {
   outline: 1px dotted ButtonText;
 }
 
-.newsroom-markdown-body [type="checkbox"],
-.newsroom-markdown-body [type="radio"] {
+.chat-markdown-body [type="checkbox"],
+.chat-markdown-body [type="radio"] {
   box-sizing: border-box;
   padding: 0;
 }
 
-.newsroom-markdown-body [type="number"]::-webkit-inner-spin-button,
-.newsroom-markdown-body [type="number"]::-webkit-outer-spin-button {
+.chat-markdown-body [type="number"]::-webkit-inner-spin-button,
+.chat-markdown-body [type="number"]::-webkit-outer-spin-button {
   height: auto;
 }
 
-.newsroom-markdown-body [type="search"] {
+.chat-markdown-body [type="search"] {
   -webkit-appearance: textfield;
   outline-offset: -2px;
 }
 
-.newsroom-markdown-body [type="search"]::-webkit-search-cancel-button,
-.newsroom-markdown-body [type="search"]::-webkit-search-decoration {
+.chat-markdown-body [type="search"]::-webkit-search-cancel-button,
+.chat-markdown-body [type="search"]::-webkit-search-decoration {
   -webkit-appearance: none;
 }
 
-.newsroom-markdown-body ::-webkit-input-placeholder {
+.chat-markdown-body ::-webkit-input-placeholder {
   color: inherit;
   opacity: 0.54;
 }
 
-.newsroom-markdown-body ::-webkit-file-upload-button {
+.chat-markdown-body ::-webkit-file-upload-button {
   -webkit-appearance: button;
   font: inherit;
 }
 
-.newsroom-markdown-body a:hover {
+.chat-markdown-body a:hover {
   text-decoration: underline;
 }
 
-.newsroom-markdown-body hr::before {
+.chat-markdown-body hr::before {
   display: table;
   content: "";
 }
 
-.newsroom-markdown-body hr::after {
+.chat-markdown-body hr::after {
   display: table;
   clear: both;
   content: "";
 }
 
-.newsroom-markdown-body table {
+.chat-markdown-body table {
   border-spacing: 0;
   border-collapse: collapse;
   display: block;
@@ -220,20 +220,20 @@
   overflow: auto;
 }
 
-.newsroom-markdown-body td,
-.newsroom-markdown-body th {
+.chat-markdown-body td,
+.chat-markdown-body th {
   padding: 0;
 }
 
-.newsroom-markdown-body details summary {
+.chat-markdown-body details summary {
   cursor: pointer;
 }
 
-.newsroom-markdown-body details:not([open]) > *:not(summary) {
+.chat-markdown-body details:not([open]) > *:not(summary) {
   display: none !important;
 }
 
-.newsroom-markdown-body kbd {
+.chat-markdown-body kbd {
   display: inline-block;
   padding: 3px 5px;
   font: 11px ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas,
@@ -248,89 +248,89 @@
   box-shadow: inset 0 -1px 0 var(--background-tertiary);
 }
 
-.newsroom-markdown-body h1,
-.newsroom-markdown-body h2,
-.newsroom-markdown-body h3,
-.newsroom-markdown-body h4,
-.newsroom-markdown-body h5,
-.newsroom-markdown-body h6 {
+.chat-markdown-body h1,
+.chat-markdown-body h2,
+.chat-markdown-body h3,
+.chat-markdown-body h4,
+.chat-markdown-body h5,
+.chat-markdown-body h6 {
   margin-top: 24px;
   margin-bottom: 14px;
   font-weight: 600;
   line-height: 1.25;
 }
 
-.newsroom-markdown-body h2 {
+.chat-markdown-body h2 {
   font-weight: 600;
   padding-bottom: 0.3em;
   font-size: 1.5em;
   border-bottom: 1px solid var(--border);
 }
 
-.newsroom-markdown-body h3 {
+.chat-markdown-body h3 {
   font-weight: 600;
   font-size: 1.25em;
 }
 
-.newsroom-markdown-body h4 {
+.chat-markdown-body h4 {
   font-weight: 600;
   font-size: 1em;
 }
 
-.newsroom-markdown-body h5 {
+.chat-markdown-body h5 {
   font-weight: 600;
   font-size: 0.875em;
 }
 
-.newsroom-markdown-body h6 {
+.chat-markdown-body h6 {
   font-weight: 600;
   font-size: 0.85em;
   color: var(--foreground);
 }
 
-.newsroom-markdown-body p {
+.chat-markdown-body p {
   margin-top: 0;
   margin-bottom: 10px;
 }
 
-.newsroom-markdown-body blockquote {
+.chat-markdown-body blockquote {
   margin: 0;
   padding: 0 1em;
   color: var(--foreground);
   border-left: 0.25em solid var(--border);
 }
 
-.newsroom-markdown-body ul,
-.newsroom-markdown-body ol {
+.chat-markdown-body ul,
+.chat-markdown-body ol {
   margin-top: 0;
   margin-bottom: 0;
   padding-left: 2em;
 }
 
-.newsroom-markdown-body ol ol,
-.newsroom-markdown-body ul ol {
+.chat-markdown-body ol ol,
+.chat-markdown-body ul ol {
   list-style-type: lower-roman;
 }
 
-.newsroom-markdown-body ul ul ol,
-.newsroom-markdown-body ul ol ol,
-.newsroom-markdown-body ol ul ol,
-.newsroom-markdown-body ol ol ol {
+.chat-markdown-body ul ul ol,
+.chat-markdown-body ul ol ol,
+.chat-markdown-body ol ul ol,
+.chat-markdown-body ol ol ol {
   list-style-type: lower-alpha;
 }
 
-.newsroom-markdown-body dd {
+.chat-markdown-body dd {
   margin-left: 0;
 }
 
-.newsroom-markdown-body tt,
-.newsroom-markdown-body code {
+.chat-markdown-body tt,
+.chat-markdown-body code {
   font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas,
     Liberation Mono, monospace;
   font-size: 12px;
 }
 
-.newsroom-markdown-body pre {
+.chat-markdown-body pre {
   margin-top: 0;
   margin-bottom: 0;
   font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas,
@@ -342,152 +342,152 @@
   border-left-style: solid !important;
 }
 
-.newsroom-markdown-body .octicon {
+.chat-markdown-body .octicon {
   display: inline-block;
   overflow: visible !important;
   vertical-align: text-bottom;
   fill: currentColor;
 }
 
-.newsroom-markdown-body ::placeholder {
+.chat-markdown-body ::placeholder {
   color: var(--border);
   opacity: 1;
 }
 
-.newsroom-markdown-body input::-webkit-outer-spin-button,
-.newsroom-markdown-body input::-webkit-inner-spin-button {
+.chat-markdown-body input::-webkit-outer-spin-button,
+.chat-markdown-body input::-webkit-inner-spin-button {
   margin: 0;
   -webkit-appearance: none;
   appearance: none;
 }
 
-.newsroom-markdown-body .pl-c {
+.chat-markdown-body .pl-c {
   color: var(--border);
 }
 
 /*
   Not sure what colors to make these such that they fit with light/darkmode and our style system
-  .newsroom-markdown-body .pl-c1,
-  .newsroom-markdown-body .pl-s .pl-v {
+  .chat-markdown-body .pl-c1,
+  .chat-markdown-body .pl-s .pl-v {
     color: #0550ae;
   }
   
-  .newsroom-markdown-body .pl-e,
-  .newsroom-markdown-body .pl-en {
+  .chat-markdown-body .pl-e,
+  .chat-markdown-body .pl-en {
     color: #8250df;
   }
   
-  .newsroom-markdown-body .pl-smi,
-  .newsroom-markdown-body .pl-s .pl-s1 {
+  .chat-markdown-body .pl-smi,
+  .chat-markdown-body .pl-s .pl-s1 {
     color: #24292f;
   }
   
-  .newsroom-markdown-body .pl-ent {
+  .chat-markdown-body .pl-ent {
     color: #116329;
   }
   
-  .newsroom-markdown-body .pl-k {
+  .chat-markdown-body .pl-k {
     color: #cf222e;
   }
   
-  .newsroom-markdown-body .pl-s,
-  .newsroom-markdown-body .pl-pds,
-  .newsroom-markdown-body .pl-s .pl-pse .pl-s1,
-  .newsroom-markdown-body .pl-sr,
-  .newsroom-markdown-body .pl-sr .pl-cce,
-  .newsroom-markdown-body .pl-sr .pl-sre,
-  .newsroom-markdown-body .pl-sr .pl-sra {
+  .chat-markdown-body .pl-s,
+  .chat-markdown-body .pl-pds,
+  .chat-markdown-body .pl-s .pl-pse .pl-s1,
+  .chat-markdown-body .pl-sr,
+  .chat-markdown-body .pl-sr .pl-cce,
+  .chat-markdown-body .pl-sr .pl-sre,
+  .chat-markdown-body .pl-sr .pl-sra {
     color: #0a3069;
   }
   
-  .newsroom-markdown-body .pl-v,
-  .newsroom-markdown-body .pl-smw {
+  .chat-markdown-body .pl-v,
+  .chat-markdown-body .pl-smw {
     color: #953800;
   }
   
-  .newsroom-markdown-body .pl-bu {
+  .chat-markdown-body .pl-bu {
     color: #82071e;
   }
   
-  .newsroom-markdown-body .pl-ii {
+  .chat-markdown-body .pl-ii {
     color: var(--background-secondary);
     background-color: #82071e;
   }
   
-  .newsroom-markdown-body .pl-c2 {
+  .chat-markdown-body .pl-c2 {
     color: var(--background-secondary);
     background-color: #cf222e;
   }
   
-  .newsroom-markdown-body .pl-sr .pl-cce {
+  .chat-markdown-body .pl-sr .pl-cce {
     font-weight: bold;
     color: #116329;
   }
   
-  .newsroom-markdown-body .pl-ml {
+  .chat-markdown-body .pl-ml {
     color: #3b2300;
   }
   
-  .newsroom-markdown-body .pl-mh,
-  .newsroom-markdown-body .pl-mh .pl-en,
-  .newsroom-markdown-body .pl-ms {
+  .chat-markdown-body .pl-mh,
+  .chat-markdown-body .pl-mh .pl-en,
+  .chat-markdown-body .pl-ms {
     font-weight: bold;
     color: #0550ae;
   }
   
-  .newsroom-markdown-body .pl-mi {
+  .chat-markdown-body .pl-mi {
     font-style: italic;
     color: #24292f;
   }
   
-  .newsroom-markdown-body .pl-mb {
+  .chat-markdown-body .pl-mb {
     font-weight: bold;
     color: #24292f;
   }
   
-  .newsroom-markdown-body .pl-md {
+  .chat-markdown-body .pl-md {
     color: #82071e;
     background-color: #ffebe9;
   }
   
-  .newsroom-markdown-body .pl-mi1 {
+  .chat-markdown-body .pl-mi1 {
     color: #116329;
     background-color: #dafbe1;
   }
   
-  .newsroom-markdown-body .pl-mc {
+  .chat-markdown-body .pl-mc {
     color: #953800;
     background-color: #ffd8b5;
   }
   
-  .newsroom-markdown-body .pl-mi2 {
+  .chat-markdown-body .pl-mi2 {
     color: #eaeef2;
     background-color: #0550ae;
   }
   
-  .newsroom-markdown-body .pl-mdr {
+  .chat-markdown-body .pl-mdr {
     font-weight: bold;
     color: #8250df;
   }
   
-  .newsroom-markdown-body .pl-ba {
+  .chat-markdown-body .pl-ba {
     color: #57606a;
   }
   
-  .newsroom-markdown-body .pl-sg {
+  .chat-markdown-body .pl-sg {
     color: #8c959f;
   }
   
-  .newsroom-markdown-body .pl-corl {
+  .chat-markdown-body .pl-corl {
     text-decoration: underline;
     color: #0a3069;
   } */
 
-.newsroom-markdown-body [data-catalyst] {
+.chat-markdown-body [data-catalyst] {
   display: block;
 }
 
-.newsroom-markdown-body g-emoji {
+.chat-markdown-body g-emoji {
   font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   font-size: 1em;
   font-style: normal !important;
@@ -496,149 +496,149 @@
   vertical-align: -0.075em;
 }
 
-.newsroom-markdown-body g-emoji img {
+.chat-markdown-body g-emoji img {
   width: 1em;
   height: 1em;
 }
 
-.newsroom-markdown-body::before {
+.chat-markdown-body::before {
   display: table;
   content: "";
 }
 
-.newsroom-markdown-body::after {
+.chat-markdown-body::after {
   display: table;
   clear: both;
   content: "";
 }
 
-.newsroom-markdown-body > *:first-child {
+.chat-markdown-body > *:first-child {
   margin-top: 0 !important;
 }
 
-.newsroom-markdown-body > *:last-child {
+.chat-markdown-body > *:last-child {
   margin-bottom: 0 !important;
 }
 
-.newsroom-markdown-body a:not([href]) {
+.chat-markdown-body a:not([href]) {
   color: inherit;
   text-decoration: none;
 }
 
-.newsroom-markdown-body .absent {
+.chat-markdown-body .absent {
   color: var(--destructive);
 }
 
-.newsroom-markdown-body .anchor {
+.chat-markdown-body .anchor {
   float: left;
   padding-right: 4px;
   margin-left: -20px;
   line-height: 1;
 }
 
-.newsroom-markdown-body .anchor:focus {
+.chat-markdown-body .anchor:focus {
   outline: none;
 }
 
-.newsroom-markdown-body p,
-.newsroom-markdown-body blockquote,
-.newsroom-markdown-body ul,
-.newsroom-markdown-body ol,
-.newsroom-markdown-body dl,
-.newsroom-markdown-body table,
-.newsroom-markdown-body pre,
-.newsroom-markdown-body details {
+.chat-markdown-body p,
+.chat-markdown-body blockquote,
+.chat-markdown-body ul,
+.chat-markdown-body ol,
+.chat-markdown-body dl,
+.chat-markdown-body table,
+.chat-markdown-body pre,
+.chat-markdown-body details {
   margin-top: 0;
   margin-bottom: 14px;
 }
 
-.newsroom-markdown-body blockquote > :first-child {
+.chat-markdown-body blockquote > :first-child {
   margin-top: 0;
 }
 
-.newsroom-markdown-body blockquote > :last-child {
+.chat-markdown-body blockquote > :last-child {
   margin-bottom: 0;
 }
 
-.newsroom-markdown-body sup > a::before {
+.chat-markdown-body sup > a::before {
   content: "[";
 }
 
-.newsroom-markdown-body sup > a::after {
+.chat-markdown-body sup > a::after {
   content: "]";
 }
 
-.newsroom-markdown-body h1 .octicon-link,
-.newsroom-markdown-body h2 .octicon-link,
-.newsroom-markdown-body h3 .octicon-link,
-.newsroom-markdown-body h4 .octicon-link,
-.newsroom-markdown-body h5 .octicon-link,
-.newsroom-markdown-body h6 .octicon-link {
+.chat-markdown-body h1 .octicon-link,
+.chat-markdown-body h2 .octicon-link,
+.chat-markdown-body h3 .octicon-link,
+.chat-markdown-body h4 .octicon-link,
+.chat-markdown-body h5 .octicon-link,
+.chat-markdown-body h6 .octicon-link {
   color: var(--foreground);
   vertical-align: middle;
   visibility: hidden;
 }
 
-.newsroom-markdown-body h1:hover .anchor,
-.newsroom-markdown-body h2:hover .anchor,
-.newsroom-markdown-body h3:hover .anchor,
-.newsroom-markdown-body h4:hover .anchor,
-.newsroom-markdown-body h5:hover .anchor,
-.newsroom-markdown-body h6:hover .anchor {
+.chat-markdown-body h1:hover .anchor,
+.chat-markdown-body h2:hover .anchor,
+.chat-markdown-body h3:hover .anchor,
+.chat-markdown-body h4:hover .anchor,
+.chat-markdown-body h5:hover .anchor,
+.chat-markdown-body h6:hover .anchor {
   text-decoration: none;
 }
 
-.newsroom-markdown-body h1:hover .anchor .octicon-link,
-.newsroom-markdown-body h2:hover .anchor .octicon-link,
-.newsroom-markdown-body h3:hover .anchor .octicon-link,
-.newsroom-markdown-body h4:hover .anchor .octicon-link,
-.newsroom-markdown-body h5:hover .anchor .octicon-link,
-.newsroom-markdown-body h6:hover .anchor .octicon-link {
+.chat-markdown-body h1:hover .anchor .octicon-link,
+.chat-markdown-body h2:hover .anchor .octicon-link,
+.chat-markdown-body h3:hover .anchor .octicon-link,
+.chat-markdown-body h4:hover .anchor .octicon-link,
+.chat-markdown-body h5:hover .anchor .octicon-link,
+.chat-markdown-body h6:hover .anchor .octicon-link {
   visibility: visible;
 }
 
-.newsroom-markdown-body h1 tt,
-.newsroom-markdown-body h1 code,
-.newsroom-markdown-body h2 tt,
-.newsroom-markdown-body h2 code,
-.newsroom-markdown-body h3 tt,
-.newsroom-markdown-body h3 code,
-.newsroom-markdown-body h4 tt,
-.newsroom-markdown-body h4 code,
-.newsroom-markdown-body h5 tt,
-.newsroom-markdown-body h5 code,
-.newsroom-markdown-body h6 tt,
-.newsroom-markdown-body h6 code {
+.chat-markdown-body h1 tt,
+.chat-markdown-body h1 code,
+.chat-markdown-body h2 tt,
+.chat-markdown-body h2 code,
+.chat-markdown-body h3 tt,
+.chat-markdown-body h3 code,
+.chat-markdown-body h4 tt,
+.chat-markdown-body h4 code,
+.chat-markdown-body h5 tt,
+.chat-markdown-body h5 code,
+.chat-markdown-body h6 tt,
+.chat-markdown-body h6 code {
   padding: 0 0.2em;
   font-size: inherit;
 }
 
-.newsroom-markdown-body ul.no-list,
-.newsroom-markdown-body ol.no-list {
+.chat-markdown-body ul.no-list,
+.chat-markdown-body ol.no-list {
   padding: 0;
   list-style-type: none;
 }
 
-.newsroom-markdown-body ol[type="1"] {
+.chat-markdown-body ol[type="1"] {
   list-style-type: decimal;
 }
 
-.newsroom-markdown-body ol[type="a"] {
+.chat-markdown-body ol[type="a"] {
   list-style-type: lower-alpha;
 }
 
-.newsroom-markdown-body ol[type="i"] {
+.chat-markdown-body ol[type="i"] {
   list-style-type: lower-roman;
 }
 
-.newsroom-markdown-body div > ol:not([type]) {
+.chat-markdown-body div > ol:not([type]) {
   list-style-type: decimal;
 }
 
-.newsroom-markdown-body ul ul,
-.newsroom-markdown-body ul ol,
-.newsroom-markdown-body ol ol,
-.newsroom-markdown-body ol ul {
+.chat-markdown-body ul ul,
+.chat-markdown-body ul ol,
+.chat-markdown-body ol ol,
+.chat-markdown-body ol ul {
   margin-top: 0;
   margin-bottom: 0;
 }
@@ -649,15 +649,15 @@
   margin-bottom: 0;
 }
 
-.newsroom-markdown-body li + li {
+.chat-markdown-body li + li {
   margin-top: 0.25em;
 }
 
-.newsroom-markdown-body dl {
+.chat-markdown-body dl {
   padding: 0;
 }
 
-.newsroom-markdown-body dl dt {
+.chat-markdown-body dl dt {
   padding: 0;
   margin-top: 14px;
   font-size: 1em;
@@ -665,54 +665,54 @@
   font-weight: 600;
 }
 
-.newsroom-markdown-body dl dd {
+.chat-markdown-body dl dd {
   padding: 0 14px;
   margin-bottom: 14px;
 }
 
-.newsroom-markdown-body table th {
+.chat-markdown-body table th {
   font-weight: 600;
 }
 
-.newsroom-markdown-body table th,
-.newsroom-markdown-body table td {
+.chat-markdown-body table th,
+.chat-markdown-body table td {
   padding: 6px 13px;
   border: 1px solid var(--border);
 }
 
-.newsroom-markdown-body table tr {
+.chat-markdown-body table tr {
   background-color: #ffffff;
   border-top: 1px solid var(--border);
 }
 
-.newsroom-markdown-body table tr:nth-child(2n) {
+.chat-markdown-body table tr:nth-child(2n) {
   background-color: var(--background-tertiary);
 }
 
-.newsroom-markdown-body table img {
+.chat-markdown-body table img {
   background-color: transparent;
 }
 
-.newsroom-markdown-body img[align="right"] {
+.chat-markdown-body img[align="right"] {
   padding-left: 20px;
 }
 
-.newsroom-markdown-body img[align="left"] {
+.chat-markdown-body img[align="left"] {
   padding-right: 20px;
 }
 
-.newsroom-markdown-body .emoji {
+.chat-markdown-body .emoji {
   max-width: none;
   vertical-align: text-top;
   background-color: transparent;
 }
 
-.newsroom-markdown-body span.frame {
+.chat-markdown-body span.frame {
   display: block;
   overflow: hidden;
 }
 
-.newsroom-markdown-body span.frame > span {
+.chat-markdown-body span.frame > span {
   display: block;
   float: left;
   width: auto;
@@ -722,81 +722,81 @@
   border: 1px solid var(--border);
 }
 
-.newsroom-markdown-body span.frame span img {
+.chat-markdown-body span.frame span img {
   display: block;
   float: left;
 }
 
-.newsroom-markdown-body span.frame span span {
+.chat-markdown-body span.frame span span {
   display: block;
   padding: 5px 0 0;
   clear: both;
   color: var(--foreground);
 }
 
-.newsroom-markdown-body span.align-center {
+.chat-markdown-body span.align-center {
   display: block;
   overflow: hidden;
   clear: both;
 }
 
-.newsroom-markdown-body span.align-center > span {
+.chat-markdown-body span.align-center > span {
   display: block;
   margin: 13px auto 0;
   overflow: hidden;
   text-align: center;
 }
 
-.newsroom-markdown-body span.align-center span img {
+.chat-markdown-body span.align-center span img {
   margin: 0 auto;
   text-align: center;
 }
 
-.newsroom-markdown-body span.align-right {
+.chat-markdown-body span.align-right {
   display: block;
   overflow: hidden;
   clear: both;
 }
 
-.newsroom-markdown-body span.align-right > span {
+.chat-markdown-body span.align-right > span {
   display: block;
   margin: 13px 0 0;
   overflow: hidden;
   text-align: right;
 }
 
-.newsroom-markdown-body span.align-right span img {
+.chat-markdown-body span.align-right span img {
   margin: 0;
   text-align: right;
 }
 
-.newsroom-markdown-body span.float-left {
+.chat-markdown-body span.float-left {
   display: block;
   float: left;
   margin-right: 13px;
   overflow: hidden;
 }
 
-.newsroom-markdown-body span.float-left span {
+.chat-markdown-body span.float-left span {
   margin: 13px 0 0;
 }
 
-.newsroom-markdown-body span.float-right {
+.chat-markdown-body span.float-right {
   display: block;
   float: right;
   margin-left: 13px;
   overflow: hidden;
 }
 
-.newsroom-markdown-body span.float-right > span {
+.chat-markdown-body span.float-right > span {
   display: block;
   margin: 13px auto 0;
   overflow: hidden;
   text-align: right;
 }
 
-.newsroom-markdown-body code,
-.newsroom-markdown-body tt {
+.chat-markdown-body code,
+.chat-markdown-body tt {
   padding: 0.2em 0.4em;
   margin: 0;
   font-size: 85%;
@@ -804,20 +804,20 @@
   border-radius: 6px;
 }
 
-.newsroom-markdown-body code br,
-.newsroom-markdown-body tt br {
+.chat-markdown-body code br,
+.chat-markdown-body tt br {
   display: none;
 }
 
-.newsroom-markdown-body del code {
+.chat-markdown-body del code {
   text-decoration: inherit;
 }
 
-.newsroom-markdown-body pre code {
+.chat-markdown-body pre code {
   font-size: 100%;
 }
 
-.newsroom-markdown-body pre > code {
+.chat-markdown-body pre > code {
   padding: 0;
   margin: 0;
   word-break: normal;
@@ -826,17 +826,17 @@
   border: 0;
 }
 
-.newsroom-markdown-body .highlight {
+.chat-markdown-body .highlight {
   margin-bottom: 14px;
 }
 
-.newsroom-markdown-body .highlight pre {
+.chat-markdown-body .highlight pre {
   margin-bottom: 0;
   word-break: normal;
 }
 
-.newsroom-markdown-body .highlight pre,
-.newsroom-markdown-body pre {
+.chat-markdown-body .highlight pre,
+.chat-markdown-body pre {
   padding: 14px;
   overflow: auto;
   font-size: 85%;
@@ -845,8 +845,8 @@
   border-radius: 6px;
 }
 
-.newsroom-markdown-body pre code,
-.newsroom-markdown-body pre tt {
+.chat-markdown-body pre code,
+.chat-markdown-body pre tt {
   display: inline;
   max-width: auto;
   padding: 0;
@@ -857,8 +857,8 @@
   background-color: transparent;
 }
 
-.newsroom-markdown-body .csv-data td,
-.newsroom-markdown-body .csv-data th {
+.chat-markdown-body .csv-data td,
+.chat-markdown-body .csv-data th {
   padding: 5px;
   overflow: hidden;
   font-size: 12px;
@@ -867,38 +867,38 @@
   white-space: nowrap;
 }
 
-.newsroom-markdown-body .csv-data .blob-num {
+.chat-markdown-body .csv-data .blob-num {
   padding: 10px 8px 9px;
   text-align: right;
   background: var(--background-secondary);
   border: 0;
 }
 
-.newsroom-markdown-body .csv-data tr {
+.chat-markdown-body .csv-data tr {
   border-top: 0;
 }
 
-.newsroom-markdown-body .csv-data th {
+.chat-markdown-body .csv-data th {
   font-weight: 600;
   background: var(--background-secondary);
   border-top: 0;
 }
 
-.newsroom-markdown-body .footnotes {
+.chat-markdown-body .footnotes {
   font-size: 12px;
   color: #57606a;
   border-top: 1px solid var(--border);
 }
 
-.newsroom-markdown-body .footnotes ol {
+.chat-markdown-body .footnotes ol {
   padding-left: 14px;
 }
 
-.newsroom-markdown-body .footnotes li {
+.chat-markdown-body .footnotes li {
   position: relative;
 }
 
-.newsroom-markdown-body .footnotes li:target::before {
+.chat-markdown-body .footnotes li:target::before {
   position: absolute;
   top: -8px;
   right: -8px;
@@ -910,48 +910,48 @@
   border-radius: 6px;
 }
 
-.newsroom-markdown-body .footnotes li:target {
+.chat-markdown-body .footnotes li:target {
   color: var(--foreground);
 }
 
-.newsroom-markdown-body .footnotes .data-footnote-backref g-emoji {
+.chat-markdown-body .footnotes .data-footnote-backref g-emoji {
   font-family: monospace;
 }
 
-.newsroom-markdown-body .task-list-item {
+.chat-markdown-body .task-list-item {
   list-style-type: none;
 }
 
-.newsroom-markdown-body .task-list-item label {
+.chat-markdown-body .task-list-item label {
   font-weight: 400;
 }
 
-.newsroom-markdown-body .task-list-item.enabled label {
+.chat-markdown-body .task-list-item.enabled label {
   cursor: pointer;
 }
 
-.newsroom-markdown-body .task-list-item + .task-list-item {
+.chat-markdown-body .task-list-item + .task-list-item {
   margin-top: 3px;
 }
 
-.newsroom-markdown-body .task-list-item .handle {
+.chat-markdown-body .task-list-item .handle {
   display: none;
 }
 
-.newsroom-markdown-body .task-list-item-checkbox {
+.chat-markdown-body .task-list-item-checkbox {
   margin: 0 0.2em 0.25em -1.6em;
   vertical-align: middle;
 }
 
-.newsroom-markdown-body .contains-task-list:dir(rtl) .task-list-item-checkbox {
+.chat-markdown-body .contains-task-list:dir(rtl) .task-list-item-checkbox {
   margin: 0 -1.6em 0.25em 0.2em;
 }
 
-.newsroom-markdown-body ::-webkit-calendar-picker-indicator {
+.chat-markdown-body ::-webkit-calendar-picker-indicator {
   filter: invert(50%);
 }
 
-.newsroom-markdown-body ol,
-.newsroom-markdown-body ul {
+.chat-markdown-body ol,
+.chat-markdown-body ul {
   list-style: disc;
 }

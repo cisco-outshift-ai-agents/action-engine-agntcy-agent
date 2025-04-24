@@ -1,4 +1,4 @@
-import LoaderGIF from "@/components/newsroom/newsroom-assets/loader.gif";
+import LoaderGIF from "@/components/chat/chat-assets/loader.gif";
 import { Plan } from "@/pages/session/types";
 
 const PlanRenderer: React.FC<PlanRendererProps> = ({ plan }) => {

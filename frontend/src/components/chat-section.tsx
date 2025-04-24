@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import TextareaAutosize from "react-textarea-autosize";
-import { PaperPlaneRight, StopCircle } from "@magnetic/icons";
-import { Button } from "@magnetic/button";
+import { Button } from "./ui/button";
+import { SendHorizontal, StopCircle } from "lucide-react";
 import { cn } from "@/utils";
-import { Flex } from "@magnetic/flex";
+
 import ChatMessage, {
   ChatMessageProps,
   NodeType,
-} from "./newsroom/newsroom-components/chat-message";
-import CiscoAIAssistantLoader from "@/components/newsroom/newsroom-assets/thinking.gif";
+} from "./chat/chat-components/chat-message";
+import CiscoAIAssistantLoader from "@/components/chat/chat-assets/thinking.gif";
 
 import { TodoFixAny } from "@/types";
 import { useChatStore } from "@/stores/chat";
@@ -320,12 +320,14 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
         <div ref={bottomOfChatRef}></div>
       </div>
       <div className="px-4 pt-2 pb-3">
-        <Flex
-          as="form"
-          align="center"
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!isThinking) sendMessage();
+          }}
           className={cn(
             "max-w-3xl mx-auto bg-[#373c42] border-2 border-[#7E868F] pr-3 pt-2 pl-5 pb-2 rounded-lg",
-            "group focus-within:border-[#649EF5]"
+            "group focus-within:border-[#649EF5] flex items-center"
           )}
         >
           <TextareaAutosize
@@ -333,20 +335,14 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
             minRows={1}
             maxRows={8}
             value={input}
-            onChange={(event) => setInput(event.target.value)}
+            onChange={(e) => setInput(e.target.value)}
             placeholder="What do you want ActionEngine to do?"
             className={cn(
-              "w-full bg-transparent text-white",
-              "font-normal text-base leading-[22px]",
-              "placeholder:text-[889099] placeholder:text-sm",
-              "focus:ring-0 focus:border-0",
-              "focus:outline-none resize-none"
+              "w-full bg-transparent text-white font-normal text-base leading-[22px] placeholder:text-[#889099] placeholder:text-sm focus:ring-0 focus:border-0 focus:outline-none resize-none"
             )}
             wrap="hard"
             onKeyDown={(e) => {
-              if (e.key === "Enter" && e.shiftKey) {
-                return;
-              }
+              if (e.key === "Enter" && e.shiftKey) return;
               if (e.key === "Enter" && !isThinking) {
                 e.preventDefault();
                 sendMessage();
@@ -355,44 +351,20 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
               }
             }}
           />
-          {isThinking ? (
-            <Button
-              type="button"
-              kind="tertiary"
-              onClick={stopTask}
-              icon={
-                <div className="relative top-[1.64px] left-[2.87px]">
-                  <StopCircle
-                    className={cn(
-                      "text-[#649EF5] fill-[#649EF5]",
-                      "w-[18.83px] h-[20.73px]"
-                    )}
-                  />
-                </div>
-              }
-              className="hover:opacity-80 px-2"
-            />
-          ) : (
-            <Button
-              type="button"
-              kind="tertiary"
-              onClick={sendMessage}
-              disabled={isThinking}
-              icon={
-                <div className="relative top-[1.64px] left-[2.87px]">
-                  {" "}
-                  <PaperPlaneRight
-                    className={cn(
-                      "text-[#649EF5] fill-[#649EF5]",
-                      "w-[18.83px] h-[20.73px]"
-                    )}
-                  />{" "}
-                </div>
-              }
-              className="hover:opacity-80 px-2"
-            />
-          )}
-        </Flex>
+          <Button
+            type="button"
+            variant="ghost"
+            className="p-1 hover:opacity-80"
+            onClick={isThinking ? stopTask : sendMessage}
+            disabled={isThinking && isStopped}
+          >
+            {isThinking ? (
+              <StopCircle className="w-[18.83px] h-[20.73px] text-[#649EF5]" />
+            ) : (
+              <SendHorizontal className="w-[18.83px] h-[20.73px] text-[#649EF5]" />
+            )}
+          </Button>
+        </form>
         <div className="text-center mt-2 text-xs text-[#D0D4D9]">
           Assistant can make mistakes. Verify responses.
         </div>
