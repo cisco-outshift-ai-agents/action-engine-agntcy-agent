@@ -1,4 +1,4 @@
-import Markdown from "@/components/newsroom/markdown";
+import Markdown from "@/components/chat/markdown";
 import { TodoFixAny } from "@/types";
 import {
   MessageCircleMore,

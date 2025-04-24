@@ -1,6 +1,4 @@
-import { Button } from "@magnetic/button";
 import { Layout } from "@/components/ui/layout/page";
-import { Container } from "@magnetic/container";
 import InteractiveVNC from "@/components/interactive-vnc";
 import ChatSection from "@/components/chat-section";
 import LearningSection from "@/components/learning-section";
@@ -29,7 +27,7 @@ const SessionPage = () => {
 
   return (
     <Layout>
-      <Container className="h-full">
+      <div className="h-full p-3 rounded-xl shadow-md">
         <div className="flex h-full gap-3">
           <div className="w-[70%] flex flex-col gap-2">
             <div
@@ -72,7 +70,7 @@ const SessionPage = () => {
             {section === "chat" ? <ChatSection /> : <LearningSection />}
           </div>
         </div>
-      </Container>
+      </div>
     </Layout>
   );
 };

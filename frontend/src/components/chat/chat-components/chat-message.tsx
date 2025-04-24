@@ -1,5 +1,5 @@
 import ChatMessageText from "./chat-message-text";
-import CiscoAIAssistantLogo from "@/components/newsroom/newsroom-assets/cisco-ai-assistant.png";
+import CiscoAIAssistantLogo from "@/components/chat/chat-assets/cisco-ai-assistant.png";
 import { Circle, Check, XCircle } from "lucide-react";
 import { ReactNode, useState } from "react";
 import {
@@ -16,7 +16,7 @@ declare global {
     };
   }
 }
-import { Button } from "@magnetic/button";
+import { Button } from "@/components/ui/button";
 
 export type NodeType =
   | "thinking"
@@ -162,13 +162,19 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
               <p className="font-normal text-base tracking-normal text-[#F7F7F7] whitespace-pre-wrap break-words leading-[22px]">
                 {content}
               </p>
+
               {approvalResponse === null ? (
                 <div className="flex gap-2">
-                  <Button kind="primary" onClick={() => handleResponse(true)}>
+                  <Button
+                    variant="default"
+                    className="bg-[#649EF5] hover:bg-[#538ee0] text-white px-4 py-2 text-sm font-semibold rounded"
+                    onClick={() => handleResponse(true)}
+                  >
                     Approve
                   </Button>
                   <Button
-                    kind="secondary"
+                    variant="outline"
+                    className="border text-white px-4 py-2 text-sm font-semibold rounded hover:bg-white/10"
                     onClick={() => handleResponse(false)}
                   >
                     Decline

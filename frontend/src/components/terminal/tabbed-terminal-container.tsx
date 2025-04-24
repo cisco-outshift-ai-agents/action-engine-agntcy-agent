@@ -5,10 +5,11 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { Tabs } from "@magnetic/tabs";
+
 import TerminalSection from "./terminal-section";
 import { PlusCircle, X } from "lucide-react";
 import { TerminalDataZod } from "@/pages/session/types";
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 
 // Store all active WebSocket connections globally
 const globalWebSocketMap: Record<string, WebSocket> = {};
@@ -394,40 +395,36 @@ const TabbedTerminalContainer: React.FC = () => {
   }, [activeTab, tabs, terminalBuffers, contentTimestamps]);
 
   const TabBar = () => (
-    <div className="px-2 flex items-center justify-between">
-      <div className="flex-1 flex">
-        <Tabs kind="primary" className="flex-1">
+    <div className="px-2 flex items-center justify-between border-b border-white/10">
+      <Tabs value={activeTab} onValueChange={switchTab} className="w-full">
+        <TabsList className="flex items-center space-x-4 bg-transparent p-0">
           {tabs.map((tab) => (
-            <Tabs.Link
+            <TabsTrigger
               key={tab.id}
-              href={`#/${tab.id}`}
-              selected={activeTab === tab.id}
-              onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                e.preventDefault();
-                switchTab(tab.id);
-              }}
-              className="text-[#D0D4D9] font-bold text-base leading-[22px]"
+              value={tab.id}
+              className="px-3 py-1 text-[#D0D4D9] text-sm font-bold leading-[22px] rounded-md transition-all data-[state=active]:text-white data-[state=active]:bg-[#2c2f35] hover:text-white"
             >
               {`${tab.title}${tab.terminalId ? ` (${tab.terminalId})` : ""}`}
-            </Tabs.Link>
+            </TabsTrigger>
           ))}
-        </Tabs>
-      </div>
+        </TabsList>
+      </Tabs>
 
-      <div className="flex items-center">
-        {tabs.map((tab) =>
-          tab.id !== "terminal" && activeTab === tab.id ? (
-            <button
-              key={`close-${tab.id}`}
-              onClick={() => closeTab(tab.id)}
-              className="mx-1 text-[#D0D4D9] hover:text-white p-1 rounded"
-              title={`Close ${tab.title}`}
-            >
-              <X size={18} />
-            </button>
-          ) : null
+      <div className="ml-auto flex items-center gap-2">
+        {tabs.map(
+          (tab) =>
+            tab.id !== "terminal" &&
+            activeTab === tab.id && (
+              <button
+                key={`close-${tab.id}`}
+                onClick={() => closeTab(tab.id)}
+                className="text-[#D0D4D9] hover:text-white p-1 rounded"
+                title={`Close ${tab.title}`}
+              >
+                <X size={18} />
+              </button>
+            )
         )}
-
         <button
           className="text-[#D0D4D9] hover:text-white p-1 rounded"
           title="Add new Tab"

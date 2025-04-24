@@ -1,17 +1,21 @@
 import { cn } from "@/utils";
-import CiscoAIAssistantLogo from "@/components/newsroom/newsroom-assets/cisco-ai-assistant.png";
+import CiscoAIAssistantLogo from "@/components/chat/chat-assets/cisco-ai-assistant.png";
 import ChatMessageText from "./chat-message-text";
 
-interface ThinkingMessageProps {
-  summary?: string | null;
-  thought?: string | null;
+interface ToolMessageProps {
+  content?: string | null;
+  actions?: string[];
+  error?: string | null;
+  warnings?: string[] | null;
 }
 
-const ThinkingMessage: React.FC<ThinkingMessageProps> = ({
-  summary,
-  thought,
+const ToolMessage: React.FC<ToolMessageProps> = ({
+  content,
+  actions,
+  error,
+  warnings,
 }) => {
-  if (!summary && !thought) return null;
+  if (!content && !actions?.length) return null;
 
   return (
     <div className={cn("text-l text-[#f7f7f7]")}>
@@ -25,9 +29,11 @@ const ThinkingMessage: React.FC<ThinkingMessageProps> = ({
           />
           <div className="flex flex-col">
             <ChatMessageText
-              content={summary}
-              thought={thought}
+              content={content}
               role="assistant"
+              actions={actions}
+              errors={error ? [error] : undefined}
+              warnings={warnings}
             />
           </div>
         </div>
@@ -36,4 +42,4 @@ const ThinkingMessage: React.FC<ThinkingMessageProps> = ({
   );
 };
 
-export default ThinkingMessage;
+export default ToolMessage;

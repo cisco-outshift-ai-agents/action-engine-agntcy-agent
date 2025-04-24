@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { GraphData } from "@/pages/session/types";
-import { ChatMessageProps } from "@/components/newsroom/newsroom-components/chat-message";
+import { ChatMessageProps } from "@/components/chat/chat-components/chat-message";
 
 interface ChatStoreState {
   isThinking: boolean;

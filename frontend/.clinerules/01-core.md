@@ -19,7 +19,7 @@ This is the frontend application for Action Engine, built with React, TypeScript
 - Components should be organized by feature/domain in `src/components/`
 - Shared UI components belong in `src/components/ui/`
 - Page components should be placed in `src/pages/`
-- We have imported chat components from a previous project which are located under the `src/components/newsroom` directory. This is for the styling of the chat UX.
+- We have imported chat components from a previous project which are located under the `src/components/chat` directory. This is for the styling of the chat UX.
 
 ### TypeScript Guidelines
 

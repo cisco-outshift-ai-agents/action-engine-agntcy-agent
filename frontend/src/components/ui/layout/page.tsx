@@ -1,25 +1,23 @@
 import { NavBar } from "./header";
 
-import { Container } from "@magnetic/container";
-
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 export const Layout = ({ children }: LayoutProps) => {
   return (
-    <div className="flex ">
+    <div className="flex bg-background text-foreground ">
       <NavBar />
       <main className="min-h-screen flex-1 pt-[56px]">
-        <Container
+        <div
           style={{
             borderRadius: "0",
             height: "calc(100vh - 56px)",
-            padding: "4px 6px",
+            padding: "4px 12px",
           }}
         >
           {children}
-        </Container>
+        </div>
       </main>
     </div>
   );
