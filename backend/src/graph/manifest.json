@@ -338,6 +338,60 @@
           "type": "object"
         }
       }
-    }
+    },
+    "interrupts": [
+      {
+        "interrupt_type": "terminal_approval",
+        "interrupt_payload": {
+          "description": "Schema for terminal command approval interrupt data.",
+          "properties": {
+            "tool_call": {
+              "description": "The tool call requiring approval",
+              "title": "Tool Call",
+              "type": "object"
+            },
+            "message": {
+              "description": "Message to display to the user",
+              "title": "Message",
+              "type": "string"
+            }
+          },
+          "required": [
+            "tool_call",
+            "message"
+          ],
+          "title": "TerminalApprovalOutput",
+          "type": "object"
+        },
+        "resume_payload": {
+          "description": "Schema for terminal command approval response.",
+          "properties": {
+            "approved": {
+              "description": "Whether the command is approved for execution",
+              "title": "Approved",
+              "type": "boolean"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional reason for rejection",
+              "title": "Reason"
+            }
+          },
+          "required": [
+            "approved"
+          ],
+          "title": "TerminalApprovalInput",
+          "type": "object"
+        }
+      }
+    ]
   }
 }

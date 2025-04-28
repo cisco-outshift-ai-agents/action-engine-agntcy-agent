@@ -70,7 +70,7 @@ async def generate_sse_events(run_id: str) -> AsyncGenerator[str, None]:
         }
         logger.debug(f"Created run dict with keys: {list(run_dict.keys())}")
 
-        # Stream using the dict format
+        # Pass through messages directly as SSE events
         try:
             logger.info("Starting message stream")
             async for message in stream_run(run_dict):
@@ -78,11 +78,6 @@ async def generate_sse_events(run_id: str) -> AsyncGenerator[str, None]:
                 yield format_sse_message(
                     message_type=message.type, event=message.event, data=message.data
                 )
-
-            # Send done event
-            logger.info("Stream complete, sending done event")
-            yield format_sse_message("control", None, "done")
-
         except Exception as e:
             logger.error(f"Error streaming run {run_id}: {e}", exc_info=True)
             yield format_sse_error(e)
