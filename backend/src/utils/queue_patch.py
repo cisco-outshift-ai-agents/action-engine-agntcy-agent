@@ -68,7 +68,19 @@ async def worker(worker_id: int):
     while True:
         try:
             run_id = await RUNS_QUEUE.get()
+            logger.info(f"Worker {worker_id} processing run {run_id}")
+
+            # Log detailed run state for debugging
             run = DB.get_run(run_id)
+            logger.info(f"Full run state before execution:")
+            logger.info(f"- run_id: {run_id}")
+            logger.info(f"- status: {run.get('status')}")
+            logger.info(f"- interrupt: {run.get('interrupt')}")
+            logger.info(f"- input: {run.get('input')}")
+            logger.info(f"- config: {run.get('config')}")
+            logger.info(f"- output: {run.get('output')}")
+            logger.info(f"- full_run: {json.dumps(run, default=str)}")
+
             run_info = DB.get_run_info(run_id)
 
             started_at = datetime.now().timestamp()
@@ -90,6 +102,7 @@ async def worker(worker_id: int):
                     stream = stream_run(run)
                     last_message = None
                     async for message in stream:
+                        logger.info("Received message: %s", message)
                         message.data = make_serializable(message.data)
                         await Runs.Stream.publish(run_id, message)
                         last_message = message
@@ -128,10 +141,17 @@ async def worker(worker_id: int):
                         run_id, Message(type="control", data="done")
                     )
                     if last_message.type == "interrupt":
-                        interrupt = Interrupt(
-                            event=last_message.event, ai_data=last_message.data
-                        )
-                        DB.update_run(run_id, {"interrupt": interrupt})
+                        # Store only the interrupt-specific data (tool_call and message)
+                        # Note: This means that the queue_patch file is no longer generic,
+                        # but specific to ActionEngine's terminal interrupt style.
+                        # This is necessary because we store unserializable data in the
+                        # message data so we can't just pass along last_message.data to the
+                        # interrupt.
+                        interrupt_data = {
+                            "tool_call": last_message.data.get("tool_call"),
+                            "message": last_message.data.get("message"),
+                        }
+                        DB.update_run(run_id, {"interrupt": interrupt_data})
                         await Runs.set_status(run_id, "interrupted")
                     else:
                         await Runs.set_status(run_id, "success")

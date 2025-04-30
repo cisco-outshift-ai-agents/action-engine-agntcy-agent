@@ -16,9 +16,28 @@ from agent_workflow_server.services.stream import stream_run
 logger = logging.getLogger(__name__)
 
 
+def serialize_json_and_nested_pydantic(data: Any) -> Any:
+    """Serialize JSON and nested Pydantic models to JSON-serializable format."""
+    if isinstance(data, dict):
+        return {k: serialize_json_and_nested_pydantic(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [serialize_json_and_nested_pydantic(item) for item in data]
+    elif hasattr(data, "model_dump"):
+        return serialize_json_and_nested_pydantic(data.model_dump())
+    elif isinstance(data, SecretStr):
+        return str(data)
+    else:
+        return data
+
+
 def format_sse_event(data: Dict[str, Any]) -> str:
     """Format data as Server-Sent Event."""
-    return f"data: {json.dumps(data)}\n\n"
+    serialized_data = serialize_json_and_nested_pydantic(data)
+    try:
+        return f"data: {json.dumps(serialized_data)}\n\n"
+    except TypeError as e:
+        logger.error(f"Failed to serialize SSE data: {e}")
+        return format_sse_error(f"Data serialization failed: {e}")
 
 
 def format_sse_error(error: Exception | str) -> str:

@@ -55,7 +55,9 @@ class ThreadAgentWrapper(CompiledGraph):
 
     def __init__(self, graph: CompiledGraph):
         self.graph = graph
-        self._thread_envs: Dict[str, Dict] = {}
+        from src.graph.environments.store import environment_store
+
+        self._env_store = environment_store
         self._thread_configs: Dict[str, EnvironmentConfig] = {}
         self._thread_llms: Dict[str, Any] = {}
 
@@ -93,7 +95,7 @@ class ThreadAgentWrapper(CompiledGraph):
         self, thread_id: str, config: Dict[str, Any] = None
     ) -> Dict:
         """Initialize environments for a thread if not already setup."""
-        if thread_id not in self._thread_envs:
+        if not self._env_store.get_envs(thread_id):
             # Parse and store config
             thread_config = self._parse_config(config)
             self._thread_configs[thread_id] = thread_config
@@ -114,28 +116,34 @@ class ThreadAgentWrapper(CompiledGraph):
                 }
             )
 
-            # Store thread environments
-            self._thread_envs[thread_id] = {
-                "llm": self._thread_llms[thread_id],
-                "browser": envs.browser_manager.browser,
-                "browser_context": envs.browser_manager.browser_context,
-                "dom_service": envs.browser_manager.dom_service,
-                "terminal_manager": envs.terminal_manager,
-                "planning_environment": envs.planning_manager,
-            }
+            # Store thread environments in shared store
+            self._env_store.set_envs(
+                thread_id,
+                {
+                    "llm": self._thread_llms[thread_id],
+                    "browser": envs.browser_manager.browser,
+                    "browser_context": envs.browser_manager.browser_context,
+                    "dom_service": envs.browser_manager.dom_service,
+                    "terminal_manager": envs.terminal_manager,
+                    "planning_environment": envs.planning_manager,
+                },
+            )
 
-        return self._thread_envs[thread_id]
+        return self._env_store.get_envs(thread_id)
 
     async def _prepare_request(
         self, state: Any, config: Optional[RunnableConfig] = None, **kwargs
     ) -> tuple[Dict[str, Any], Optional[RunnableConfig]]:
         """Prepares environments and thread handling for graph execution."""
-        # Ensure state is a dict and has thread_id
+        # Skip environment setup for resume requests (they only have approved field)
         if isinstance(state, dict):
+            if "approved" in state:
+                return state, config
+
             if "thread_id" not in state:
                 state["thread_id"] = str(uuid4())
 
-            # Setup environments
+            # Only setup environments for non-resume requests
             env_config = await self.setup_environments(state["thread_id"], config)
             if config is not None:
                 config.setdefault("configurable", {})

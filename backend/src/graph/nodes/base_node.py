@@ -285,15 +285,21 @@ class BaseNode:
                 return None
 
             parsed_tool_call = json.loads(string)
-            if isinstance(parsed_tool_call, dict) and "name" in parsed_tool_call:
-                logger.debug(
-                    f"{self.name} node found potential tool call in message content: {parsed_tool_call.get('name')}"
-                )
-                return WorkableToolCall(
-                    name=parsed_tool_call.get("name"),
-                    args=parsed_tool_call.get("args"),
-                    call_id=parsed_tool_call.get("id"),
-                )
+            if isinstance(parsed_tool_call, dict):
+                # Handle both raw format and nested arguments format
+                if "name" in parsed_tool_call:
+                    # We are expecting args, but sometimes the model wants to send it as "arguments"
+                    args = parsed_tool_call.get("arguments") or parsed_tool_call.get(
+                        "args"
+                    )
+                    logger.debug(
+                        f"{self.name} node found potential tool call in message content: {parsed_tool_call.get('name')}"
+                    )
+                    return WorkableToolCall(
+                        name=parsed_tool_call.get("name"),
+                        args=args,
+                        call_id=parsed_tool_call.get("id"),
+                    )
 
             return None
 

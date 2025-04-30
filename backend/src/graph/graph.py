@@ -55,8 +55,10 @@ def create_agent_graph(config: RunnableConfig = None) -> Graph:
         "executor", lambda state: END if state.get("exiting") else "thinking"
     )
 
-    # Add a checkpointer to the workflow to save the state at each step
-    checkpointer = MemorySaver()
+    # Use our custom checkpointer that handles environment objects
+    from src.graph.checkpointer import EnvironmentAwareCheckpointer
+
+    checkpointer = EnvironmentAwareCheckpointer()
     return workflow.compile(checkpointer=checkpointer)
 
 

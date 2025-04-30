@@ -54,7 +54,10 @@ DEFAULT_CONFIG = default_config()
 event_storage = EventStorage()
 
 # Load agents before using the app
-load_agents()
+DEFAULT_AGENT_MANIFEST_PATH = "manifest.json"
+agents_ref = os.getenv("AGENTS_REF", None)
+agent_manifest_path = os.getenv("AGENT_MANIFEST_PATH", DEFAULT_AGENT_MANIFEST_PATH)
+load_agents(agents_ref, [agent_manifest_path])
 
 
 @asynccontextmanager
@@ -95,6 +98,7 @@ app.middleware_stack = WorkflowSrvApp.middleware_stack
 # Initialize authentication
 setup_api_key_auth(app)
 
+# Patched endpoint to support streaming
 app.get("/runs/{run_id}/stream")(stream_stateless_run_output)
 
 # Add CORS middleware

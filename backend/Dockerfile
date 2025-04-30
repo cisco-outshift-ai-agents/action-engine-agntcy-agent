@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y \
     netcat-traditional \
     gnupg \
     curl \
+    libpq-dev \
     unzip \
     tmux \
     xvfb \

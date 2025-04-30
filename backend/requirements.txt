@@ -8,7 +8,9 @@ python-dotenv==1.0.1
 # LLM and Agent Framework
 langchain==0.3.14
 langchain-core==0.3.35
-langgraph==0.3.16
+langgraph==0.3.32
+langgraph-checkpoint-postgres==2.0.21
+psycopg==3.2.0
 openai==1.61.1
 
 # Browser control
