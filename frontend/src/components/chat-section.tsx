@@ -1,194 +1,39 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useRef, useState } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import { Button } from "./ui/button";
 import { SendHorizontal, StopCircle } from "lucide-react";
 import { cn } from "@/utils";
 
-import ChatMessage, {
-  ChatMessageProps,
-  NodeType,
-} from "./chat/chat-components/chat-message";
+import ChatMessage from "./chat/chat-components/chat-message";
 import CiscoAIAssistantLoader from "@/components/chat/chat-assets/thinking.gif";
-
-import { TodoFixAny } from "@/types";
-import { useChatStore } from "@/stores/chat";
-import {
-  GraphData,
-  GraphDataZod,
-  NodeUpdateZod,
-  StopDataZod,
-} from "@/pages/session/types";
 import PlanRenderer from "./plan-renderer";
 
-interface ChatSectionProps {
-  className?: string;
-  onTerminalUpdate?: (
-    content: string,
-    isTerminal: boolean,
-    hasEmptyThought: boolean,
-    isDone: boolean,
-    terminalId: string,
-    workingDirectory: string
-  ) => void;
-}
-
-const AGENT_ID = "62f53991-0fec-4ff9-9b5c-ba1130d7bace";
+import { useChatStore } from "@/stores/chat";
+import { useChatStream } from "@/hooks/use-chat-stream";
+import { useChatScroll } from "@/hooks/use-chat-scroll";
 
 const ChatSection: React.FC<ChatSectionProps> = () => {
   const [input, setInput] = useState("");
-  const eventSourceRef = useRef<EventSource | null>(null);
   const bottomOfChatRef = useRef<HTMLDivElement | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const { messages, plan } = useChatStore();
   const {
-    messages,
-    addMessage,
+    sendMessage: sendChatMessage,
+    handleHitlConfirmation,
+    stopTask,
     isThinking,
-    setisThinking,
     isStopped,
-    setIsStopped,
-    plan,
-    setPlan,
-  } = useChatStore();
+  } = useChatStream();
 
-  const sendMessage = async () => {
-    try {
-      // 1. Create a run
-      const response = await fetch("http://localhost:7788/runs", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          agent_id: AGENT_ID,
-          input: { task: input },
-          metadata: {},
-          config: {
-            recursion_limit: 25,
-            configurable: {},
-          },
-        }),
-      });
+  // Setup auto-scrolling
+  useChatScroll(bottomOfChatRef, chatContainerRef, [messages]);
 
-      const run = await response.json();
-
-      // 2. Start streaming the results
-      const events = new EventSource(
-        `http://localhost:7788/runs/${run.run_id}/stream`
-      );
-
-      events.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        addMessage(getMessageFromSSEData(data.data, data.event, data.type));
-      };
-
-      eventSourceRef.current = events;
-      addMessage({
-        content: input,
-        role: "user",
-      });
-      setInput("");
-      setisThinking(true);
-    } catch (error) {
-      console.error("Failed:", error);
-      setisThinking(false);
-    }
+  const handleSend = async () => {
+    if (!input.trim() || isThinking) return;
+    await sendChatMessage(input);
+    setInput("");
   };
-
-  const stopTask = () => {
-    if (isStopped) {
-      return;
-    }
-
-    setIsStopped(true);
-
-    // TODO: Add delete run functionality here I think?
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const getMessageFromSSEData = (
-    data: GraphData,
-    nodeType: NodeType,
-    acpMessageType: "interrupt" | "error" | "message"
-  ): ChatMessageProps => {
-    if (acpMessageType === "interrupt") {
-      return {
-        role: "assistant",
-        // TODO: REAL CONTENT
-        content: "Please confirm",
-        nodeType: "approval_request",
-      };
-    }
-
-    if (acpMessageType === "error") {
-      return {
-        role: "assistant",
-        content: data.error,
-        error: data.error,
-        isDone: data.exiting,
-        nodeType,
-      };
-    }
-
-    // For planning, just set the plan state
-    if (nodeType === "planning") {
-      setPlan(getPlanFromMessage(data));
-    }
-
-    if (nodeType === "executor") {
-      return {
-        role: "assistant",
-        content: null, // We don't need content for executor, just actions
-        actions: getLastAITools(data),
-        error: data.error,
-        isDone: data.exiting,
-        nodeType,
-      };
-    }
-
-    // For thinking and other nodes, show conversational UI
-    return {
-      role: "assistant",
-      content: data.brain.summary,
-      thought: data.brain.thought,
-      error: data.error,
-      isDone: data.exiting,
-      nodeType,
-    };
-  };
-
-  const getPlanFromMessage = (
-    data: GraphData
-  ): NonNullable<GraphData["plan"]> | null => {
-    if (!data.plan) {
-      return null;
-    }
-    return data.plan;
-  };
-
-  const scrollToBottom = () => {
-    if (bottomOfChatRef.current && chatContainerRef.current) {
-      bottomOfChatRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  };
-
-  const disableLearning = async () => {
-    await fetch(`http://localhost:7788/api/learning`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        learning_enabled: false,
-      }),
-    });
-  };
-
-  useEffect(() => {
-    disableLearning();
-  }, []);
 
   return (
     <div className="h-[95%] rounded-lg  bg-[#32363c] w-full px-2 py-4 flex flex-col border-white/10 border">
@@ -198,9 +43,12 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
         ref={chatContainerRef}
       >
         <div className="flex flex-col gap-4 space-y-reverse">
-          {[...messages].map((message, index) => (
+          {messages.map((message, index) => (
             <div key={index}>
-              <ChatMessage {...message} />
+              <ChatMessage
+                {...message}
+                onHitlConfirmation={handleHitlConfirmation}
+              />
             </div>
           ))}
           {isThinking && (
@@ -220,7 +68,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (!isThinking) sendMessage();
+            handleSend();
           }}
           className={cn(
             "max-w-3xl mx-auto bg-[#373c42] border-2 border-[#7E868F] pr-3 pt-2 pl-5 pb-2 rounded-lg",
@@ -242,7 +90,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
               if (e.key === "Enter" && e.shiftKey) return;
               if (e.key === "Enter" && !isThinking) {
                 e.preventDefault();
-                sendMessage();
+                handleSend();
               } else if (e.key === "Enter" && isThinking) {
                 e.preventDefault();
               }
@@ -252,7 +100,7 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
             type="button"
             variant="ghost"
             className="p-1 hover:opacity-80"
-            onClick={isThinking ? stopTask : sendMessage}
+            onClick={isThinking ? stopTask : handleSend}
             disabled={isThinking && isStopped}
           >
             {isThinking ? (
@@ -270,21 +118,16 @@ const ChatSection: React.FC<ChatSectionProps> = () => {
   );
 };
 
-const getLastAITools = (data: GraphData): string[] => {
-  const lastAIMessage = data.messages
-    .filter((m) => m.type === "AIMessage")
-    .pop();
-
-  if (!lastAIMessage) {
-    return [];
-  }
-
-  return [
-    ...(lastAIMessage.tool_calls?.map((t) => {
-      return JSON.stringify(t);
-    }) || []),
-    lastAIMessage.content || "",
-  ].filter((a) => !!a);
-};
+interface ChatSectionProps {
+  className?: string;
+  onTerminalUpdate?: (
+    content: string,
+    isTerminal: boolean,
+    hasEmptyThought: boolean,
+    isDone: boolean,
+    terminalId: string,
+    workingDirectory: string
+  ) => void;
+}
 
 export default ChatSection;

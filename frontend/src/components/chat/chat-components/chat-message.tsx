@@ -8,43 +8,15 @@ import {
   ErrorMessage,
 } from "@/components/chat-messages";
 
-// Extend the Window interface to include wsRef
-declare global {
-  interface Window {
-    wsRef?: {
-      current: WebSocket | null;
-    };
-  }
-}
 import { Button } from "@/components/ui/button";
 
 export type NodeType =
   | "thinking"
   | "planning"
   | "executor"
-  | "approval_request";
-
-export interface ChatMessageProps {
-  content: ReactNode | undefined | null;
-  error?: string | undefined | null;
-  warnings?: string[] | undefined | null;
-  isLoading?: boolean | undefined | null;
-  role: "user" | "assistant";
-  thought?: string | undefined | null;
-  actions?: string[] | undefined | null;
-  isDone?: boolean;
-  nodeType?: NodeType;
-  toolCall?: {
-    name: string;
-    args: {
-      terminal_id: string;
-      script: string;
-      action: string;
-    };
-    id: string;
-    type: string;
-  };
-}
+  | "approval_request"
+  | "tool_selection"
+  | "human_approval";
 
 const ChatMessage: React.FC<ChatMessageProps> = ({
   content,
@@ -55,11 +27,23 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   actions,
   isDone,
   nodeType,
-  toolCall,
+  onHitlConfirmation,
 }) => {
+  // Local state to maintain the approval response over time
   const [approvalResponse, setApprovalResponse] = useState<
     "approved" | "declined" | null
   >(null);
+
+  const handleHitlConfirmation = (approved: boolean) => {
+    if (!onHitlConfirmation) {
+      console.error("onHitlConfirmation callback is not provided");
+      return;
+    }
+
+    setApprovalResponse(approved ? "approved" : "declined");
+    onHitlConfirmation(approved);
+  };
+
   if (isDone) {
     return null;
   }
@@ -123,31 +107,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     );
   }
 
+  // For errors and warnings, show error message
   if (error) {
     return <ErrorMessage error={error} warnings={warnings} />;
   }
 
-  if (nodeType === "approval_request" && content && toolCall) {
-    const handleResponse = (approved: boolean) => {
-      if (
-        !window.wsRef?.current ||
-        window.wsRef.current.readyState !== WebSocket.OPEN
-      ) {
-        console.error("WebSocket not ready");
-        return;
-      }
-      setApprovalResponse(approved ? "approved" : "declined");
-
-      const response = {
-        approval_response: {
-          approved,
-          tool_call: toolCall,
-        },
-      };
-
-      window.wsRef.current.send(JSON.stringify(response));
-    };
-
+  // For human in the loop (HITL) confirmation, show approval request UI
+  if (nodeType === "approval_request") {
     return (
       <div className="text-l text-[#f7f7f7]">
         <div className="py-2 rounded-xl bg-[#373C42]">
@@ -168,14 +134,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                   <Button
                     variant="default"
                     className="bg-[#649EF5] hover:bg-[#538ee0] text-white px-4 py-2 text-sm font-semibold rounded"
-                    onClick={() => handleResponse(true)}
+                    onClick={() => handleHitlConfirmation(true)}
                   >
                     Approve
                   </Button>
                   <Button
                     variant="outline"
                     className="border text-white px-4 py-2 text-sm font-semibold rounded hover:bg-white/10"
-                    onClick={() => handleResponse(false)}
+                    onClick={() => handleHitlConfirmation(false)}
                   >
                     Decline
                   </Button>
@@ -203,7 +169,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     return <ToolResultMessage content={content as string} />;
   }
 
-  // For thinking node (and fallback), show conversational UI
+  // For all other messages show conversational UI
   return (
     <div className="text-l text-[#f7f7f7]">
       <div className="py-2 rounded-xl bg-[#373C42]">
@@ -231,5 +197,28 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     </div>
   );
 };
+
+export interface ChatMessageProps {
+  content: ReactNode | undefined | null;
+  error?: string | undefined | null;
+  warnings?: string[] | undefined | null;
+  isLoading?: boolean | undefined | null;
+  role: "user" | "assistant";
+  thought?: string | undefined | null;
+  actions?: string[] | undefined | null;
+  isDone?: boolean;
+  nodeType?: NodeType;
+  toolCall?: {
+    name: string;
+    args: {
+      terminal_id: string;
+      script: string;
+      action: string;
+    };
+    id: string;
+    type: string;
+  };
+  onHitlConfirmation?: (approved: boolean) => void;
+}
 
 export default ChatMessage;
