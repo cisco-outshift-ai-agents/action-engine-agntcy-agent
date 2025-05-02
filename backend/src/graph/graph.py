@@ -20,7 +20,7 @@ def create_agent_graph(config: RunnableConfig = None) -> Graph:
     """Creates the core LangGraph workflow."""
     workflow = StateGraph(AgentState)
 
-    workflow.add_node("tool_selection", ToolGeneratorNode())
+    workflow.add_node("tool_generator", ToolGeneratorNode())
     workflow.add_node("human_approval", HumanApprovalNode())
     workflow.add_node("executor", ExecutorNode())
     workflow.add_node("planning", PlanningNode())
@@ -33,10 +33,10 @@ def create_agent_graph(config: RunnableConfig = None) -> Graph:
     )
 
     workflow.add_conditional_edges(
-        "planning", lambda state: END if state.get("exiting") else "tool_selection"
+        "planning", lambda state: END if state.get("exiting") else "tool_generator"
     )
 
-    workflow.add_edge("tool_selection", "human_approval")
+    workflow.add_edge("tool_generator", "human_approval")
 
     workflow.add_conditional_edges(
         "human_approval",

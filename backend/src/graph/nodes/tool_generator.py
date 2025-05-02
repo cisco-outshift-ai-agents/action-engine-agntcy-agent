@@ -76,6 +76,7 @@ class ToolGeneratorNode(BaseNode):
 
         # Add system message with current environment context
         executor_prompt = get_executor_prompt(context=executor_prompt_context)
+
         screenshot = executor_prompt_context.screenshot
         executor_message = SystemMessage(
             content=[
