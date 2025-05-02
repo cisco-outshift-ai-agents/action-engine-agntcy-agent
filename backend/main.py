@@ -35,16 +35,7 @@ load_dotenv()
 from agent_workflow_server.agents.load import load_agents
 from agent_workflow_server.main import app as WorkflowSrvApp
 from agent_workflow_server.apis.authentication import setup_api_key_auth
-
-# Import our patched services
-from src.utils.queue_patch import patch_queue_service
-
-# Apply patches
-# patch_queue_service()
 from agent_workflow_server.services.queue import start_workers
-
-# Import our patched services
-# from src.utils.runs_patch import PatchedRunsService  # This patches Runs service
 
 # Initialize components
 DEFAULT_CONFIG = default_config()
@@ -56,12 +47,9 @@ learning_enabled = False
 DEFAULT_AGENT_MANIFEST_PATH = "manifest.json"
 agents_ref = os.getenv("AGENTS_REF", None)
 agent_manifest_path = os.getenv("AGENT_MANIFEST_PATH", DEFAULT_AGENT_MANIFEST_PATH)
-logger.info("I am loading agents :)")
 load_agents(agents_ref, [agent_manifest_path])
 
 n_workers = int(os.environ.get("NUM_WORKERS", 5))
-
-logger.info(f"I am loading workers :)")
 
 try:
     loop = asyncio.get_running_loop()
