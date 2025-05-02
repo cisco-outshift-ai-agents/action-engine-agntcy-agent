@@ -16,7 +16,6 @@ from dotenv import load_dotenv
 # Initialize our core components
 from src.graph.environments.terminal import TerminalManager
 from src.utils.default_config_settings import default_config
-from src.utils.stream_patch import stream_stateless_run_output
 from src.lto.main import analyze_event_log, summarize_with_ai
 from src.lto.storage import EventStorage
 
@@ -32,65 +31,52 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
-# Initialize workflow_srv first
+# Initialize workflow_srv
 from agent_workflow_server.agents.load import load_agents
 from agent_workflow_server.main import app as WorkflowSrvApp
-from agent_workflow_server.apis.agents import public_router as PublicAgentsApiRouter
-from agent_workflow_server.apis.agents import router as AgentsApiRouter
-from agent_workflow_server.apis.authentication import (
-    setup_api_key_auth,
-    authentication_with_api_key,
-)
-from agent_workflow_server.apis.stateless_runs import router as StatelessRunsApiRouter
+from agent_workflow_server.apis.authentication import setup_api_key_auth
+
+# Import our patched services
+from src.utils.queue_patch import patch_queue_service
+
+# Apply patches
+# patch_queue_service()
 from agent_workflow_server.services.queue import start_workers
 
-from src.utils.queue_patch import (
-    start_workers,
-    stop_workers,
-)
+# Import our patched services
+# from src.utils.runs_patch import PatchedRunsService  # This patches Runs service
 
 # Initialize components
 DEFAULT_CONFIG = default_config()
 event_storage = EventStorage()
+learning_enabled = False
+
 
 # Load agents before using the app
 DEFAULT_AGENT_MANIFEST_PATH = "manifest.json"
 agents_ref = os.getenv("AGENTS_REF", None)
 agent_manifest_path = os.getenv("AGENT_MANIFEST_PATH", DEFAULT_AGENT_MANIFEST_PATH)
+logger.info("I am loading agents :)")
 load_agents(agents_ref, [agent_manifest_path])
 
+n_workers = int(os.environ.get("NUM_WORKERS", 5))
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    logger.info("Starting worker queue")
-    workers = await start_workers(int(os.environ["NUM_WORKERS"]))
-    yield
-    logger.info("Stopping worker queue")
-    await stop_workers()
+logger.info(f"I am loading workers :)")
 
+try:
+    loop = asyncio.get_running_loop()
+except RuntimeError:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
 
-app = FastAPI(lifespan=lifespan)
-
-# Create router for our overrides
-override_router = APIRouter()
+loop.create_task(start_workers(n_workers))
 
 
-# Add a stream endpoint since as of 4/23/2025, the streaming endpoint doesn't exist in WorkflowSrv
-@override_router.get("/runs/{run_id}/stream")
-async def stream_endpoint(run_id: str):
-    return await stream_stateless_run_output(run_id)
+# Create FastAPI app with lifespan
+app = FastAPI()
 
-
-# Include override router first so it takes precedence
-app.include_router(override_router)
-
-
-# Copy over routes from base app
-for route in WorkflowSrvApp.routes:
-    if route.path != "/runs/{run_id}/stream":
-        app.router.routes.append(route)
-
-# Copy over middleware
+# Initialize with WorkflowSrv's routes and middleware
+app.router = WorkflowSrvApp.router
 app.middleware = WorkflowSrvApp.middleware
 app.user_middleware = WorkflowSrvApp.user_middleware
 app.middleware_stack = WorkflowSrvApp.middleware_stack
@@ -98,10 +84,7 @@ app.middleware_stack = WorkflowSrvApp.middleware_stack
 # Initialize authentication
 setup_api_key_auth(app)
 
-# Patched endpoint to support streaming
-app.get("/runs/{run_id}/stream")(stream_stateless_run_output)
-
-# Add CORS middleware
+# Add CORS middleware after workflow server middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -265,12 +248,6 @@ async def clear_event_log():
 
 
 if __name__ == "__main__":
-    # Start worker queue
-    n_workers = int(os.environ.get("NUM_WORKERS", 5))
-    loop = asyncio.get_event_loop()
-    loop.create_task(start_workers(n_workers))
-
-    # Run server
     uvicorn.run(
         app,
         host=os.getenv("API_HOST", "127.0.0.1"),

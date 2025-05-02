@@ -26,11 +26,19 @@ class BaseNode:
 
     async def __call__(self, state: AgentState, config: Dict):
         """Make node callable for LangGraph and ensure async execution"""
+        # Set node type in state before execution
+        state["node_type"] = self.name
         return await self.ainvoke(state, config)
 
     def invoke(self, state: AgentState, config: Dict):
         """Prevent sync execution"""
         raise NotImplementedError(f"{self.name} node requires async execution")
+
+    async def ainvoke(self, state: AgentState, config: Dict = None) -> AgentState:
+        """Each node must implement its own invocation logic"""
+        raise NotImplementedError(
+            f"{self.name} node requires implementation of ainvoke"
+        )
 
     async def execute_tools(
         self, message: AIMessage, config: Dict = None
