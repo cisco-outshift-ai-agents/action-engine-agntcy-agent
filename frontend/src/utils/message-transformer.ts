@@ -1,40 +1,27 @@
-import {
-  ChatMessageProps,
-  NodeType,
-} from "@/components/chat/chat-components/chat-message";
-import { GraphData } from "@/pages/session/types";
+import { ChatMessageProps } from "@/components/chat/chat-components/chat-message";
+import { GraphDataZod } from "@/pages/session/types";
 import { getLastAITools } from "@/utils";
+import { z } from "zod";
 
 export const transformSSEDataToMessage = (
-  data: GraphData,
-  nodeType: NodeType,
-  acpMessageType: "interrupt" | "error" | "message"
+  data: unknown
 ): ChatMessageProps | undefined => {
-  if (acpMessageType === "interrupt") {
-    return {
-      role: "assistant",
-      content: "Please confirm",
-      nodeType: "approval_request",
-    };
+  const safeParse = SSEMessageZod.safeParse(data);
+  if (!safeParse.success) {
+    console.error("Failed to parse SSE data:", safeParse.error);
+    return undefined;
   }
+  const { data: graphData } = safeParse.data;
 
-  if (acpMessageType === "error") {
-    return {
-      role: "assistant",
-      content: data.error,
-      error: data.error,
-      isDone: data.exiting,
-      nodeType,
-    };
-  }
+  const nodeType = graphData.node_type;
 
   if (nodeType === "executor") {
     return {
       role: "assistant",
       content: null,
-      actions: getLastAITools(data),
-      error: data.error,
-      isDone: data.exiting,
+      actions: getLastAITools(graphData),
+      error: graphData.error,
+      isDone: graphData.exiting,
       nodeType,
     };
   }
@@ -42,13 +29,21 @@ export const transformSSEDataToMessage = (
   if (nodeType === "thinking") {
     return {
       role: "assistant",
-      content: data.brain.summary,
-      thought: data.brain.thought,
-      error: data.error,
-      isDone: data.exiting,
+      content: graphData.brain.summary,
+      thought: graphData.brain.thought,
+      error: graphData.error,
+      isDone: graphData.exiting,
       nodeType,
     };
   }
 
   return undefined;
 };
+
+export const SSEMessageZod = z.object({
+  type: z.string().nullish(),
+  run_id: z.string().nullish(),
+  status: z.string().nullish(),
+  data: GraphDataZod,
+});
+export type SSEMessage = z.infer<typeof SSEMessageZod>;

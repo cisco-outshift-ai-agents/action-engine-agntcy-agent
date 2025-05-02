@@ -36,6 +36,13 @@ export const PlanZod = z.object({
 export type Plan = z.infer<typeof PlanZod>;
 
 export const GraphDataZod = z.object({
+  node_type: z.union([
+    z.literal("thinking"),
+    z.literal("planning"),
+    z.literal("executor"),
+    z.literal("human_approval"),
+    z.literal("tool_selection"),
+  ]),
   brain: z.object({
     future_plans: z.string().nullish(),
     important_contents: z.string().nullish(),

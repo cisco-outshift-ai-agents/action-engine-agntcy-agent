@@ -24,11 +24,7 @@ export const useChatStream = () => {
       // Handle interrupts
       if (data.type === "interrupt") {
         setIsWaitingForApproval(true);
-        const newMessage = transformSSEDataToMessage(
-          data.data,
-          data.event,
-          data.type
-        );
+        const newMessage = transformSSEDataToMessage(data);
         if (newMessage) {
           addMessage(newMessage);
         }
@@ -46,11 +42,7 @@ export const useChatStream = () => {
       }
 
       // Process messages
-      const newMessage = transformSSEDataToMessage(
-        data.data,
-        data.event,
-        data.type
-      );
+      const newMessage = transformSSEDataToMessage(data);
       if (newMessage) {
         addMessage(newMessage);
         // Reset approval state when we get a non-interrupt message
