@@ -4,7 +4,6 @@ import logging
 import os
 from datetime import datetime
 import websockets
-from langsmith import Client
 from urllib.parse import urljoin
 import argparse
 
@@ -13,15 +12,8 @@ class WebAutomation:
     def __init__(self, url, task):
         self.url = url
         self.task = task
-        self.chat_output = []
         self.setup_logging()
-        self.langsmith_client = Client(
-            api_url=os.getenv(
-                "LANGSMITH_ENDPOINT", "https://langsmith.outshift.io/api/v1"
-            ),
-            api_key=os.getenv("LANGSMITH_API_KEY"),
-        )
-        self.project_name = os.getenv("LANGSMITH_PROJECT", "action-engine-testing")
+        self.status = ""
 
     def setup_logging(self):
         logging.basicConfig(
@@ -51,106 +43,93 @@ class WebAutomation:
                         self.logger.info(f"Received run_id: {run_id}")
 
                         # Start monitoring execution
-                        await self.monitor_execution(websocket, run_id)
+                        await self.monitor_execution(websocket)
                         return run_id
 
-        except websockets.exceptions.ConnectionError as e:
+        except websockets.exceptions.WebSocketException as e:
             self.logger.error(f"Failed to connect to WebSocket: {str(e)}")
-            raise
+            self.status = "websocket connection error"
+            return None
         except Exception as e:
             self.logger.error(f"Unexpected error during WebSocket connection: {str(e)}")
-            raise
+            self.status = "unknown websocket error"
+            return None
 
-    async def monitor_execution(self, websocket, run_id: str):
+    async def monitor_execution(self, websocket):
         """Monitor the execution and collect outputs"""
         try:
             while True:
                 message = await websocket.recv()
                 data = json.loads(message)
 
-                # Store outputs
-                if "output" in data:
-                    self.chat_output.append(data["output"])
-
-                # Check completion
-                if data.get("type") == "execution_completed":
+                # Check for termination/completion
+                if any(
+                    [
+                        # Normal completion via type
+                        data.get("type") == "execution_completed",
+                        # Termination via executor state
+                        isinstance(data.get("executor"), dict)
+                        and data["executor"].get("exiting") is True,
+                        # Tool-based termination
+                        any(
+                            msg.get("tool_calls", [])
+                            and any(
+                                call.get("name") == "terminate"
+                                for call in msg.get("tool_calls", [])
+                            )
+                            for msg in data.get("executor", {}).get("messages", [])
+                        ),
+                    ]
+                ):
                     self.logger.info("Execution completed")
+                    if isinstance(data.get("executor"), dict):
+                        self.status = "success"
                     break
 
-                # Store any error messages
+                # Handle errors
                 if "error" in data:
-                    self.logger.error(f"Execution error: {data['error']}")
-                    raise Exception(data["error"])
+                    error_msg = data["error"]
+                    self.logger.error(f"Execution error: {error_msg}")
 
-        except websockets.exceptions.ConnectionClosed:
-            self.logger.error("WebSocket connection closed unexpectedly")
-            raise
+                    # Check for graph recursion error
+                    if (
+                        "Recursion limit" in error_msg
+                        and "GRAPH_RECURSION_LIMIT" in error_msg
+                    ):
+                        self.logger.info(
+                            "Graph recursion limit reached - treating as completion"
+                        )
+                        self.status = "graph recursion error"
+                        break
+                    else:
+                        return  # Exit monitoring but don't raise exception
 
-    async def get_langsmith_trace(self, run_id: str):
-        """Fetch the trace data from Langsmith"""
-        try:
-            run = self.langsmith_client.read_run(run_id)
-            trace_data = {
-                "run_info": {
-                    "id": run.id,
-                    "name": run.name,
-                    "status": run.status,
-                    "error": str(run.error) if run.error else None,
-                    "start_time": (
-                        run.start_time.isoformat() if run.start_time else None
-                    ),
-                    "end_time": run.end_time.isoformat() if run.end_time else None,
-                },
-                "execution_steps": [],
-            }
+        except websockets.exceptions.WebSocketException as e:
+            self.logger.error(f"WebSocket error during monitoring: {str(e)}")
+            self.status = "websocket monitoring error"
 
-            # Get all child runs to capture execution steps
-            child_runs = self.langsmith_client.list_runs(
-                project_name=self.project_name,
-                parent_run_id=run_id,
-                execution_order="asc",
-            )
-
-            for child_run in child_runs:
-                step_data = {
-                    "id": child_run.id,
-                    "name": child_run.name,
-                    "status": child_run.status,
-                    "inputs": child_run.inputs,
-                    "outputs": child_run.outputs,
-                    "start_time": (
-                        child_run.start_time.isoformat()
-                        if child_run.start_time
-                        else None
-                    ),
-                    "end_time": (
-                        child_run.end_time.isoformat() if child_run.end_time else None
-                    ),
-                }
-                trace_data["execution_steps"].append(step_data)
-
-            return trace_data
-        except Exception as e:
-            self.logger.error(f"Failed to get trace data: {str(e)}")
-            raise
-
-    def save_results(self, run_id: str, trace_data: dict):
+    def save_results(self, run_id: str, filename: str = None):
         """Save the task results and trace data to a file"""
         try:
             output_data = {
                 "task": self.task,
                 "run_id": run_id,
-                "chat_output": self.chat_output,
-                "status": "completed" if self.chat_output else "error",
+                "status": self.status,
                 "timestamp": datetime.now().isoformat(),
-                "trace": trace_data,
+                "langsmith_project": os.getenv("LANGSMITH_PROJECT"),
             }
 
-            filename = f"task_output_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            # Use existing filename if provided, otherwise create new one
+            if not filename:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                run_id_part = f"_{run_id}" if run_id else ""
+                filename = f"task_output{run_id_part}_{timestamp}.json"
+
+            # Update the file with current status
             with open(filename, "w", encoding="utf-8") as f:
                 json.dump(output_data, f, indent=2, ensure_ascii=False)
 
-            self.logger.info(f"Results saved to {filename}")
+            self.logger.info(f"Results saved/updated in {filename}")
             return filename
         except Exception as e:
             self.logger.error(f"Failed to save results: {str(e)}")
@@ -158,22 +137,35 @@ class WebAutomation:
 
     async def run(self):
         """Main execution method"""
+        run_id = None
+        output_file = None
         try:
             # Connect to WebSocket and get run ID
             run_id = await self.connect_websocket()
+            if not run_id:
+                self.logger.warning("No run_id received, execution may have failed")
 
-            # Wait for a short time to ensure execution is complete
-            await asyncio.sleep(2)
+            # Create initial output file
+            output_file = self.save_results(run_id)
 
-            # Get trace data from Langsmith
-            trace_data = await self.get_langsmith_trace(run_id)
+            # Keep updating status until completion
+            while self.status not in ["success", "graph recursion error"]:
+                await asyncio.sleep(1)
+                output_file = self.save_results(run_id, filename=output_file)
 
-            # Save results with trace
-            output_file = self.save_results(run_id, trace_data)
             return output_file
         except Exception as e:
             self.logger.error(f"Automation failed: {str(e)}")
-            raise
+            self.status = "automation error"
+
+            # Try to save final status even if something went wrong
+            if output_file:
+                try:
+                    self.save_results(run_id, filename=output_file)
+                except Exception as save_error:
+                    self.logger.error(f"Failed to save final status: {str(save_error)}")
+
+            return output_file
 
 
 def main():
