@@ -6,6 +6,10 @@ from pathlib import Path
 from typing import Dict, Optional
 from uuid import uuid4
 
+import agent_workflow_server
+from src.patched_runs import apply_route_override
+
+
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, APIRouter
 from contextlib import asynccontextmanager
@@ -18,6 +22,7 @@ from src.graph.environments.terminal import TerminalManager
 from src.utils.default_config_settings import default_config
 from src.lto.main import analyze_event_log, summarize_with_ai
 from src.lto.storage import EventStorage
+
 
 # Configure logging
 logging.basicConfig(
@@ -62,6 +67,7 @@ loop.create_task(start_workers(n_workers))
 
 # Create FastAPI app with lifespan
 app = FastAPI()
+apply_route_override()
 
 # Initialize with WorkflowSrv's routes and middleware
 app.router = WorkflowSrvApp.router
