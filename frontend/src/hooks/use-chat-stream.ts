@@ -15,12 +15,46 @@ export const useChatStream = () => {
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
     }
+    console.log("Setting up EventSource for", runId);
 
     const events = new EventSource(chatApi.getStreamUrl(runId));
+    events.onopen = () => console.log("EventSource connection opened");
 
+    // Handle default message events
     events.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+      console.log("💾 SSE default message received:", event.data);
+      try {
+        const data = JSON.parse(event.data);
+        handleEventData(data);
+      } catch (error) {
+        console.error("Error parsing default SSE message:", error);
+      }
+    };
 
+    // Handle specific agent_event events
+    events.addEventListener("agent_event", (event) => {
+      console.log("💾 agent_event received:", event.data);
+      try {
+        const data = JSON.parse(event.data);
+        handleEventData(data);
+      } catch (error) {
+        console.error("Error parsing agent_event:", error);
+      }
+    });
+
+    // Common handler for both event types
+    const handleEventData = (data: any) => {
+      // Handling for approval requests that don't follow expected format
+      if (data.values?.tool_call && data.values?.message) {
+        addMessage({
+          role: "assistant",
+          content: data.values.message,
+          toolCall: data.values.tool_call,
+          nodeType: "approval_request",
+        });
+        setIsWaitingForApproval(true);
+        return;
+      }
       // Handle interrupts
       if (data.type === "interrupt") {
         setIsWaitingForApproval(true);
@@ -36,14 +70,19 @@ export const useChatStream = () => {
         return;
       }
 
-      // Handle plan data first
-      if (data.event === "planning" && data.data.plan) {
+      // Handle plan data from either structure
+      if (data.event === "planning" && data.data?.plan) {
         setPlan(data.data.plan);
+      }
+
+      if (data.values?.plan) {
+        setPlan(data.values.plan);
       }
 
       // Process messages
       const newMessage = transformSSEDataToMessage(data);
       if (newMessage) {
+        console.log("Adding message:", newMessage);
         addMessage(newMessage);
         // Reset approval state when we get a non-interrupt message
         setIsWaitingForApproval(false);

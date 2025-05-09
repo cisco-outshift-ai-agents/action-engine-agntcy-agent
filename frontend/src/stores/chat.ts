@@ -30,6 +30,8 @@ export const useChatStore = create<ChatStoreState & ChatStoreActions>(
 
     messages: [],
     addMessage: (msg) => {
+      console.log("💾 Adding message to store:", msg);
+
       set((state) => ({
         messages: [...state.messages, msg],
       }));

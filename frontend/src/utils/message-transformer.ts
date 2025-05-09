@@ -6,12 +6,22 @@ import { z } from "zod";
 export const transformSSEDataToMessage = (
   data: unknown
 ): ChatMessageProps | undefined => {
+  console.log("💾 Transforming SSE data to message:", data);
+
+  // Modified schema to allow either data or values
   const safeParse = SSEMessageZod.safeParse(data);
   if (!safeParse.success) {
     console.error("Failed to parse SSE data:", safeParse.error);
     return undefined;
   }
-  const { data: graphData } = safeParse.data;
+
+  // Extract graphData from either data or values
+  const graphData = safeParse.data.data || safeParse.data.values;
+
+  if (!graphData) {
+    console.error("Graph data is missing in the parsed SSE data.");
+    return undefined;
+  }
 
   const nodeType = graphData.node_type;
 
@@ -44,6 +54,7 @@ export const SSEMessageZod = z.object({
   type: z.string().nullish(),
   run_id: z.string().nullish(),
   status: z.string().nullish(),
-  data: GraphDataZod,
+  data: GraphDataZod.optional(),
+  values: GraphDataZod.optional(),
 });
 export type SSEMessage = z.infer<typeof SSEMessageZod>;
