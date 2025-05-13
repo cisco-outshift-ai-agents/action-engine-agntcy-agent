@@ -36,46 +36,84 @@ export const PlanZod = z.object({
 export type Plan = z.infer<typeof PlanZod>;
 
 export const GraphDataZod = z.object({
-  brain: z.object({
-    future_plans: z.string().nullish(),
-    important_contents: z.string().nullish(),
-    prev_action_evaluation: z.string().nullish(),
-    task_progress: z.string().nullish(),
-    summary: z.string().nullish(),
-    thought: z.string().nullish(),
-  }),
-  context: z.object({}),
-  error: z.any(),
-  exiting: z.boolean(),
+  node_type: z.union([
+    z.literal("thinking"),
+    z.literal("planning"),
+    z.literal("executor"),
+    z.literal("human_approval"),
+    z.literal("tool_selection"),
+    z.literal("tool_generator"),
+    z.literal("base"),
+  ]),
+
+  brain: z
+    .union([
+      z.object({
+        future_plans: z.string().nullish(),
+        important_contents: z.string().nullish(),
+        prev_action_evaluation: z.string().nullish(),
+        task_progress: z.string().nullish(),
+        summary: z.string().nullish(),
+        thought: z.string().nullish(),
+      }),
+      z.object({}),
+    ])
+    .optional()
+    .default({}),
+  context: z.object({}).optional().default({}),
+  error: z.any().optional(),
+  exiting: z.boolean().optional().default(false),
   plan: PlanZod.nullish(),
-  messages: z.array(
-    z.object({
-      type: z.union([
-        z.literal("AIMessage"),
-        z.literal("ToolMessage"),
-        z.literal("HumanMessage"),
-        z.literal("SystemMessage"),
-      ]),
-      content: z.string().nullish(),
-      tool_calls: z
-        .array(
-          z.object({
-            id: z.string(),
-            name: z.string(),
-            type: z.string(),
-            args: z.record(z.unknown()),
-          })
-        )
-        .nullish(),
-    })
-  ),
+  messages: z
+    .array(
+      z.object({
+        type: z.union([
+          z.literal("AIMessage"),
+          z.literal("ToolMessage"),
+          z.literal("HumanMessage"),
+          z.literal("SystemMessage"),
+        ]),
+        content: z.string().nullish(),
+        tool_calls: z
+          .array(
+            z.object({
+              id: z.string(),
+              name: z.string(),
+              type: z.string(),
+              args: z.record(z.unknown()),
+            })
+          )
+          .nullish(),
+      })
+    )
+    .optional()
+    .default([]),
   next_node: z.string().nullish(),
   summary: z.string().nullish(),
   task: z.string(),
   thought: z.string().nullish(),
-  tools_used: z.array(z.unknown()),
+  tools_used: z.array(z.unknown()).optional().default([]),
+  pending_approval: z.record(z.unknown()).optional(),
+  tool_calls: z.array(z.unknown()).optional(),
 });
 export type GraphData = z.infer<typeof GraphDataZod>;
+
+export const ApprovalMessageZod = z.object({
+  type: z.string().nullish(),
+  run_id: z.string().nullish(),
+  status: z.string().nullish(),
+  values: z.object({
+    tool_call: z.object({
+      name: z.string(),
+      args: z.record(z.unknown()),
+      id: z.string(),
+      type: z.string(),
+    }),
+    message: z.string(),
+  }),
+});
+
+export type ApprovalMessage = z.infer<typeof ApprovalMessageZod>;
 
 export const NodeUpdateZod = z.object({
   thinking: GraphDataZod.optional(),
