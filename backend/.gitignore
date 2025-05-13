@@ -24,7 +24,6 @@ share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -170,6 +169,7 @@ tmp
 
 
 .DS_Store
+agws_storage.pkl
 
 private_example.py
 private_example

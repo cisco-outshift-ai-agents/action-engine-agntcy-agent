@@ -1,9 +1,11 @@
-import logging
+"""Graph-based execution engine."""
 
+import logging
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, Graph, StateGraph
 from langgraph.checkpoint.memory import MemorySaver
 
+from src.graph.thread_agent_wrapper import ThreadAgentWrapper
 from src.graph.nodes.approval import HumanApprovalNode
 from src.graph.nodes.executor import ExecutorNode
 from src.graph.nodes.planning import PlanningNode
@@ -15,12 +17,10 @@ logger = logging.getLogger(__name__)
 
 
 def create_agent_graph(config: RunnableConfig = None) -> Graph:
-    """Creates the main agent workflow graph with agent loop behavior and Human in the loop
-    functionality"""
-
+    """Creates the core LangGraph workflow."""
     workflow = StateGraph(AgentState)
 
-    workflow.add_node("tool_selection", ToolGeneratorNode())
+    workflow.add_node("tool_generator", ToolGeneratorNode())
     workflow.add_node("human_approval", HumanApprovalNode())
     workflow.add_node("executor", ExecutorNode())
     workflow.add_node("planning", PlanningNode())
@@ -33,10 +33,10 @@ def create_agent_graph(config: RunnableConfig = None) -> Graph:
     )
 
     workflow.add_conditional_edges(
-        "planning", lambda state: END if state.get("exiting") else "tool_selection"
+        "planning", lambda state: END if state.get("exiting") else "tool_generator"
     )
 
-    workflow.add_edge("tool_selection", "human_approval")
+    workflow.add_edge("tool_generator", "human_approval")
 
     workflow.add_conditional_edges(
         "human_approval",
@@ -55,9 +55,15 @@ def create_agent_graph(config: RunnableConfig = None) -> Graph:
         "executor", lambda state: END if state.get("exiting") else "thinking"
     )
 
-    # Add a checkpointer to the workflow to save the state at each step
-    checkpointer = MemorySaver()
+    # Use our custom checkpointer that handles environment objects
+    from src.graph.checkpointer import EnvironmentAwareCheckpointer
+
+    checkpointer = EnvironmentAwareCheckpointer()
     return workflow.compile(checkpointer=checkpointer)
 
 
-action_engine_graph = create_agent_graph()
+# Create the base graph
+base_graph = create_agent_graph()
+
+# Wrap it in our ThreadEnvironmentAgent that handles environment management
+action_engine_graph = ThreadAgentWrapper(base_graph)

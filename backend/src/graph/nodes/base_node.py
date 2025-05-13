@@ -13,7 +13,7 @@ from langchain_openai import ChatOpenAI
 
 from src.graph.prompts import get_tool_call_retry_prompt
 from src.graph.types import AgentState, WorkableToolCall
-from tools.tool_collection import ActionEngineToolCollection
+from src.tools.tool_collection import ActionEngineToolCollection
 
 logger = logging.getLogger(__name__)
 
@@ -26,11 +26,19 @@ class BaseNode:
 
     async def __call__(self, state: AgentState, config: Dict):
         """Make node callable for LangGraph and ensure async execution"""
+        # Set node type in state before execution
+        state["node_type"] = self.name
         return await self.ainvoke(state, config)
 
     def invoke(self, state: AgentState, config: Dict):
         """Prevent sync execution"""
         raise NotImplementedError(f"{self.name} node requires async execution")
+
+    async def ainvoke(self, state: AgentState, config: Dict = None) -> AgentState:
+        """Each node must implement its own invocation logic"""
+        raise NotImplementedError(
+            f"{self.name} node requires implementation of ainvoke"
+        )
 
     async def execute_tools(
         self, message: AIMessage, config: Dict = None
@@ -285,15 +293,21 @@ class BaseNode:
                 return None
 
             parsed_tool_call = json.loads(string)
-            if isinstance(parsed_tool_call, dict) and "name" in parsed_tool_call:
-                logger.debug(
-                    f"{self.name} node found potential tool call in message content: {parsed_tool_call.get('name')}"
-                )
-                return WorkableToolCall(
-                    name=parsed_tool_call.get("name"),
-                    args=parsed_tool_call.get("args"),
-                    call_id=parsed_tool_call.get("id"),
-                )
+            if isinstance(parsed_tool_call, dict):
+                # Handle both raw format and nested arguments format
+                if "name" in parsed_tool_call:
+                    # We are expecting args, but sometimes the model wants to send it as "arguments"
+                    args = parsed_tool_call.get("arguments") or parsed_tool_call.get(
+                        "args"
+                    )
+                    logger.debug(
+                        f"{self.name} node found potential tool call in message content: {parsed_tool_call.get('name')}"
+                    )
+                    return WorkableToolCall(
+                        name=parsed_tool_call.get("name"),
+                        args=args,
+                        call_id=parsed_tool_call.get("id"),
+                    )
 
             return None
 

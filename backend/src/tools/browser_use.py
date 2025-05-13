@@ -7,7 +7,7 @@ from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
 from src.browser.custom_context import CustomBrowserContext
-from tools.utils import stringify_dom_element_node
+from src.tools.utils import stringify_dom_element_node
 
 from .base import ToolResult
 

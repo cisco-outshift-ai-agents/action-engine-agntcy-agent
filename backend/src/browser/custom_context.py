@@ -15,7 +15,7 @@ from playwright.async_api import (
     Browser as PlaywrightBrowser,
 )
 
-from tools.utils import stringify_dom_element_node
+from src.tools.utils import stringify_dom_element_node
 
 logger = logging.getLogger(__name__)
 

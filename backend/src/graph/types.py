@@ -105,12 +105,16 @@ class ActionResult(BaseModel):
     extracted_content: Optional[str] = None
 
 
+# TODO: (julvalen) Ensure this syncs up with the AgentOutput Pydantic model in /src/graph/manifest/models.py
+# I don't know how to resolve the necessity between the Annotations in the TypedDict
+# and the need for AgentOutput to be a Pydantic model.
 class AgentState(TypedDict, total=False):
     """Enhanced state with brain tracking and concurrent update handling"""
 
     # Core state
-    task: Annotated[str, last_value_reducer]  # Now mutable with reducer
-    plan: Annotated[Optional[Dict[str, Any]], last_value_reducer]  # Current plan state
+    task: Annotated[str, last_value_reducer]
+    plan: Annotated[Optional[Dict[str, Any]], last_value_reducer]
+    node_type: Annotated[str, last_value_reducer]  # The current executing node type
 
     # Brain state
     brain: Annotated[Dict[str, Any], dict_merge_reducer]
@@ -119,9 +123,7 @@ class AgentState(TypedDict, total=False):
     context: Annotated[Dict[str, Any], dict_merge_reducer]
 
     # Memory and history
-    messages: Annotated[
-        List[Dict], last_value_reducer
-    ]  # Every node responsible for cleaning the messages list
+    messages: Annotated[List[Dict], last_value_reducer]
     tools_used: Annotated[List[Dict], list_extend_reducer]
 
     # Control flow
@@ -145,6 +147,7 @@ def create_default_agent_state(task: str = "") -> Dict:
     return {
         "task": task,
         "plan": None,
+        "node_type": "",  # Empty string for initial state
         "brain": {},
         "thought": "",
         "summary": "",
