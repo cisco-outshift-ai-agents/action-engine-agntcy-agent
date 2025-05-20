@@ -204,14 +204,50 @@ async def browser_use_tool(
         elif params.action == BrowserAction.CLICK:
             if index is None:
                 return ToolResult(error="Index is required for 'click' action")
+
+            # Get element and validate it exists
             element = await browser_context.get_dom_element_by_index(index)
             if not element:
                 return ToolResult(error=f"Element with index {index} not found")
-            download_path = await browser_context._click_element_node(element)
-            output = f"Clicked element at index {index} ({stringify_dom_element_node(element)})"
-            if download_path:
-                output += f" - Downloaded file to {download_path}"
-            return ToolResult(output=output)
+
+            # Check for file uploader
+            is_uploader = False
+            try:
+                is_uploader = await browser_context.is_file_uploader(element)
+            except Exception:
+                pass
+
+            if is_uploader:
+                return ToolResult(
+                    error=f"Element {index} is a file upload input. Use appropriate file upload function instead."
+                )
+
+            # Track initial tab count
+            initial_tab_count = len((await browser_context.get_tabs_info()))
+
+            try:
+                # Perform click and capture download info
+                download_path = await browser_context._click_element_node(element)
+                message = f"Clicked element at index {index}"
+
+                # Add download info to message if present
+                if download_path:
+                    message = f"Downloaded file to {download_path}"
+
+                # Check for new tab
+                current_tab_count = len((await browser_context.get_tabs_info()))
+                if current_tab_count > initial_tab_count:
+                    message += " - New tab opened"
+                    # Switch to new tab
+                    await browser_context.switch_to_tab(-1)
+
+                return ToolResult(output=message)
+
+            except Exception as e:
+                logger.warning(f"Click failed - page may have changed: {str(e)}")
+                return ToolResult(
+                    error=f"Click failed - page may have changed: {str(e)}"
+                )
 
         elif params.action == BrowserAction.INPUT_TEXT:
             if index is None or not text:
@@ -282,5 +318,10 @@ async def browser_use_tool(
             return ToolResult(error=f"Action {params.action} not implemented")
 
     except Exception as e:
-        logger.info(f"Browser action failed: {str(e)}")
-        return ToolResult(error=f"Browser action failed: {str(e)}")
+        logger.error(
+            f"Browser action failed - Type: {type(e)}, Value: {repr(e)}, Raw: {e}"
+        )
+        # If it's just a number, wrap it in a more descriptive error
+        if isinstance(e, (int, str)) and str(e).isdigit():
+            return ToolResult(error=f"Click operation returned unexpected value: {e}")
+        return ToolResult(error=str(e))

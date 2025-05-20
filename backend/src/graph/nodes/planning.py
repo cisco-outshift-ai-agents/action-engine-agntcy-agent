@@ -1,7 +1,7 @@
 import logging
-from typing import Dict
+from typing import Dict, List
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, BaseMessage
 from langchain_openai import ChatOpenAI
 
 from src.graph.environments.planning import PlanningEnvironment
@@ -21,7 +21,9 @@ class PlanningNode(BaseNode):
 
     def __init__(self):
         self.name = "planning"
-        self.tool_collection = ActionEngineToolCollection([planning_tool])
+        self.tool_collection = ActionEngineToolCollection(
+            [planning_tool, terminate_tool]
+        )
 
     async def ainvoke(self, state: AgentState, config: Dict = None) -> AgentState:
         logger.info("PlanningNode invoked")
@@ -50,10 +52,29 @@ class PlanningNode(BaseNode):
         system_message = SystemMessage(content=planner_prompt)
         local_messages.append(system_message)
 
-        # Hydrate existing messages
         hydrated = hydrate_messages(state["messages"])
-        hydrated = self.prune_messages(hydrated)
-        local_messages.extend(hydrated)
+        hydrated: List[BaseMessage] = self.prune_messages(hydrated)
+
+        # Grab the last executor and tool generator messages
+        filtered_messages = []
+        for msg in hydrated:
+            if not isinstance(msg, BaseMessage):
+                continue
+            if not isinstance(msg.content, str):
+                continue
+            if "Executor Node" in msg.content or "Tool Generator Node" in msg.content:
+                if isinstance(msg, (AIMessage, HumanMessage, SystemMessage)):
+                    filtered_messages.append(msg)
+
+        if len(filtered_messages) > 1:
+            filtered_messages = filtered_messages[-4:]
+            local_messages.append(
+                HumanMessage(
+                    content="The last four tool generator and executor actions performed: \n"
+                )
+            )
+
+        local_messages.extend(filtered_messages)
 
         # Add new human message with the task
         human_message = HumanMessage(content=state["task"])

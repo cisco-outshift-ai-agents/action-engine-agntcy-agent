@@ -60,6 +60,7 @@ async def planning_tool(
 
     Commands:
     - CREATE: Create a new plan with nested steps. Requires 'task' (used as title if no title provided) and 'steps' array.
+      Note: This can be used either to create a new plan, or to refresh a plan if the user's task does not actively relate to the current plan.
       Example: {
           "command": "create",
           "task": "Build a website",
