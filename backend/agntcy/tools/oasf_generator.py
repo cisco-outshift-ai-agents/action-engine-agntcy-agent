@@ -171,7 +171,7 @@ async def generate_oasf_schema() -> Dict:
         provider=os.getenv("LLM_PROVIDER"),
         model_name=os.getenv("LLM_MODEL_NAME"),
         temperature=float(os.getenv("LLM_TEMPERATURE", 0.0)),
-        llm_base_url="http://localhost:8000/v1",
+        llm_base_url=os.getenv("LLM_BASE_URL"),
         llm_api_key=os.getenv("LLM_API_KEY"),
     )
 
