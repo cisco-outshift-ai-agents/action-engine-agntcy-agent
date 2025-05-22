@@ -71,10 +71,9 @@ export const useChatStream = () => {
       }
 
       // Handle plan data from either structure
-      if (data.event === "planning" && data.data?.plan) {
+      if (data.data?.plan) {
         setPlan(data.data.plan);
       }
-
       if (data.values?.plan) {
         setPlan(data.values.plan);
       }

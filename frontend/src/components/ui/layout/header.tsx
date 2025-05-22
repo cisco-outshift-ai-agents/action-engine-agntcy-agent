@@ -20,7 +20,7 @@ export const NavBar = () => {
               ActionEngine
             </span>
             <span className="text-gray-400 text-xs">
-              Agentic AI Networking Assistant
+              Agentic Computer-use Assistant
             </span>
           </div>
         </div>

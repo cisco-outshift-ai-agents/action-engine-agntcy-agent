@@ -41,24 +41,21 @@ export const GraphDataZod = z.object({
     z.literal("planning"),
     z.literal("executor"),
     z.literal("human_approval"),
+    z.literal("approval_request"),
     z.literal("tool_selection"),
     z.literal("tool_generator"),
     z.literal("base"),
   ]),
 
   brain: z
-    .union([
-      z.object({
-        future_plans: z.string().nullish(),
-        important_contents: z.string().nullish(),
-        prev_action_evaluation: z.string().nullish(),
-        task_progress: z.string().nullish(),
-        summary: z.string().nullish(),
-        thought: z.string().nullish(),
-      }),
-      z.object({}),
-    ])
-    .optional()
+    .object({
+      future_plans: z.string().optional(),
+      important_contents: z.string().optional(),
+      prev_action_evaluation: z.string().optional(),
+      task_progress: z.string().optional(),
+      summary: z.string().optional(),
+      thought: z.string().optional(),
+    })
     .default({}),
   context: z.object({}).optional().default({}),
   error: z.any().optional(),

@@ -1,6 +1,6 @@
 import { ChatMessageProps } from "@/components/chat/chat-components/chat-message";
 import { GraphDataZod } from "@/pages/session/types";
-import { getLastAITools } from "@/utils";
+import { getLastAIMessageToolsStrAry } from "@/utils";
 import { z } from "zod";
 
 export const transformSSEDataToMessage = (
@@ -24,15 +24,16 @@ export const transformSSEDataToMessage = (
   }
 
   const nodeType = graphData.node_type;
+  const messages = graphData.messages || [];
 
   if (nodeType === "executor") {
     return {
       role: "assistant",
       content: null,
-      actions: getLastAITools(graphData),
       error: graphData.error,
       isDone: graphData.exiting,
       nodeType,
+      messages,
     };
   }
 
@@ -44,6 +45,17 @@ export const transformSSEDataToMessage = (
       error: graphData.error,
       isDone: graphData.exiting,
       nodeType,
+      messages,
+    };
+  }
+
+  if (nodeType === "planning") {
+    return {
+      role: "assistant",
+      content: graphData.brain.summary,
+      actions: getLastAIMessageToolsStrAry(graphData.messages),
+      nodeType,
+      messages,
     };
   }
 

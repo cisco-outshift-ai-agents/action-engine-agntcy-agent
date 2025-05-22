@@ -11,10 +11,18 @@ export const extractHostname = (summary: string): string => {
   return match ? match[1] : "default-hostname";
 };
 
-export const getLastAITools = (data: GraphData): string[] => {
-  const lastAIMessage = data.messages
-    .filter((m) => m.type === "AIMessage")
-    .pop();
+export const getLastAIMessage = (
+  messages: GraphData["messages"]
+): GraphData["messages"][number] | undefined => {
+  const lastAIMessage = messages.filter((m) => m.type === "AIMessage").pop();
+
+  return lastAIMessage;
+};
+
+export const getLastAIMessageToolsStrAry = (
+  messages: GraphData["messages"]
+): string[] => {
+  const lastAIMessage = messages.filter((m) => m.type === "AIMessage").pop();
 
   if (!lastAIMessage) {
     return [];
