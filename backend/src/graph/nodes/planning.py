@@ -21,9 +21,7 @@ class PlanningNode(BaseNode):
 
     def __init__(self):
         self.name = "planning"
-        self.tool_collection = ActionEngineToolCollection(
-            [planning_tool, terminate_tool]
-        )
+        self.tool_collection = ActionEngineToolCollection([planning_tool])
 
     async def ainvoke(self, state: AgentState, config: Dict = None) -> AgentState:
         logger.info("PlanningNode invoked")
