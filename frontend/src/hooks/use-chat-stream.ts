@@ -79,8 +79,6 @@ export const useChatStream = () => {
         });
         setIsWaitingForApproval(true);
         return;
-      } else {
-        console.log("I'm not an interrupt!", data, interruptParse.error);
       }
 
       const graphDataParse = GraphDataSSEMessage.safeParse(data);
