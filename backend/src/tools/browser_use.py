@@ -226,28 +226,48 @@ async def browser_use_tool(
             initial_tab_count = len((await browser_context.get_tabs_info()))
 
             try:
-                # Perform click and capture download info
-                download_path = await browser_context._click_element_node(element)
-                message = f"Clicked element at index {index}"
+                # Get element text before clicking in case of navigation
+                element_text = element.get_all_text_till_next_clickable_element(
+                    max_depth=2
+                )
+                logger.debug(f"Element xpath: {element.xpath}")
+                logger.debug(f"Element text: {element_text}")
 
-                # Add download info to message if present
-                if download_path:
-                    message = f"Downloaded file to {download_path}"
+                try:
+                    # Perform click and capture download info
+                    download_path = await browser_context._click_element_node(element)
 
-                # Check for new tab
-                current_tab_count = len((await browser_context.get_tabs_info()))
-                if current_tab_count > initial_tab_count:
-                    message += " - New tab opened"
-                    # Switch to new tab
-                    await browser_context.switch_to_tab(-1)
+                    # Build success message
+                    if download_path:
+                        message = f"Downloaded file to {download_path}"
+                    else:
+                        message = f"Clicked element with text: {element_text}"
 
-                return ToolResult(output=message)
+                    # Check for new tab after successful click
+                    try:
+                        current_tab_count = len((await browser_context.get_tabs_info()))
+                        if current_tab_count > initial_tab_count:
+                            message += " - New tab opened"
+                            await browser_context.switch_to_tab(-1)
+                    except Exception as tab_error:
+                        # Don't fail if we can't check tabs - navigation might have happened
+                        logger.debug(
+                            f"Tab check failed (likely due to navigation): {tab_error}"
+                        )
+
+                    return ToolResult(output=message)
+
+                except Exception as click_error:
+                    if "context was destroyed" in str(click_error):
+                        # Navigation likely occurred - treat as success
+                        return ToolResult(
+                            output=f"Clicked element that triggered navigation: {element_text}"
+                        )
+                    raise  # Re-raise other click errors
 
             except Exception as e:
-                logger.warning(f"Click failed - page may have changed: {str(e)}")
-                return ToolResult(
-                    error=f"Click failed - page may have changed: {str(e)}"
-                )
+                logger.warning(f"Click failed: {str(e)}")
+                return ToolResult(error=str(e))
 
         elif params.action == BrowserAction.INPUT_TEXT:
             if index is None or not text:
