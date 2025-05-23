@@ -51,6 +51,7 @@ export const useChatStream = () => {
           content: data.values.message,
           toolCall: data.values.tool_call,
           nodeType: "approval_request",
+          messages: data.values.messages,
         });
         setIsWaitingForApproval(true);
         return;

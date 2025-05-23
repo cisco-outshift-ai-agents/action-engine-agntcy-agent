@@ -10,7 +10,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { GraphData } from "@/pages/session/types";
-import { getLastAIMessage } from "@/utils";
+import { getLastToolCallAIMessage, getLastToolMessage } from "@/utils";
 import { TodoFixAny } from "@/types";
 
 const ChatMessage: React.FC<ChatMessageProps> = (props) => {
@@ -103,14 +103,14 @@ const UserChatMessage: React.FC<ChatMessageProps> = ({ content, role }) => {
 };
 
 const PlanningChatMessage: React.FC<ChatMessageProps> = ({ messages }) => {
-  const lastAIMessage = getLastAIMessage(messages);
+  const lastAIMessage = getLastToolCallAIMessage(messages);
   const lastMessageTC = lastAIMessage?.tool_calls?.[0];
   const args = lastMessageTC?.args || {};
   const command = args["command"] || "update_plan";
 
   const commandMapper = {
     update_plan: "Updating the plan...",
-    create_plan: "Creating a new plan...",
+    create: "Creating a new plan...",
     mark_steps: "Updating the plan...",
   };
 
@@ -135,7 +135,13 @@ const PlanningChatMessage: React.FC<ChatMessageProps> = ({ messages }) => {
   );
 };
 
-const ExecutorChatMessage: React.FC<ChatMessageProps> = ({ actions }) => {
+const ExecutorChatMessage: React.FC<ChatMessageProps> = ({
+  actions,
+  messages,
+}) => {
+  const lastToolMessage = getLastToolMessage(messages);
+  const lastToolMessageContent = lastToolMessage?.content || "";
+
   return (
     <div className="text-l text-[#f7f7f7]">
       <div className="py-2">
@@ -149,6 +155,12 @@ const ExecutorChatMessage: React.FC<ChatMessageProps> = ({ actions }) => {
           {actions?.length ? <ExecutorTools actions={actions} /> : null}
         </div>
       </div>
+      {lastToolMessageContent && (
+        <div className="flex gap-2 font-mono overflow-auto">
+          🛠️
+          <p className="text-sm text-gray-400">{lastToolMessageContent}</p>
+        </div>
+      )}
     </div>
   );
 };

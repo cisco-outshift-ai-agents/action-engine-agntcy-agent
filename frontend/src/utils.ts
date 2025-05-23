@@ -11,10 +11,12 @@ export const extractHostname = (summary: string): string => {
   return match ? match[1] : "default-hostname";
 };
 
-export const getLastAIMessage = (
+export const getLastToolCallAIMessage = (
   messages: GraphData["messages"]
 ): GraphData["messages"][number] | undefined => {
-  const lastAIMessage = messages.filter((m) => m.type === "AIMessage").pop();
+  const lastAIMessage = messages
+    .filter((m) => m.type === "AIMessage" && m.tool_calls?.length)
+    .pop();
 
   return lastAIMessage;
 };
@@ -22,7 +24,9 @@ export const getLastAIMessage = (
 export const getLastAIMessageToolsStrAry = (
   messages: GraphData["messages"]
 ): string[] => {
-  const lastAIMessage = messages.filter((m) => m.type === "AIMessage").pop();
+  const lastAIMessage = messages
+    .filter((m) => m.type === "AIMessage" && m.tool_calls?.length)
+    .pop();
 
   if (!lastAIMessage) {
     return [];
@@ -34,4 +38,14 @@ export const getLastAIMessageToolsStrAry = (
     }) || []),
     lastAIMessage.content || "",
   ].filter((a) => !!a);
+};
+
+export const getLastToolMessage = (
+  messages: GraphData["messages"]
+): GraphData["messages"][number] | undefined => {
+  const lastToolMessage = messages
+    .filter((m) => m.type === "ToolMessage")
+    .pop();
+
+  return lastToolMessage;
 };
