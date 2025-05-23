@@ -13,15 +13,8 @@ import { GraphData } from "@/pages/session/types";
 import { getLastToolCallAIMessage, getLastToolMessage } from "@/utils";
 
 const ChatMessage: React.FC<ChatMessageProps> = (props) => {
-  const {
-    content,
-    error,
-    warnings,
-    role,
-    isDone,
-    nodeType,
-    onHitlConfirmation,
-  } = props;
+  const { content, error, warnings, role, nodeType, onHitlConfirmation } =
+    props;
   // Local state to maintain the approval response over time
   const [approvalResponse, setApprovalResponse] = useState<
     "approved" | "declined" | null
@@ -36,10 +29,6 @@ const ChatMessage: React.FC<ChatMessageProps> = (props) => {
     setApprovalResponse(approved ? "approved" : "declined");
     onHitlConfirmation(approved);
   };
-
-  if (isDone) {
-    return null;
-  }
 
   // For errors and warnings, show error message
   if (error) {
@@ -262,7 +251,6 @@ export interface ChatMessageProps {
   role: "user" | "assistant";
   thought?: string | undefined | null;
   actions?: string[] | undefined | null;
-  isDone?: boolean;
   toolCall?: {
     name: string;
     args: {

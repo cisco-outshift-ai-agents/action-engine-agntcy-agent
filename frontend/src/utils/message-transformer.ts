@@ -21,7 +21,6 @@ export const transformSSEDataToMessage = (
       role: "assistant",
       content: null,
       error: graphData.error,
-      isDone: graphData.exiting,
       actions: getLastAIMessageToolsStrAry(messages),
       nodeType,
       messages,
@@ -34,7 +33,6 @@ export const transformSSEDataToMessage = (
       content: graphData.brain.summary,
       thought: graphData.brain.thought,
       error: graphData.error,
-      isDone: graphData.exiting,
       nodeType,
       messages,
     };
