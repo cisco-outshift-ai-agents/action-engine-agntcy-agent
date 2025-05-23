@@ -11,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { GraphData } from "@/pages/session/types";
 import { getLastToolCallAIMessage, getLastToolMessage } from "@/utils";
-import { TodoFixAny } from "@/types";
 
 const ChatMessage: React.FC<ChatMessageProps> = (props) => {
   const {
@@ -267,9 +266,7 @@ export interface ChatMessageProps {
   toolCall?: {
     name: string;
     args: {
-      terminal_id: string;
-      script: string;
-      action: string;
+      [key: string]: unknown;
     };
     id: string;
     type: string;

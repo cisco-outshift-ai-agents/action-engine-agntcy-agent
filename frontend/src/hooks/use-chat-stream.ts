@@ -1,7 +1,12 @@
+import {
+  GraphDataSSEMessage,
+  InterruptSSEMessage,
+} from "./../pages/session/types";
 import { useEffect, useRef, useState } from "react";
 import { useChatStore } from "@/stores/chat";
 import { chatApi } from "@/services/chat-api";
 import { transformSSEDataToMessage } from "@/utils/message-transformer";
+import { GraphDataZod } from "@/pages/session/types";
 
 export const useChatStream = () => {
   const [isWaitingForApproval, setIsWaitingForApproval] = useState(false);
@@ -33,9 +38,9 @@ export const useChatStream = () => {
 
     // Handle specific agent_event events
     events.addEventListener("agent_event", (event) => {
-      console.log("💾 agent_event received:", event.data);
       try {
         const data = JSON.parse(event.data);
+        console.log("💾 agent_event received:", data);
         handleEventData(data);
       } catch (error) {
         console.error("Error parsing agent_event:", error);
@@ -44,19 +49,13 @@ export const useChatStream = () => {
 
     // Common handler for both event types
     const handleEventData = (data: any) => {
-      // Handling for approval requests that don't follow expected format
-      if (data.values?.tool_call && data.values?.message) {
-        addMessage({
-          role: "assistant",
-          content: data.values.message,
-          toolCall: data.values.tool_call,
-          nodeType: "approval_request",
-          messages: data.values.messages,
-        });
-        setIsWaitingForApproval(true);
-        return;
+      // Check if it's exiting
+      if (data.exiting || data.values?.exiting) {
+        console.log("Exiting flow detected, setting isThinking to false");
+        setisThinking(false);
       }
-      // Handle interrupts
+
+      // Handle interrupts from WorkflowSrv
       if (data.type === "interrupt") {
         setIsWaitingForApproval(true);
         const newMessage = transformSSEDataToMessage(data);
@@ -66,25 +65,37 @@ export const useChatStream = () => {
         return;
       }
 
-      // Ignore other messages while waiting for approval
-      if (isWaitingForApproval) {
+      // This is the interrupt from human_approval node, formatted differently
+      // due to WorkflowSrv requirements
+      const interruptParse = InterruptSSEMessage.safeParse(data);
+      if (interruptParse.success) {
+        const interruptData = interruptParse.data.values;
+        addMessage({
+          role: "assistant",
+          content: interruptData.message,
+          toolCall: interruptData.tool_call,
+          nodeType: "approval_request",
+          messages: [],
+        });
+        setIsWaitingForApproval(true);
+        return;
+      } else {
+        console.log("I'm not an interrupt!", data, interruptParse.error);
+      }
+
+      const graphDataParse = GraphDataSSEMessage.safeParse(data);
+      if (!graphDataParse.success) {
+        console.error("Failed to parse graph data:", graphDataParse.error);
         return;
       }
 
-      // Handle plan data from either structure
-      if (data.data?.plan) {
-        setPlan(data.data.plan);
-      }
-      if (data.values?.plan) {
-        setPlan(data.values.plan);
-      }
-
-      // Process messages
-      const newMessage = transformSSEDataToMessage(data);
+      const graphData = graphDataParse.data;
+      const newMessage = transformSSEDataToMessage(
+        graphData.values || graphData.data
+      );
       if (newMessage) {
         console.log("Adding message:", newMessage);
         addMessage(newMessage);
-        // Reset approval state when we get a non-interrupt message
         setIsWaitingForApproval(false);
       }
     };
@@ -108,6 +119,7 @@ export const useChatStream = () => {
       addMessage({
         content: input,
         role: "user",
+        messages: [],
       });
       setisThinking(true);
     } catch (error) {

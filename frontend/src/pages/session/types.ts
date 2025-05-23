@@ -134,3 +134,36 @@ export const TerminalDataZod = z.object({
 });
 
 export type TerminalData = z.infer<typeof TerminalDataZod>;
+
+export const GraphInterruptDataZod = z.object({
+  tool_call: z.object({
+    args: z.record(z.unknown()),
+    id: z.string(),
+    name: z.string(),
+    type: z.string(),
+  }),
+  message: z.string(),
+});
+export type GraphInterruptData = z.infer<typeof GraphInterruptDataZod>;
+
+export const SSEMessageWrapperZod = z.object({
+  type: z.string(),
+  run_id: z.string(),
+  status: z.string(),
+});
+
+export const GraphDataSSEMessage = z.object({
+  type: z.string().nullish(),
+  run_id: z.string().nullish(),
+  status: z.string().nullish(),
+  values: GraphDataZod.optional(),
+});
+export type SSEMessage = z.infer<typeof GraphDataSSEMessage>;
+
+export const InterruptSSEMessage = z.object({
+  type: z.string().nullish(),
+  run_id: z.string().nullish(),
+  status: z.string().nullish(),
+  values: GraphInterruptDataZod,
+});
+export type InterruptSSEMessage = z.infer<typeof InterruptSSEMessage>;
