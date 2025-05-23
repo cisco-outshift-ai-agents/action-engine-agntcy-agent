@@ -1,5 +1,53 @@
 import { z } from "zod";
 
+export const BrowserActionZod = z.enum([
+  "navigate",
+  "click",
+  "input_text",
+  "screenshot",
+  "get_html",
+  "get_text",
+  "execute_js",
+  "scroll",
+  "switch_tab",
+  "new_tab",
+  "close_tab",
+  "refresh",
+]);
+export type BrowserAction = z.infer<typeof BrowserActionZod>;
+
+export const BaseToolMessagePropsZod = z.object({
+  className: z.string().optional(),
+});
+export type BaseToolMessageProps = z.infer<typeof BaseToolMessagePropsZod>;
+
+export const BrowserToolPropsZod = BaseToolMessagePropsZod.extend({
+  action: BrowserActionZod,
+  url: z.string().optional(),
+  index: z.number().optional(),
+  text: z.string().optional(),
+  script: z.string().optional(),
+  scroll_amount: z.number().optional(),
+  tab_id: z.number().optional(),
+});
+export type BrowserToolProps = z.infer<typeof BrowserToolPropsZod>;
+
+export const TerminalToolPropsZod = BaseToolMessagePropsZod.extend({
+  script: z.string(),
+});
+export type TerminalToolProps = z.infer<typeof TerminalToolPropsZod>;
+
+export const TerminateToolPropsZod = BaseToolMessagePropsZod.extend({
+  status: z.enum(["success", "failure"]),
+  reason: z.string().optional(),
+});
+export type TerminateToolProps = z.infer<typeof TerminateToolPropsZod>;
+
+export const ToolResultPropsZod = BaseToolMessagePropsZod.extend({
+  content: z.string(),
+});
+export type ToolResultProps = z.infer<typeof ToolResultPropsZod>;
+
 export const StopDataZod = z.object({
   summary: z.string(),
   stopped: z.boolean(),
@@ -135,6 +183,14 @@ export const TerminalDataZod = z.object({
 
 export type TerminalData = z.infer<typeof TerminalDataZod>;
 
+export const ToolCallZod = z.object({
+  id: z.string(),
+  name: z.string(),
+  type: z.string(),
+  args: z.record(z.unknown()),
+});
+export type ToolCall = z.infer<typeof ToolCallZod>;
+
 export const GraphInterruptDataZod = z.object({
   tool_call: z.object({
     args: z.record(z.unknown()),
@@ -167,3 +223,19 @@ export const InterruptSSEMessage = z.object({
   values: GraphInterruptDataZod,
 });
 export type InterruptSSEMessage = z.infer<typeof InterruptSSEMessage>;
+
+export const BrowserUseArgsZod = z.object({
+  action: BrowserActionZod,
+});
+export type BrowserUseArgs = z.infer<typeof BrowserUseArgsZod>;
+
+export const TerminalUseArgsZod = z.object({
+  script: z.string(),
+});
+export type TerminalUseArgs = z.infer<typeof TerminalUseArgsZod>;
+
+export const TerminateUseArgsZod = z.object({
+  status: z.enum(["success", "failure"]),
+  reason: z.string().optional(),
+});
+export type TerminateUseArgs = z.infer<typeof TerminateUseArgsZod>;

@@ -1,8 +1,8 @@
+import { ToolResultProps } from "@/pages/session/types";
 import { cn } from "@/utils";
 import { ArrowRight } from "lucide-react";
-import { ToolResultProps } from "./types";
 
-const ToolResultMessage: React.FC<ToolResultProps> = ({
+const ToolMessageResult: React.FC<ToolResultProps> = ({
   className,
   content,
 }) => {
@@ -16,4 +16,4 @@ const ToolResultMessage: React.FC<ToolResultProps> = ({
   );
 };
 
-export default ToolResultMessage;
+export default ToolMessageResult;

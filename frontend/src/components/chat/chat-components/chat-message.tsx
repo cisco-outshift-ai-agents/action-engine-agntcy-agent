@@ -1,16 +1,18 @@
 import ChatMessageText from "./chat-message-text";
 import CiscoAIAssistantLogo from "@/components/chat/chat-assets/cisco-ai-assistant.png";
-import { Circle, Check, XCircle } from "lucide-react";
+import { Circle, Check, XCircle, ClipboardList } from "lucide-react";
 import { ReactNode, useState } from "react";
 import {
   ExecutorTools,
-  ToolResultMessage,
   ErrorMessage,
+  ToolMessageResult,
+  ToolMessageContent,
 } from "@/components/chat-messages";
 
 import { Button } from "@/components/ui/button";
 import { GraphData } from "@/pages/session/types";
 import { getLastToolCallAIMessage, getLastToolMessage } from "@/utils";
+import { error } from "console";
 
 const ChatMessage: React.FC<ChatMessageProps> = (props) => {
   const { content, error, warnings, role, nodeType, onHitlConfirmation } =
@@ -37,7 +39,7 @@ const ChatMessage: React.FC<ChatMessageProps> = (props) => {
 
   // For tool message (result of tool execution)
   if (role === "assistant" && content && !nodeType) {
-    return <ToolResultMessage content={content as string} />;
+    return <ToolMessageResult content={content as string} />;
   }
 
   // Render user messages
@@ -116,17 +118,23 @@ const PlanningChatMessage: React.FC<ChatMessageProps> = ({ messages }) => {
             width={16}
             className="mr-2"
           />
-          <span className="text-sm">{mappedCommand}</span>
+          <div className="flex items-center gap-2 text-sm text-blue-400">
+            <span className="flex items-center gap-1 border p-1 rounded-md bg-gray-500/10">
+              <ClipboardList className="w-4 h-4" />
+            </span>
+            <span>
+              <code className="ml-1 text-blue-600 border p-1 rounded-md bg-gray-500/10">
+                {mappedCommand}
+              </code>
+            </span>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-const ExecutorChatMessage: React.FC<ChatMessageProps> = ({
-  actions,
-  messages,
-}) => {
+const ExecutorChatMessage: React.FC<ChatMessageProps> = ({ messages }) => {
   const lastToolMessage = getLastToolMessage(messages);
   const lastToolMessageContent = lastToolMessage?.content || "";
 
@@ -140,13 +148,12 @@ const ExecutorChatMessage: React.FC<ChatMessageProps> = ({
             width={16}
             className="mr-2 mt-1"
           />
-          {actions?.length ? <ExecutorTools actions={actions} /> : null}
+          <ExecutorTools messages={messages} />
         </div>
       </div>
       {lastToolMessageContent && (
-        <div className="flex gap-2 font-mono overflow-auto">
-          🛠️
-          <p className="text-sm text-gray-400">{lastToolMessageContent}</p>
+        <div className="pl-6">
+          <ToolMessageContent content={lastToolMessageContent} />
         </div>
       )}
     </div>
@@ -250,7 +257,6 @@ export interface ChatMessageProps {
   isLoading?: boolean | undefined | null;
   role: "user" | "assistant";
   thought?: string | undefined | null;
-  actions?: string[] | undefined | null;
   toolCall?: {
     name: string;
     args: {

@@ -21,25 +21,6 @@ export const getLastToolCallAIMessage = (
   return lastAIMessage;
 };
 
-export const getLastAIMessageToolsStrAry = (
-  messages: GraphData["messages"]
-): string[] => {
-  const lastAIMessage = messages
-    .filter((m) => m.type === "AIMessage" && m.tool_calls?.length)
-    .pop();
-
-  if (!lastAIMessage) {
-    return [];
-  }
-
-  return [
-    ...(lastAIMessage.tool_calls?.map((t) => {
-      return JSON.stringify(t);
-    }) || []),
-    lastAIMessage.content || "",
-  ].filter((a) => !!a);
-};
-
 export const getLastToolMessage = (
   messages: GraphData["messages"]
 ): GraphData["messages"][number] | undefined => {

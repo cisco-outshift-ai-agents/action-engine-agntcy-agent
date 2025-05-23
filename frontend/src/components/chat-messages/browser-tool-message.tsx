@@ -1,3 +1,4 @@
+import { BrowserToolProps } from "@/pages/session/types";
 import { cn } from "@/utils";
 import {
   Globe,
@@ -10,7 +11,6 @@ import {
   X,
   RefreshCw,
 } from "lucide-react";
-import { BrowserToolProps } from "./types";
 
 const BrowserToolMessage: React.FC<BrowserToolProps> = ({
   className,
@@ -87,7 +87,9 @@ const BrowserToolMessage: React.FC<BrowserToolProps> = ({
     <div
       className={cn("flex items-center gap-2 text-sm text-blue-400", className)}
     >
-      {getIcon()}
+      <span className="flex items-center gap-1 border p-1 rounded-md bg-gray-500/10">
+        {getIcon()}
+      </span>
       <span>{getMessage()}</span>
     </div>
   );

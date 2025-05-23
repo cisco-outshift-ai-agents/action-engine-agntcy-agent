@@ -1,6 +1,5 @@
 import { ChatMessageProps } from "@/components/chat/chat-components/chat-message";
 import { GraphData } from "@/pages/session/types";
-import { getLastAIMessageToolsStrAry } from "@/utils";
 import { data } from "react-router-dom";
 
 export const transformSSEDataToMessage = (
@@ -21,7 +20,6 @@ export const transformSSEDataToMessage = (
       role: "assistant",
       content: null,
       error: graphData.error,
-      actions: getLastAIMessageToolsStrAry(messages),
       nodeType,
       messages,
     };
@@ -42,7 +40,6 @@ export const transformSSEDataToMessage = (
     return {
       role: "assistant",
       content: graphData.brain.summary,
-      actions: getLastAIMessageToolsStrAry(messages),
       nodeType,
       messages,
     };
