@@ -1,20 +1,23 @@
+import { TerminalToolProps } from "@/pages/session/types";
 import { cn } from "@/utils";
 import { Terminal } from "lucide-react";
-import { TerminalToolProps } from "./types";
 
 const TerminalToolMessage: React.FC<TerminalToolProps> = ({
   className,
-  command,
+  script,
 }) => {
   return (
     <div
-      className={cn(
-        "flex items-center gap-2 text-sm text-green-400",
-        className
-      )}
+      className={cn("flex items-center gap-2 text-sm text-blue-400", className)}
     >
-      <Terminal className="w-4 h-4" />
-      <span>Executing: {command}</span>
+      <span className="flex items-center gap-1 border p-1 rounded-md bg-gray-500/10">
+        <Terminal className="w-4 h-4" />
+      </span>
+      <span>
+        <code className="ml-1 text-blue-600 border p-1 rounded-md bg-gray-500/10">
+          {script}
+        </code>
+      </span>
     </div>
   );
 };

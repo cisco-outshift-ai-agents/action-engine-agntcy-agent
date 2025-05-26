@@ -3,68 +3,100 @@ import { cn } from "@/utils";
 import BrowserToolMessage from "./browser-tool-message";
 import TerminalToolMessage from "./terminal-tool-message";
 import TerminateToolMessage from "./terminate-tool-message";
-import { BrowserAction } from "./types";
+import {
+  BrowserUseArgsZod,
+  TerminalUseArgsZod,
+  TerminateUseArgsZod,
+  GraphData,
+} from "@/pages/session/types";
+
+interface InvalidToolMessageProps {
+  toolName: string;
+  error: string;
+}
+
+const InvalidToolMessage: React.FC<InvalidToolMessageProps> = ({
+  toolName,
+  error,
+}) => (
+  <div className="rounded-md bg-red-50 p-4 border border-red-200">
+    <div className="text-sm text-red-800">
+      <p className="font-medium">Invalid {toolName} tool call</p>
+      <pre className="mt-1 text-xs whitespace-pre-wrap">{error}</pre>
+    </div>
+  </div>
+);
 
 interface ExecutorToolsProps {
   className?: string;
-  actions: string[];
-}
-
-interface ToolCall {
-  id: string;
-  name: string;
-  type: string;
-  args: Record<string, unknown>;
+  messages: GraphData["messages"];
 }
 
 const ExecutorTools: React.FC<ExecutorToolsProps> = ({
   className,
-  actions,
+  messages,
 }) => {
-  const renderToolCall = (action: string, index: number) => {
-    try {
-      const toolCall = JSON.parse(action) as ToolCall;
+  // Get the most recent AI message's tool calls
+  const lastAIMessage = messages
+    .filter((m) => m.type === "AIMessage" && m.tool_calls?.length)
+    .pop();
 
-      // Only render if it's a tool call
-      if (toolCall.type !== "tool_call") {
+  const toolCalls = lastAIMessage?.tool_calls || [];
+
+  const renderToolCall = (
+    toolCall: NonNullable<typeof toolCalls>[number],
+    index: number
+  ) => {
+    switch (toolCall.name) {
+      case "browser_use": {
+        const result = BrowserUseArgsZod.safeParse(toolCall.args);
+        if (!result.success) {
+          console.error("Invalid browser_use args:", result.error);
+          return (
+            <InvalidToolMessage
+              key={index}
+              toolName="browser_use"
+              error={result.error.message}
+            />
+          );
+        }
+        return <BrowserToolMessage key={index} {...result.data} />;
+      }
+      case "terminal": {
+        const result = TerminalUseArgsZod.safeParse(toolCall.args);
+        if (!result.success) {
+          console.error("Invalid terminal args:", result.error);
+          return (
+            <InvalidToolMessage
+              key={index}
+              toolName="terminal"
+              error={result.error.message}
+            />
+          );
+        }
+        return <TerminalToolMessage key={index} {...result.data} />;
+      }
+      case "terminate": {
+        const result = TerminateUseArgsZod.safeParse(toolCall.args);
+        if (!result.success) {
+          console.error("Invalid terminate args:", result.error);
+          return (
+            <InvalidToolMessage
+              key={index}
+              toolName="terminate"
+              error={result.error.message}
+            />
+          );
+        }
+        return <TerminateToolMessage key={index} {...result.data} />;
+      }
+      default:
         return null;
-      }
-
-      switch (toolCall.name) {
-        case "browser_use": {
-          const args = toolCall.args as {
-            action: BrowserAction;
-            url?: string;
-            index?: number;
-            text?: string;
-            script?: string;
-            scroll_amount?: number;
-            tab_id?: number;
-          };
-          return <BrowserToolMessage key={index} {...args} />;
-        }
-        case "terminal": {
-          const args = toolCall.args as { command: string };
-          return <TerminalToolMessage key={index} {...args} />;
-        }
-        case "terminate": {
-          const args = toolCall.args as {
-            status: "success" | "failure";
-            reason?: string;
-          };
-          return <TerminateToolMessage key={index} {...args} />;
-        }
-        default:
-          return null;
-      }
-    } catch (e) {
-      // If not valid JSON or not a tool call, don't render anything
-      return null;
     }
   };
 
-  const validToolCalls = actions
-    .map((action, index) => renderToolCall(action, index))
+  const validToolCalls = toolCalls
+    .map((tc, i) => renderToolCall(tc, i))
     .filter(Boolean);
 
   if (validToolCalls.length === 0) {

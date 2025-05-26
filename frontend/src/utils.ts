@@ -11,19 +11,22 @@ export const extractHostname = (summary: string): string => {
   return match ? match[1] : "default-hostname";
 };
 
-export const getLastAITools = (data: GraphData): string[] => {
-  const lastAIMessage = data.messages
-    .filter((m) => m.type === "AIMessage")
+export const getLastToolCallAIMessage = (
+  messages: GraphData["messages"]
+): GraphData["messages"][number] | undefined => {
+  const lastAIMessage = messages
+    .filter((m) => m.type === "AIMessage" && m.tool_calls?.length)
     .pop();
 
-  if (!lastAIMessage) {
-    return [];
-  }
+  return lastAIMessage;
+};
 
-  return [
-    ...(lastAIMessage.tool_calls?.map((t) => {
-      return JSON.stringify(t);
-    }) || []),
-    lastAIMessage.content || "",
-  ].filter((a) => !!a);
+export const getLastToolMessage = (
+  messages: GraphData["messages"]
+): GraphData["messages"][number] | undefined => {
+  const lastToolMessage = messages
+    .filter((m) => m.type === "ToolMessage")
+    .pop();
+
+  return lastToolMessage;
 };
