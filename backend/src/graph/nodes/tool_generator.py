@@ -41,16 +41,16 @@ class ToolGeneratorNode(BaseNode):
         )
 
     async def ainvoke(self, state: AgentState, config: Dict) -> Dict:
-        """Async invocation with tool selection but without execution"""
-        logger.info("ToolSelectionNode invoked")
+        """Async invocation with tool generator but without execution"""
+        logger.info("ToolGeneratorNode invoked")
 
         if "messages" not in state:
             state["messages"] = []
             logger.debug("Initialized empty messages list in state")
 
         if not config:
-            logger.debug("Config not provided in ToolSelectionNode")
-            raise ValueError("Config not provided in ToolSelectionNode")
+            logger.debug("Config not provided in ToolGeneratorNode")
+            raise ValueError("Config not provided in ToolGeneratorNode")
 
         llm: ChatOpenAI = config.get("configurable", {}).get("llm")
         if not llm:
@@ -120,9 +120,13 @@ class ToolGeneratorNode(BaseNode):
             raise ValueError("LLM response not provided")
 
         # Add executor identity to response
+        tool_call_as_string = (
+            str(raw_response.tool_calls) if hasattr(raw_response, "tool_calls") else ""
+        )
         prefixed_content = (
-            f"[Tool Selection Node] Based on the current system state, "
-            f"I am suggesting to: {raw_response.content}"
+            f"[Tool Generator Node] I am now selecting the next tool to use.\n"
+            "The tool calls I am generating are:\n"
+            f"{tool_call_as_string}\n"
         )
         response = AIMessage(
             content=prefixed_content,
@@ -134,7 +138,7 @@ class ToolGeneratorNode(BaseNode):
         # Store generated tool calls for the approval node to use
         if hasattr(response, "tool_calls") and response.tool_calls:
             state["tool_calls"] = response.tool_calls
-            logger.info(f"ToolSelectionNode selected tool calls: {response.tool_calls}")
+            logger.info(f"ToolGeneratorNode selected tool calls: {response.tool_calls}")
         else:
             state["tool_calls"] = []
 
