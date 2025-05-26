@@ -226,6 +226,12 @@ export type InterruptSSEMessage = z.infer<typeof InterruptSSEMessage>;
 
 export const BrowserUseArgsZod = z.object({
   action: BrowserActionZod,
+   url: z.string().optional(),
+  index: z.number().optional(),
+  text: z.string().optional(),
+  script: z.string().optional(),
+  scroll_amount: z.number().optional(),
+  tab_id: z.number().optional(),
 });
 export type BrowserUseArgs = z.infer<typeof BrowserUseArgsZod>;
 

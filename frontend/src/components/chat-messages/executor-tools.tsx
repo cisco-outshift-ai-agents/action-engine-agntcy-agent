@@ -50,6 +50,9 @@ const ExecutorTools: React.FC<ExecutorToolsProps> = ({
     switch (toolCall.name) {
       case "browser_use": {
         const result = BrowserUseArgsZod.safeParse(toolCall.args);
+         console.log("Raw browser_use args:", toolCall.args);
+  console.log("Parsed browser_use args:", result.success ? result.data : "Invalid");
+  
         if (!result.success) {
           console.error("Invalid browser_use args:", result.error);
           return (
@@ -60,6 +63,8 @@ const ExecutorTools: React.FC<ExecutorToolsProps> = ({
             />
           );
         }
+              console.log("Browser use args:", toolCall.args);
+
         return <BrowserToolMessage key={index} {...result.data} />;
       }
       case "terminal": {
