@@ -88,6 +88,13 @@ export const useChatStream = () => {
       }
 
       const graphData = graphDataParse.data;
+
+      const plan = graphData.values?.plan;
+      if (plan) {
+        console.log("Setting plan:", plan);
+        setPlan(plan);
+      }
+
       const newMessage = transformSSEDataToMessage(graphData.values);
       if (newMessage) {
         console.log("Adding message:", newMessage);
