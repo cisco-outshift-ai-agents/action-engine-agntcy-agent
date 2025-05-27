@@ -114,7 +114,7 @@ class BaseNode:
         beginning_length = len(messages)
 
         # Filter messages in one pass
-        pruned_messages = []
+        pruned_messages: List[BaseMessage] = []
         for msg in messages:
             # Skip system messages and empty messages
             if isinstance(msg, SystemMessage) or not msg.content:

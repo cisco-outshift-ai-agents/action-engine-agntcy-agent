@@ -61,13 +61,27 @@ class ExecutorNode(BaseNode):
 
         # Create an AIMessage with the approved tool call
         execute_message = AIMessage(
-            content="[Executor Node] Executing approved action",
+            content="[Executor Node] I am now running the tool.",
             tool_calls=[tool_call],
         )
         global_messages.extend(serialize_messages([execute_message]))
 
         # Execute the approved tool call
         tool_messages = await self.execute_tools(message=execute_message, config=config)
+        # Create an AIMessage with the approved tool call
+        # Convert tool messages to a string representation
+        tool_messages_str = "\n".join(
+            [
+                str(msg.content) if hasattr(msg, "content") else str(msg)
+                for msg in tool_messages
+            ]
+        )
+
+        confirmation_message = AIMessage(
+            content=f"[Executor Node] The action is now done running. I successfully {tool_messages_str}",
+        )
+        global_messages.extend(serialize_messages([confirmation_message]))
+
         global_messages.extend(serialize_messages(tool_messages))
 
         # Check for termination tool call

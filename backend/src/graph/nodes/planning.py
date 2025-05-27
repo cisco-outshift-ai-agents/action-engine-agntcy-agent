@@ -1,7 +1,7 @@
 import logging
-from typing import Dict
+from typing import Dict, List
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, BaseMessage
 from langchain.chat_models.base import BaseChatModel
 
 from src.graph.environments.planning import PlanningEnvironment

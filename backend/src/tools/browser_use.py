@@ -204,14 +204,70 @@ async def browser_use_tool(
         elif params.action == BrowserAction.CLICK:
             if index is None:
                 return ToolResult(error="Index is required for 'click' action")
+
+            # Get element and validate it exists
             element = await browser_context.get_dom_element_by_index(index)
             if not element:
                 return ToolResult(error=f"Element with index {index} not found")
-            download_path = await browser_context._click_element_node(element)
-            output = f"Clicked element at index {index} ({stringify_dom_element_node(element)})"
-            if download_path:
-                output += f" - Downloaded file to {download_path}"
-            return ToolResult(output=output)
+
+            # Check for file uploader
+            is_uploader = False
+            try:
+                is_uploader = await browser_context.is_file_uploader(element)
+            except Exception:
+                pass
+
+            if is_uploader:
+                return ToolResult(
+                    error=f"Element {index} is a file upload input. Use appropriate file upload function instead."
+                )
+
+            # Track initial tab count
+            initial_tab_count = len((await browser_context.get_tabs_info()))
+
+            try:
+                # Get element text before clicking in case of navigation
+                element_text = element.get_all_text_till_next_clickable_element(
+                    max_depth=2
+                )
+                logger.debug(f"Element xpath: {element.xpath}")
+                logger.debug(f"Element text: {element_text}")
+
+                try:
+                    # Perform click and capture download info
+                    download_path = await browser_context._click_element_node(element)
+
+                    # Build success message
+                    if download_path:
+                        message = f"Downloaded file to {download_path}"
+                    else:
+                        message = f"Clicked element with text: {element_text}"
+
+                    # Check for new tab after successful click
+                    try:
+                        current_tab_count = len((await browser_context.get_tabs_info()))
+                        if current_tab_count > initial_tab_count:
+                            message += " - New tab opened"
+                            await browser_context.switch_to_tab(-1)
+                    except Exception as tab_error:
+                        # Don't fail if we can't check tabs - navigation might have happened
+                        logger.debug(
+                            f"Tab check failed (likely due to navigation): {tab_error}"
+                        )
+
+                    return ToolResult(output=message)
+
+                except Exception as click_error:
+                    if "context was destroyed" in str(click_error):
+                        # Navigation likely occurred - treat as success
+                        return ToolResult(
+                            output=f"Clicked element that triggered navigation: {element_text}"
+                        )
+                    raise  # Re-raise other click errors
+
+            except Exception as e:
+                logger.warning(f"Click failed: {str(e)}")
+                return ToolResult(error=str(e))
 
         elif params.action == BrowserAction.INPUT_TEXT:
             if index is None or not text:
@@ -282,5 +338,10 @@ async def browser_use_tool(
             return ToolResult(error=f"Action {params.action} not implemented")
 
     except Exception as e:
-        logger.info(f"Browser action failed: {str(e)}")
-        return ToolResult(error=f"Browser action failed: {str(e)}")
+        logger.error(
+            f"Browser action failed - Type: {type(e)}, Value: {repr(e)}, Raw: {e}"
+        )
+        # If it's just a number, wrap it in a more descriptive error
+        if isinstance(e, (int, str)) and str(e).isdigit():
+            return ToolResult(error=f"Click operation returned unexpected value: {e}")
+        return ToolResult(error=str(e))
