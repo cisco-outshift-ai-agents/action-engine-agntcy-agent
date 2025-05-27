@@ -14,7 +14,7 @@ const TerminalToolMessage: React.FC<TerminalToolProps> = ({
         <Terminal className="w-4 h-4" />
       </span>
       <span>
-        <code className="ml-1 text-blue-600 border p-1 rounded-md bg-gray-500/10">
+        <code className="ml-1 text-blue-600 border p-1 rounded-md bg-gray-500/10 text-xs">
           {script}
         </code>
       </span>

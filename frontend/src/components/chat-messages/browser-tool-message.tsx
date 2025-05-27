@@ -57,7 +57,9 @@ const BrowserToolMessage: React.FC<BrowserToolProps> = ({
       case "click":
         return `Clicking element ${index}`;
       case "input_text":
-        return `Entering text "${text}" into element ${index}`;
+        return `Entering text "${text?.substring(0, 6)}${
+          (text?.length || 0) > 6 ? "..." : ""
+        }" into element ${index}`;
       case "screenshot":
         return "Taking screenshot";
       case "get_html":
@@ -90,7 +92,11 @@ const BrowserToolMessage: React.FC<BrowserToolProps> = ({
       <span className="flex items-center gap-1 border p-1 rounded-md bg-gray-500/10">
         {getIcon()}
       </span>
-      <span>{getMessage()}</span>
+      <span>
+        <code className="ml-1 text-blue-600 border p-1 rounded-md bg-gray-500/10 text-xs">
+          {getMessage()}
+        </code>
+      </span>
     </div>
   );
 };
