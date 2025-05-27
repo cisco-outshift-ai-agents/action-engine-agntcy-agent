@@ -50,29 +50,10 @@ class PlanningNode(BaseNode):
         system_message = SystemMessage(content=planner_prompt)
         local_messages.append(system_message)
 
+        # Hydrate existing messages
         hydrated = hydrate_messages(state["messages"])
-        hydrated: List[BaseMessage] = self.prune_messages(hydrated)
-
-        # Grab the last executor and tool generator messages
-        filtered_messages = []
-        for msg in hydrated:
-            if not isinstance(msg, BaseMessage):
-                continue
-            if not isinstance(msg.content, str):
-                continue
-            if "Executor Node" in msg.content or "Tool Generator Node" in msg.content:
-                if isinstance(msg, (AIMessage, HumanMessage, SystemMessage)):
-                    filtered_messages.append(msg)
-
-        if len(filtered_messages) > 1:
-            filtered_messages = filtered_messages[-4:]
-            local_messages.append(
-                HumanMessage(
-                    content="The last four tool generator and executor actions performed: \n"
-                )
-            )
-
-        local_messages.extend(filtered_messages)
+        hydrated = self.prune_messages(hydrated)
+        local_messages.extend(hydrated)
 
         # Add new human message with the task
         human_message = HumanMessage(content=state["task"])
