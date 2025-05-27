@@ -9,7 +9,7 @@ from langchain_core.messages import (
     SystemMessage,
     ToolMessage,
 )
-from langchain_openai import ChatOpenAI
+from langchain.chat_models.base import BaseChatModel
 
 from src.graph.prompts import get_tool_call_retry_prompt
 from src.graph.types import AgentState, WorkableToolCall
@@ -132,7 +132,7 @@ class BaseNode:
         return pruned_messages
 
     async def call_model_with_tool_retry(
-        self, llm: ChatOpenAI, messages: List[BaseMessage]
+        self, llm: BaseChatModel, messages: List[BaseMessage]
     ) -> AIMessage:
         """
         Call the model with the tool retry logic
