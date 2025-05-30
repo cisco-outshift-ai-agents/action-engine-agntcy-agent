@@ -60,8 +60,14 @@ RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor
 WORKDIR /app
 
 # Copy requirements and install Python dependencies
+# Copy local packages first
+COPY workflow_srv /app/workflow_srv
+COPY acp_spec /app/acp_spec
+
+# Install all dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
+RUN pip install -e ./workflow_srv
 
 # Install Playwright and browsers with system dependencies
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright

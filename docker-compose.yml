@@ -12,6 +12,8 @@ services:
     volumes:
       - ./backend:/app
       - ./.env:/app/.env:ro
+      - ./backend/workflow_srv:/app/workflow_srv
+      - ./backend/acp_spec:/app/acp_spec
     environment:
       - CHROME_PERSISTENT_SESSION=True
     networks:
