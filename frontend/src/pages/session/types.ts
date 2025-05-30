@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# SPDX-License-Identifier: Apache-2.0"
+# SPDX-License-Identifier: Apache-2.0
 */
 import { z } from "zod";
 
@@ -243,7 +243,7 @@ export type InterruptSSEMessage = z.infer<typeof InterruptSSEMessage>;
 
 export const BrowserUseArgsZod = z.object({
   action: BrowserActionZod,
-   url: z.string().optional(),
+  url: z.string().optional(),
   index: z.number().optional(),
   text: z.string().optional(),
   script: z.string().optional(),

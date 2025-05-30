@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# SPDX-License-Identifier: Apache-2.0"
+# SPDX-License-Identifier: Apache-2.0
 */
 import { twMerge } from "tailwind-merge";
 import { type ClassValue, clsx } from "clsx";

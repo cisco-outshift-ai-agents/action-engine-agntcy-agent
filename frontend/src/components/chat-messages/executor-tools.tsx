@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# SPDX-License-Identifier: Apache-2.0"
+# SPDX-License-Identifier: Apache-2.0
 */
 import React from "react";
 import { cn } from "@/utils";
@@ -68,7 +68,6 @@ const ExecutorTools: React.FC<ExecutorToolsProps> = ({
       case "browser_use": {
         const result = BrowserUseArgsZod.safeParse(toolCall.args);
 
-  
         if (!result.success) {
           console.error("Invalid browser_use args:", result.error);
           return (

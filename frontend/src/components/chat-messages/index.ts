@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# SPDX-License-Identifier: Apache-2.0"
+# SPDX-License-Identifier: Apache-2.0
 */
 export { default as BrowserToolMessage } from "./browser-tool-message";
 export { default as TerminalToolMessage } from "./terminal-tool-message";
