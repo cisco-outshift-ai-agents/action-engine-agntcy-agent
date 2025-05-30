@@ -1,0 +1,5 @@
+langsmith>=0.0.77
+websockets>=12.0
+python-dotenv>=1.0.0
+selenium>=4.15.0
+webdriver_manager>=4.0.1

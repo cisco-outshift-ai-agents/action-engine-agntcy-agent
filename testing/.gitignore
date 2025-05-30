@@ -1,0 +1,27 @@
+**/__pycache__/**
+/offline_induction/data/memory/**
+/offline_induction/data/train/**
+/semantic_routing/mind2web_utterances.csv
+
+# Python cache files
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# IDE cache files
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Cache directories
+.cache/
+.pytest_cache/
+
+.env
+
+data/
+.deepeval
+.deepeval_telemetry.txt
