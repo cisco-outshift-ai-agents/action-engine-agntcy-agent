@@ -9,7 +9,7 @@ from langchain_core.messages import (
     SystemMessage,
     ToolMessage,
 )
-from langchain_openai import ChatOpenAI
+from langchain.chat_models.base import BaseChatModel
 
 from src.graph.environments.planning import PlanningEnvironment
 from src.graph.nodes.base_node import BaseNode
@@ -43,7 +43,7 @@ class ThinkingNode(BaseNode):
             logger.error("No planning_environment in configurable")
             return ValueError("Planning environment not initialized")
 
-        llm: ChatOpenAI = config.get("configurable", {}).get("llm")
+        llm: BaseChatModel = config.get("configurable", {}).get("llm")
 
         structured_llm = llm.with_structured_output(BrainState)
 

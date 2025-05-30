@@ -1,32 +1,26 @@
 import base64
 
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
+from langchain.chat_models import init_chat_model
 from pydantic import SecretStr
 
 load_dotenv()
 
-PROVIDER_DISPLAY_NAMES = {
-    "openai": "OpenAI",
-    "azure_openai": "Azure OpenAI",
-    "anthropic": "Anthropic",
-    "gemini": "Gemini",
-}
-
 
 def get_llm_model(provider: str, **kwargs):
     """
-    Get LLM model
-    :param provider: Model type
-    :param kwargs: Additional parameters
+    Get LLM model based on model name with provider prefix
+    :param kwargs: Configuration parameters
     :return: LLM model instance
     """
-    return ChatOpenAI(
-        model=kwargs.get("model_name", "gpt-4o"),
-        temperature=kwargs.get("temperature", 0.0),
-        base_url=kwargs.get("llm_base_url", "https://api.openai.com/v1"),
-        api_key=SecretStr(kwargs.get("llm_api_key")),
-    )
+    try:
+        config = {
+            "model": kwargs.get("model_name"),
+            "temperature": kwargs.get("temperature", 0.0),
+        }
+        return init_chat_model(**config)
+    except Exception as e:
+        print(f"Error initializing LLM model: {e}")
 
 
 def encode_image(img_path):

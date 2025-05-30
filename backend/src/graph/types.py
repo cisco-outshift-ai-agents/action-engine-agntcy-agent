@@ -3,7 +3,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from browser_use.dom.service import DomService
-from langchain_openai import ChatOpenAI
+from langchain.chat_models.base import BaseChatModel
 from pydantic import BaseModel, Field
 from typing_extensions import Annotated, TypedDict
 
@@ -164,7 +164,7 @@ def create_default_agent_state(task: str = "") -> Dict:
 
 @dataclass
 class GraphConfigConfigurable:
-    llm: ChatOpenAI
+    llm: BaseChatModel
     browser: "CustomBrowser"
     browser_context: "CustomBrowserContext"
     dom_service: DomService

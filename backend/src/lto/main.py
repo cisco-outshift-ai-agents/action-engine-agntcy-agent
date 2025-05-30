@@ -1,4 +1,4 @@
-from langchain_openai import ChatOpenAI
+from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, SystemMessage
 from src.utils.default_config_settings import default_config
 from pydantic import BaseModel, Field
@@ -38,8 +38,9 @@ class LTOResponse(BaseModel):
 async def generate_structured_plan(analyzed_result: AnalyzedLTOResult) -> Plan:
     """Generate a structured plan using the LLM with enforced output structure"""
     config = default_config()
-    llm = ChatOpenAI(
+    llm = init_chat_model(
         model=config["llm_model_name"],
+        model_provider=config["llm_provider"],  # Explicitly set model_provider
         temperature=config["llm_temperature"],
         base_url=config["llm_base_url"],
         api_key=config["llm_api_key"],
@@ -79,8 +80,9 @@ async def generate_structured_plan(analyzed_result: AnalyzedLTOResult) -> Plan:
 async def summarize_with_ai(analyzed_result: AnalyzedLTOResult) -> LTOResponse:
     """Generate a summary and structured plan from the analyzed result"""
     config = default_config()
-    llm = ChatOpenAI(
+    llm = init_chat_model(
         model=config["llm_model_name"],
+        model_provider=config["llm_provider"],  # Explicitly set model_provider
         temperature=config["llm_temperature"],
         base_url=config["llm_base_url"],
         api_key=config["llm_api_key"],

@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 from langchain_core.messages import (
     AIMessage,
 )
-from langchain_openai import ChatOpenAI
+from langchain.chat_models.base import BaseChatModel
 
 from src.graph.environments.planning import PlanningEnvironment
 from src.graph.nodes.base_node import BaseNode

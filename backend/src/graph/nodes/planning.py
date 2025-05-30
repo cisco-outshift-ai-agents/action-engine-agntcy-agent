@@ -2,7 +2,7 @@ import logging
 from typing import Dict, List
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, BaseMessage
-from langchain_openai import ChatOpenAI
+from langchain.chat_models.base import BaseChatModel
 
 from src.graph.environments.planning import PlanningEnvironment
 from src.graph.nodes.base_node import BaseNode
@@ -38,7 +38,7 @@ class PlanningNode(BaseNode):
             logger.error("No planning_environment in configurable")
             return ValueError("Planning environment not initialized")
 
-        llm: ChatOpenAI = config.get("configurable", {}).get("llm")
+        llm: BaseChatModel = config.get("configurable", {}).get("llm")
 
         bound_llm = llm.bind_tools(
             self.tool_collection.get_tools(), tool_choice="auto"

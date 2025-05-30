@@ -8,7 +8,7 @@ from langchain_core.messages import (
     SystemMessage,
     ToolMessage,
 )
-from langchain_openai import ChatOpenAI
+from langchain.chat_models.base import BaseChatModel
 
 from src.graph.environments.planning import PlanningEnvironment
 from src.graph.nodes.base_node import BaseNode
@@ -52,7 +52,7 @@ class ToolGeneratorNode(BaseNode):
             logger.debug("Config not provided in ToolGeneratorNode")
             raise ValueError("Config not provided in ToolGeneratorNode")
 
-        llm: ChatOpenAI = config.get("configurable", {}).get("llm")
+        llm: BaseChatModel = config.get("configurable", {}).get("llm")
         if not llm:
             raise ValueError("LLM not provided in config")
 
