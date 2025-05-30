@@ -92,7 +92,7 @@ git submodule update --init --recursive
 3. Start all services using Docker Compose:
 
 ```bash
-docker compose up --build
+docker compose --env-file .env up --build
 ```
 
 This will:
