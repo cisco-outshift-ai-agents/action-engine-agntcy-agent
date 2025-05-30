@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  backend:
+    platform: linux/amd64  # Specify platform for Chrome compatibility
+    build: 
+      context: ./src/action-engine-backend
+      dockerfile: Dockerfile
+    ports:
+      - "7788:7788"
+      - "6080:6080"  # noVNC port
+    volumes:
+      - ./src/action-engine-backend:/app
+      - ./.env:/app/.env:ro
+    environment:
+      - CHROME_PERSISTENT_SESSION=True
+    networks:
+      - agent-network
+
+  frontend:
+    build:
+      context: ./src/action-engine-frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./src/action-engine-frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_BACKEND_URL=http://localhost:7788
+    depends_on:
+      - backend
+    networks:
+      - agent-network
+
+networks:
+  agent-network:
+    driver: bridge
