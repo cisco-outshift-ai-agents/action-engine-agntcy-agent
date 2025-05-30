@@ -1,0 +1,9 @@
+{
+  "dockerfile_lines": [],
+  "graphs": {
+    "main": "./graph/graph.py:action_engine_graph"
+  },
+  "env": "./.env",
+  "python_version": "3.11",
+  "dependencies": ["."]
+}

@@ -1,0 +1,397 @@
+{
+  "metadata": {
+    "ref": {
+      "name": "ActionEngine Browser Agent",
+      "version": "1.0.0"
+    },
+    "description": "# ActionEngine Browser Agent\n\n## Overview\nActionEngine is a user/agent collaborative playground designed to assist network engineers by enabling direct interaction with Cisco products, SaaS services, web browsers, terminal environments, and code editors.\n\n## Core Capabilities\n- **Collaborative Environment**: Users and agents work in tandem towards achieving goals\n- **Learning from Observation**: Ability to learn from user behavior to autonomously execute complex workflows\n- **Cross-Environment Operation**: Seamlessly works across browsers, terminals, and various network tools\n- **Vision and UI Understanding**: Uses advanced vision capabilities to interpret and interact with interfaces\n- **Session Management**: Maintains browser sessions and context between operations\n- **Adaptive Decision Making**: Autonomously handles UI changes and unexpected situations\n\n## Trust and Transparency\nActionEngine builds trust through:\n- Interactive validation of agent behavior\n- Human-in-the-loop interventions when needed\n- Clear presentation of planned actions\n- Real-time error detection and resolution\n\n## PurpleBadge Integration\nAs a core component of the PurpleBadge project, this agent comes pre-trained with networking-specific capabilities while remaining flexible enough to learn new workflows through observation.\n\n## Example Use Cases\n- Certificate management across multiple systems\n- Cross-platform automation tasks\n- Network configuration workflows\n- System monitoring and maintenance\n- Enterprise tool integration\n\nThe agent serves as a bridge between traditional applications and the emerging Internet of Agents, enabling agentic behavior in systems not originally designed for it."
+  },
+  "specs": {
+    "capabilities": {
+      "threads": true,
+      "interrupts": true
+    },
+    "input": {
+      "description": "Input format for agent tasks.",
+      "properties": {
+        "task": {
+          "description": "The task to execute",
+          "title": "Task",
+          "type": "string"
+        },
+        "add_infos": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Additional information for task execution",
+          "title": "Add Infos"
+        }
+      },
+      "required": [
+        "task"
+      ],
+      "type": "object"
+    },
+    "output": {
+      "additionalProperties": true,
+      "description": "Pydantic model matching AgentState structure",
+      "properties": {
+        "task": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The task to execute",
+          "title": "Task"
+        },
+        "plan": {
+          "anyOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Current plan state",
+          "title": "Plan"
+        },
+        "brain": {
+          "anyOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Brain state tracking",
+          "title": "Brain"
+        },
+        "thought": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Current reasoning process",
+          "title": "Thought"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Brief summary of current state and progress",
+          "title": "Summary"
+        },
+        "context": {
+          "anyOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Context information",
+          "title": "Context"
+        },
+        "messages": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Message history",
+          "title": "Messages"
+        },
+        "tools_used": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "History of used tools",
+          "title": "Tools Used"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Error message if any",
+          "title": "Error"
+        },
+        "next_node": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Next node to execute",
+          "title": "Next Node"
+        },
+        "exiting": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Whether execution is complete",
+          "title": "Exiting"
+        },
+        "tool_calls": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Pending tool calls",
+          "title": "Tool Calls"
+        },
+        "pending_approval": {
+          "anyOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tool calls pending approval",
+          "title": "Pending Approval"
+        }
+      },
+      "type": "object"
+    },
+    "config": {
+      "description": "Full agent configuration.",
+      "properties": {
+        "browser": {
+          "$ref": "#/$defs/BrowserConfig"
+        },
+        "execution": {
+          "$ref": "#/$defs/ExecutionConfig"
+        },
+        "vision": {
+          "$ref": "#/$defs/VisionConfig"
+        }
+      },
+      "required": [
+        "browser",
+        "execution",
+        "vision"
+      ],
+      "type": "object",
+      "$defs": {
+        "BrowserConfig": {
+          "description": "Browser environment configuration.",
+          "properties": {
+            "use_own_browser": {
+              "default": false,
+              "description": "Whether to use an existing browser instance",
+              "title": "Use Own Browser",
+              "type": "boolean"
+            },
+            "keep_browser_open": {
+              "default": true,
+              "description": "Whether to keep the browser open between runs",
+              "title": "Keep Browser Open",
+              "type": "boolean"
+            },
+            "headless": {
+              "default": true,
+              "description": "Whether to run browser in headless mode",
+              "title": "Headless",
+              "type": "boolean"
+            },
+            "disable_security": {
+              "default": false,
+              "description": "Whether to disable browser security features",
+              "title": "Disable Security",
+              "type": "boolean"
+            },
+            "window_w": {
+              "default": 1920,
+              "description": "Browser window width",
+              "title": "Window W",
+              "type": "integer"
+            },
+            "window_h": {
+              "default": 1080,
+              "description": "Browser window height",
+              "title": "Window H",
+              "type": "integer"
+            }
+          },
+          "title": "BrowserConfig",
+          "type": "object"
+        },
+        "ExecutionConfig": {
+          "description": "Task execution configuration.",
+          "properties": {
+            "max_steps": {
+              "default": 100,
+              "description": "Maximum number of steps to execute",
+              "title": "Max Steps",
+              "type": "integer"
+            },
+            "max_actions_per_step": {
+              "default": 10,
+              "description": "Maximum number of actions per step",
+              "title": "Max Actions Per Step",
+              "type": "integer"
+            },
+            "tool_calling_method": {
+              "default": "auto",
+              "description": "Method to use for tool calling",
+              "title": "Tool Calling Method",
+              "type": "string"
+            }
+          },
+          "title": "ExecutionConfig",
+          "type": "object"
+        },
+        "VisionConfig": {
+          "description": "Vision capabilities configuration.",
+          "properties": {
+            "enabled": {
+              "default": false,
+              "description": "Whether to use vision capabilities",
+              "title": "Enabled",
+              "type": "boolean"
+            },
+            "max_images_per_call": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Limit on number of images per LLM call",
+              "title": "Max Images Per Call"
+            }
+          },
+          "title": "VisionConfig",
+          "type": "object"
+        }
+      }
+    },
+    "interrupts": [
+      {
+        "interrupt_type": "terminal_approval",
+        "interrupt_payload": {
+          "description": "Schema for terminal command approval interrupt data.",
+          "properties": {
+            "tool_call": {
+              "description": "The tool call requiring approval",
+              "title": "Tool Call",
+              "type": "object"
+            },
+            "message": {
+              "description": "Message to display to the user",
+              "title": "Message",
+              "type": "string"
+            }
+          },
+          "required": [
+            "tool_call",
+            "message"
+          ],
+          "title": "TerminalApprovalOutput",
+          "type": "object"
+        },
+        "resume_payload": {
+          "description": "Schema for terminal command approval response.",
+          "properties": {
+            "approved": {
+              "description": "Whether the command is approved for execution",
+              "title": "Approved",
+              "type": "boolean"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional reason for rejection",
+              "title": "Reason"
+            }
+          },
+          "required": [
+            "approved"
+          ],
+          "title": "TerminalApprovalInput",
+          "type": "object"
+        }
+      }
+    ]
+  }
+}

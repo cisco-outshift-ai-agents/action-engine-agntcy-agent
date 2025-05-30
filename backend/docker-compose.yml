@@ -1,0 +1,47 @@
+services:
+  browser-use-webui:
+    env_file: .env
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "6080:6080" # noVNC web interface
+      - "5900:5900" # VNC port
+      - "9222:9222" # Chrome remote debugging port
+      - "7788:7788" # FastAPI port
+    environment:
+      - ANONYMIZED_TELEMETRY=false
+      - CHROME_PATH=/usr/bin/google-chrome
+      - CHROME_USER_DATA=/app/data/chrome_data
+      - CHROME_PERSISTENT_SESSION=${CHROME_PERSISTENT_SESSION}
+      - CHROME_DEBUGGING_PORT=9222
+      - CHROME_DEBUGGING_HOST=0.0.0.0
+      - DISPLAY=:99
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+      - RESOLUTION=${RESOLUTION}
+      - RESOLUTION_WIDTH=${RESOLUTION_WIDTH}
+      - RESOLUTION_HEIGHT=${RESOLUTION_HEIGHT}
+      - VNC_PASSWORD=${VNC_PASSWORD}
+      - VNC_PORT=5900
+      - TMUX_SOCKET_PATH=/root/.tmux/tmux-server
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - .:/app
+      - tmux-data:/root/.tmux
+    restart: unless-stopped
+    shm_size: "16gb"
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - seccomp=unconfined
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "5900"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  tmux-data:
