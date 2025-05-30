@@ -1,6 +1,0 @@
-[submodule "workflow_srv"]
-	path = workflow_srv
-	url = https://github.com/agntcy/workflow-srv/
-[submodule "acp_spec"]
-	path = acp_spec
-	url = https://github.com/agntcy/acp-spec
