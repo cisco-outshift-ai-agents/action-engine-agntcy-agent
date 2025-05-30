@@ -12,7 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { GraphData } from "@/pages/session/types";
 import { getLastToolCallAIMessage, getLastToolMessage } from "@/utils";
-import { error } from "console";
 
 const ChatMessage: React.FC<ChatMessageProps> = (props) => {
   const { content, error, warnings, role, nodeType, onHitlConfirmation } =

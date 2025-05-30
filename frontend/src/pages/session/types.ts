@@ -208,11 +208,23 @@ export const SSEMessageWrapperZod = z.object({
   status: z.string(),
 });
 
+export const PendingApprovalValuesZod = z.object({
+  pending_approval: z.object({
+    tool_call: ToolCallZod,
+    approved: z.boolean().optional(),
+  }),
+});
+export type PendingApprovalValues = z.infer<typeof PendingApprovalValuesZod>;
+
 export const GraphDataSSEMessage = z.object({
   type: z.string().nullish(),
   run_id: z.string().nullish(),
   status: z.string().nullish(),
   values: GraphDataZod.optional(),
+  values: z.union([
+    GraphDataZod,
+    PendingApprovalValuesZod,
+  ]).optional(),
 });
 export type SSEMessage = z.infer<typeof GraphDataSSEMessage>;
 

@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from "react";
 import { useChatStore } from "@/stores/chat";
 import { chatApi } from "@/services/chat-api";
 import { transformSSEDataToMessage } from "@/utils/message-transformer";
-import { GraphDataZod } from "@/pages/session/types";
 
 export const useChatStream = () => {
   const [isWaitingForApproval, setIsWaitingForApproval] = useState(false);
@@ -89,19 +88,29 @@ export const useChatStream = () => {
 
       const graphData = graphDataParse.data;
 
-      const plan = graphData.values?.plan;
-      if (plan) {
-        console.log("Setting plan:", plan);
-        setPlan(plan);
-      }
-
-      const newMessage = transformSSEDataToMessage(graphData.values);
-      if (newMessage) {
-        console.log("Adding message:", newMessage);
-        addMessage(newMessage);
-        setIsWaitingForApproval(false);
-      }
-    };
+       // Only process if values exists, and access plan if values has expected properties in GraphData
+	
+		  if (graphData.values) {
+		    if ('node_type' in graphData.values) {
+		      const plan = graphData.values.plan;
+		      if (plan) {
+		        console.log("Setting plan:", plan);
+		        setPlan(plan);
+		      }
+		    }
+		
+		     // Only transform if it's a valid GraphData structure
+		    if ('node_type' in graphData.values) {
+		      const newMessage = transformSSEDataToMessage(graphData.values);
+		      if (newMessage) {
+		        console.log("Adding message:", newMessage);
+		        addMessage(newMessage);
+		        setIsWaitingForApproval(false);
+		      }
+		    };
+		    }
+		  }
+		};
 
     events.onerror = (error) => {
       console.error("SSE Error:", error);
@@ -138,6 +147,7 @@ export const useChatStream = () => {
       });
       setupEventStream(runId);
       setIsWaitingForApproval(false);
+      setisThinking(true);
     } catch (error) {
       console.error("Failed to resume run:", error);
       setisThinking(false);
