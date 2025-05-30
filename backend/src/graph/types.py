@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# SPDX-License-Identifier: Apache-2.0"
+# SPDX-License-Identifier: Apache-2.0
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional

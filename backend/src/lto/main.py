@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# SPDX-License-Identifier: Apache-2.0"
+# SPDX-License-Identifier: Apache-2.0
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, SystemMessage
 from src.utils.default_config_settings import default_config

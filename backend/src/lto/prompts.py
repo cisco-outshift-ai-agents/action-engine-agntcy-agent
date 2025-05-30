@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# SPDX-License-Identifier: Apache-2.0"
+# SPDX-License-Identifier: Apache-2.0
 from langchain_core.messages import HumanMessage, SystemMessage
 
 agent_workflow_memory_abstract_prompt = """

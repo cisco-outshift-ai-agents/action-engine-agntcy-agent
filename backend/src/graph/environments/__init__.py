@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# SPDX-License-Identifier: Apache-2.0"
+# SPDX-License-Identifier: Apache-2.0
 """Environment management for thread-specific resources."""
 
 from .manager import environment_manager
