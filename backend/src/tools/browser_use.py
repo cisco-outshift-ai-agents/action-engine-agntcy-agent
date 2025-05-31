@@ -256,12 +256,11 @@ async def browser_use_tool(
                     if download_path:
                         message = f"Downloaded file to {download_path}"
                     else:
-
                         # message = f"Clicked element with text: {element_text}"
                         page = await browser_context.get_current_page()
-		                current_url = page.url
-		                page_title = await page.title()
-		                message = f"Clicked element with text: {element_text}. Current page: '{page_title}' (URL: {current_url})"
+                        current_url = page.url
+                        page_title = await page.title()
+                        message = f"Clicked element with text: {element_text}. Current page: '{page_title}' (URL: {current_url})"
 
                     # Check for new tab after successful click
                     try:
