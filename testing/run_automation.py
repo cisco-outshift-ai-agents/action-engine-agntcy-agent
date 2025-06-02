@@ -1,4 +1,3 @@
-/*
 # Copyright 2025 Cisco Systems, Inc. and its affiliates
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +13,6 @@
 # limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0"
-*/
 import asyncio
 import argparse
 import json

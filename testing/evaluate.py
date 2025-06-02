@@ -1,4 +1,3 @@
-/*
 # Copyright 2025 Cisco Systems, Inc. and its affiliates
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +13,6 @@
 # limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0"
-*/
 from deepeval.metrics import GEval
 from deepeval.test_case import LLMTestCaseParams, LLMTestCase
 from typing import List, Optional
