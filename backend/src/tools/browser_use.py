@@ -244,7 +244,7 @@ async def browser_use_tool(
                 # Get element text before clicking in case of navigation
                 element_text = element.get_all_text_till_next_clickable_element(
                     max_depth=2
-                )
+                ) or "[Element has no text]"
                 logger.debug(f"Element xpath: {element.xpath}")
                 logger.debug(f"Element text: {element_text}")
 
@@ -256,7 +256,11 @@ async def browser_use_tool(
                     if download_path:
                         message = f"Downloaded file to {download_path}"
                     else:
-                        message = f"Clicked element with text: {element_text}"
+                        # message = f"Clicked element with text: {element_text}"
+                        page = await browser_context.get_current_page()
+                        current_url = page.url
+                        page_title = await page.title()
+                        message = f"Clicked element with text: {element_text}. Current page: '{page_title}' (URL: {current_url})"
 
                     # Check for new tab after successful click
                     try:

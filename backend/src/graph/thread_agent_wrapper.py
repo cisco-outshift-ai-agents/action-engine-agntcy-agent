@@ -164,6 +164,7 @@ class ThreadAgentWrapper(CompiledGraph):
                 config.setdefault("configurable", {})
                 config["configurable"].update(env_config)
                 config["configurable"]["thread_id"] = state["thread_id"]
+                config["recursion_limit"] = 100
 
         return state, config
 

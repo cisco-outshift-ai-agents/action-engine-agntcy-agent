@@ -59,7 +59,7 @@ class TerminalManager:
         self.command_counter = {}
         self.last_seen_marker_id = {}
 
-    async def create_terminal(self) -> str:
+    async def create_terminal(self, name: Optional[str]= None) -> str:
         """Creates a new terminal session using tmux and returns its ID"""
         tmux_socket_path = os.environ.get("TMUX_SOCKET_PATH", "/root/.tmux/tmux-server")
         terminal_id = str(random.randint(1000, 9999))
@@ -113,7 +113,7 @@ class TerminalManager:
 
         # save the session details
         self.terminals[terminal_id] = {
-            "session_name": terminal_id,
+            "session_name": name or terminal_id,
             "output": "",
             "working_directory": working_dir,
         }
