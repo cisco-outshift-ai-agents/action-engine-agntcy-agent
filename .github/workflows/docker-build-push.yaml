@@ -51,8 +51,8 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ./Dockerfile
+          context: ./backend
+          file: ./backend/Dockerfile
           push: false
           tags: ghcr.io/${{ github.repository_owner }}/action-engine-agntcy-agent:pr-${{ github.event.pull_request.number }}
 
@@ -61,7 +61,7 @@ jobs:
         if: github.event_name == 'push'
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ./Dockerfile
+          context: ./backend
+          file: ./backend/Dockerfile
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/action-engine-agntcy-agent:latest
