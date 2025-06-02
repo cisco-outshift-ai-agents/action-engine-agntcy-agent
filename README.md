@@ -16,6 +16,8 @@ This project is part of the [**AGNTCY**](https://docs.agntcy.org/pages/introduct
 The Browser and Terminal AI Agent is designed to operate in different environments (browser/terminal) and take actions based on the state of those environments and how their actions affect the environment.
 The agent learns from experiences, can be taught by the user, and can improve its performance over time. The agent can make decisions based on the information they receive and their own goals.
 
+![Expected UI](./docs/imgs/expected_ui.png)
+
 ## Requirements
 
 - Python 3.11+
@@ -92,7 +94,7 @@ git submodule update --init --recursive
 3. Start all services using Docker Compose:
 
 ```bash
-docker compose --env-file .env up --build
+docker compose up --build
 ```
 
 This will:
@@ -121,11 +123,25 @@ docker compose down
 
 On a successful run, you should see this on `http://localhost:5173/`:
 
-![Expected User Interface](expected_output.png)
+![Expected UI](./docs/imgs/expected_ui.png)
+
+### Architecture Overview
+
+![AI Flow](./docs/imgs/flow.jpg)
+
+The ActionEngine AI flow is designed to facilitate the interaction between the user, the AI agent, and the environment (browser/terminal). The flow includes:
+
+- **User Input**: The user provides input through the frontend interface.
+- **AI Agent**: The AI agent processes the input, interacts with the environment, and takes actions based on the state of the environment.
+- **Environment Interaction**: The agent interacts with the browser or terminal environment, executing commands and observing changes.
+
+### Sequence Diagram
+
+![Sequence Diagram](./docs/imgs/sequence.png)
 
 ## Roadmap
 
-See the [open issues](Project_issues_link) for a list
+See the [open issues](https://github.com/cisco-outshift-ai-agents/action-engine-agntcy-agent/issues) for a list
 of proposed features (and known issues).
 
 ## Contributing
@@ -143,9 +159,6 @@ information.
 ## Contact
 
 [cisco-outshift-ai-agents@cisco.com](mailto:cisco-outshift-ai-agents@cisco.com)
-
-Project Link:
-[<Project_Link>](Project_Link)
 
 ## Acknowledgements
 
