@@ -1,4 +1,4 @@
-# Browser and Terminal Actions AI Agent
+# AGNTCY ActionEngine: Browser and Terminal Actions AI Agent
 
 [![Release](https://img.shields.io/github/v/release/agntcy/repo-template?display_name=tag)](CHANGELOG.md)
 [![Contributor-Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-fbab2c.svg)](CODE_OF_CONDUCT.md)
