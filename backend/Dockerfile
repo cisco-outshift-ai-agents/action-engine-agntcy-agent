@@ -108,5 +108,4 @@ COPY start-tmux.sh /app/
 RUN chmod +x /app/start-tmux.sh
 
 EXPOSE 7788 6080 5900 9222
-HEALTHCHECK CMD curl --fail http://localhost:7788/health || exit 1
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
