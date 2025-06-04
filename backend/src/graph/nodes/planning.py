@@ -56,7 +56,9 @@ class PlanningNode(BaseNode):
         llm: BaseChatModel = config.get("configurable", {}).get("llm")
 
         bound_llm = llm.bind_tools(
-            self.tool_collection.get_tools(), tool_choice="auto"
+            self.tool_collection.get_tools(),
+            tool_choice="auto",
+            parallel_tool_calls=False,
         ).with_config(config=config)
 
         # Add system message first
@@ -76,7 +78,8 @@ class PlanningNode(BaseNode):
 
         # Add the current plan message
         plan_msg = planning_env.get_message_for_current_plan()
-        local_messages.append(plan_msg)
+        if plan_msg.content != "No plan available":
+            local_messages.append(plan_msg)
 
         # Get LLM response with tool calls
         raw_response: AIMessage = await self.call_model_with_tool_retry(
