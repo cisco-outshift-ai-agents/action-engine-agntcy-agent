@@ -79,7 +79,7 @@ class ToolGeneratorNode(BaseNode):
         # Bind tools to LLM
         bound_llm = llm.bind_tools(
             self.tool_collection.get_tools(),
-            tool_choice="auto",
+            tool_choice="required",
             parallel_tool_calls=False,
         ).with_config(config=config)
 
@@ -130,7 +130,7 @@ class ToolGeneratorNode(BaseNode):
         local_messages.append(progress_context)
 
         # Get LLM response with tool calls
-        raw_response: AIMessage = await self.call_model_with_tool_retry(
+        raw_response: AIMessage = await self.call_model_with_tool(
             llm=bound_llm, messages=local_messages
         )
         if not raw_response:

@@ -57,7 +57,7 @@ class PlanningNode(BaseNode):
 
         bound_llm = llm.bind_tools(
             self.tool_collection.get_tools(),
-            tool_choice="auto",
+            tool_choice="planning",
             parallel_tool_calls=False,
         ).with_config(config=config)
 
@@ -82,7 +82,7 @@ class PlanningNode(BaseNode):
             local_messages.append(plan_msg)
 
         # Get LLM response with tool calls
-        raw_response: AIMessage = await self.call_model_with_tool_retry(
+        raw_response: AIMessage = await self.call_model_with_tool(
             llm=bound_llm, messages=local_messages
         )
         if not raw_response:
