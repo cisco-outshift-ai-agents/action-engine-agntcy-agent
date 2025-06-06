@@ -1,18 +1,3 @@
-# Copyright 2025 Cisco Systems, Inc. and its affiliates
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# SPDX-License-Identifier: Apache-2.0
 import logging
 from enum import Enum
 from typing import Optional
@@ -42,7 +27,7 @@ class TerminalToolInput(BaseModel):
     action: TerminalAction = Field(
         description="The terminal action to perform. Each action has specific required parameters:\n"
         "- run: requires 'script' - executes a command in current terminal\n"
-        "- create: optional 'name' - creates new terminal session\n"
+        "- create: creates new terminal session\n"
         "- switch: requires 'terminal_id' - switches to specified terminal\n"
         "- close: optional 'terminal_id' - closes specified or current terminal\n"
         "- list: no parameters - lists all active terminals"
@@ -56,17 +41,13 @@ class TerminalToolInput(BaseModel):
         description="Required for 'switch' action, optional for 'close'. The ID of the terminal to switch to or close",
         ge=0,
     )
-    name: Optional[str] = Field(
-        None,
-        description="Optional name for 'create' action to identify the terminal session",
-    )
-
+  
     model_config = {
         "json_schema_extra": {
             "required": ["action"],
             "examples": [
                 {"action": "run", "script": "ls -la"},
-                {"action": "create", "name": "build-server"},
+                {"action": "create"},
                 {"action": "switch", "terminal_id": 1},
                 {"action": "close", "terminal_id": 1},
                 {"action": "list"},
@@ -83,7 +64,7 @@ class TerminalToolInput(BaseModel):
                     "properties": {"terminal_id": {"type": "integer", "minimum": 0}},
                 },
                 "create": {
-                    "properties": {"name": {"type": "string"}},
+                   
                 },
                 "close": {
                     "properties": {"terminal_id": {"type": "integer", "minimum": 0}},
@@ -99,7 +80,6 @@ async def terminal_tool(
     action: TerminalAction,
     script: Optional[str] = None,
     terminal_id: Optional[int] = None,
-    name: Optional[str] = None,
     config: RunnableConfig = None,
 ) -> ToolResult:
     """
@@ -108,7 +88,7 @@ async def terminal_tool(
 
     REQUIRED PARAMETERS PER ACTION:
     - run: script (command to execute)
-    - create: name (optional - identify the session)
+    - create: no parameters needed
     - switch: terminal_id
     - close: terminal_id (optional - defaults to current)
     - list: no parameters needed
@@ -124,7 +104,6 @@ async def terminal_tool(
         action: The terminal action to perform from the list above
         script: Required command string for 'run' action
         terminal_id: Required terminal ID for 'switch' action, optional for 'close'
-        name: Optional name for 'create' action to identify the session
     """
     logger.info(f"Terminal tool invoked with action: {action}")
 
@@ -141,7 +120,6 @@ async def terminal_tool(
             action=action,
             script=script,
             terminal_id=terminal_id,
-            name=name,
         )
 
         if params.action == TerminalAction.RUN:
@@ -154,7 +132,7 @@ async def terminal_tool(
             return ToolResult(output=output) if success else ToolResult(error=output)
 
         elif params.action == TerminalAction.CREATE:
-            new_terminal_id = await terminal_manager.create_terminal(name)
+            new_terminal_id = await terminal_manager.create_terminal()
             return ToolResult(
                 output=f"Created new terminal session with ID: {new_terminal_id}"
             )
