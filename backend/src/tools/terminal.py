@@ -134,7 +134,10 @@ async def terminal_tool(
         elif params.action == TerminalAction.CREATE:
             new_terminal_id = await terminal_manager.create_terminal()
             return ToolResult(
-                output=f"Created new terminal session with ID: {new_terminal_id}"
+                output={
+                    "message": f"Created new terminal session with ID: {new_terminal_id}",
+                    "terminal_id": new_terminal_id
+          }
             )
 
         elif params.action == TerminalAction.SWITCH:
