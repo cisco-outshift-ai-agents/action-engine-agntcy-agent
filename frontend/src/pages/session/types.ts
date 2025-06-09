@@ -50,7 +50,10 @@ export const BrowserToolPropsZod = BaseToolMessagePropsZod.extend({
 export type BrowserToolProps = z.infer<typeof BrowserToolPropsZod>;
 
 export const TerminalToolPropsZod = BaseToolMessagePropsZod.extend({
-  script: z.string(),
+  action: z.enum(["create", "run", "switch", "close", "list"]).optional(),
+  script: z.string().optional(),
+  terminal_id: z.string().optional(),
+  message: z.string().optional(),
 });
 export type TerminalToolProps = z.infer<typeof TerminalToolPropsZod>;
 
@@ -265,7 +268,9 @@ export const BrowserUseArgsZod = z.object({
 export type BrowserUseArgs = z.infer<typeof BrowserUseArgsZod>;
 
 export const TerminalUseArgsZod = z.object({
-  script: z.string(),
+  action: z.enum(["create", "run", "switch", "close", "list"]),
+  script: z.string().optional(),
+  terminal_id: z.string().optional(),
 });
 export type TerminalUseArgs = z.infer<typeof TerminalUseArgsZod>;
 
