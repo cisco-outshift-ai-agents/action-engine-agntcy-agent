@@ -61,11 +61,22 @@ class HumanApprovalNode(BaseNode):
             if tool_call.get("name") == "terminal":
                 logger.info(f"Found terminal command, requesting approval: {tool_call}")
                 script = tool_call.get("args", {}).get("script", "N/A")
+                action = tool_call.get("args", {}).get("action", "")
 
                 state["pending_approval"] = {"tool_call": tool_call, "approved": False}
+                # A seperate interrup for when action is "run" and for when it is "create"
+                if action == "run":
+                    logger.info(f"Requesting approval for terminal run command: {script}")
+                    interrupt_data = {
+                        "tool_call": tool_call,
+                        "message": f"Do you approve executing the terminal command: '{script}'?",
+                    }
+                    return interrupt(interrupt_data)
+                elif action == "create":
+                    logger.info(f"Requesting approval for terminal create command: {script}")
                 interrupt_data = {
                     "tool_call": tool_call,
-                    "message": f"Do you approve executing the terminal command: '{script}'?",
+                    "message": f"Do you approve creating a new terminal?",
                 }
                 return interrupt(interrupt_data)
 
