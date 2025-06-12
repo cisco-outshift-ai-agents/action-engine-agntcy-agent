@@ -31,6 +31,8 @@ def default_config():
         "max_actions_per_step": int(os.getenv("MAX_ACTIONS_PER_STEP", 10)),
         "use_vision": os.getenv("USE_VISION", "False").lower() == "true",
         "tool_calling_method": os.getenv("TOOL_CALLING_METHOD", "auto"),
+        "enable_workflow_memory": os.getenv("ENABLE_WORKFLOW_MEMORY", "False").lower()
+        == "true",
         "llm_provider": os.getenv("LLM_PROVIDER", "openai"),
         "llm_model_name": os.getenv("LLM_MODEL_NAME", "gpt-4o"),
         "llm_temperature": float(os.getenv("LLM_TEMPERATURE", 1.0)),

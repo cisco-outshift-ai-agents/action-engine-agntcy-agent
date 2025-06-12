@@ -37,6 +37,7 @@ class PlanningNode(BaseNode):
     def __init__(self):
         self.name = "planning"
         self.tool_collection = ActionEngineToolCollection([planning_tool])
+        self.planner_prompt = get_planner_prompt()
 
     async def ainvoke(self, state: AgentState, config: Dict = None) -> AgentState:
         logger.info("PlanningNode invoked")
@@ -63,8 +64,7 @@ class PlanningNode(BaseNode):
 
         # Add system message first
         local_messages = []
-        planner_prompt = get_planner_prompt()
-        system_message = SystemMessage(content=planner_prompt)
+        system_message = SystemMessage(content=self.planner_prompt)
         local_messages.append(system_message)
 
         # Hydrate existing messages
