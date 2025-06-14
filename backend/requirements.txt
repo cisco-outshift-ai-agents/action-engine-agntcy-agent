@@ -12,6 +12,7 @@ langgraph==0.4.8
 langgraph-checkpoint-postgres==2.0.21
 psycopg==3.2.0
 openai==1.61.1
+semantic-router[local]==0.1.8
 
 # Browser control
 browser-use==0.1.39

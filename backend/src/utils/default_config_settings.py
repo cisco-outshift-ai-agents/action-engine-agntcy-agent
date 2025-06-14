@@ -18,21 +18,35 @@ import pickle
 import uuid
 
 from dotenv import load_dotenv
+from src.semantic_routing_induction.semantic_router_utils import load_routers_from_files
 
 load_dotenv()
 
 
 def default_config():
     """Prepare the default configuration"""
+    if os.getenv("ENABLE_WORKFLOW_MEMORY", "False").lower() == "true":
+        routing_file_location = os.getenv(
+            "ROUTING_FILES", "./semantic_routing_induction"
+        )
+        main_router, domain_routers = load_routers_from_files(
+            os.path.join(routing_file_location, "router_files")
+        )
+    else:
+        main_router = None
+        domain_routers = None
 
-    # TODO Turn these all into environment variables
-    return {
+    config = {
         "max_steps": int(os.getenv("MAX_STEPS", 100)),
         "max_actions_per_step": int(os.getenv("MAX_ACTIONS_PER_STEP", 10)),
         "use_vision": os.getenv("USE_VISION", "False").lower() == "true",
         "tool_calling_method": os.getenv("TOOL_CALLING_METHOD", "auto"),
         "enable_workflow_memory": os.getenv("ENABLE_WORKFLOW_MEMORY", "False").lower()
         == "true",
+        "routers": [main_router, domain_routers],
+        "workflow_files": os.path.join(
+            os.getenv("ROUTING_FILES", "./semantic_routing_induction"), "workflow_files"
+        ),
         "llm_provider": os.getenv("LLM_PROVIDER", "openai"),
         "llm_model_name": os.getenv("LLM_MODEL_NAME", "gpt-4o"),
         "llm_temperature": float(os.getenv("LLM_TEMPERATURE", 1.0)),
@@ -51,3 +65,5 @@ def default_config():
             else None
         ),
     }
+
+    return config

@@ -4,7 +4,7 @@ from semantic_router import Route
 from semantic_router.encoders import FastEmbedEncoder, HuggingFaceEncoder
 from semantic_router.routers import SemanticRouter
 
-encoder = HuggingFaceEncoder(name="Qwen/Qwen3-Embedding-0.6B", score_threshold=0.5)
+encoder = HuggingFaceEncoder(name="cointegrated/rubert-tiny", score_threshold=0.5)
 
 
 def load_routers_from_files(router_dir):
