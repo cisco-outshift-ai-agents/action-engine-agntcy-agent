@@ -54,6 +54,16 @@ def get_planner_prompt() -> str:
     return PLANNER_PROMPT
 
 
+HINTS_PROMPT = """
+These are some common workflows that will help you with planning and tool selection:
+"""
+
+
+def get_hints_prompt() -> str:
+    """Provides hints to the agent about how to plan and select tools"""
+    return HINTS_PROMPT
+
+
 EXECUTOR_PROMPT = """
 You are the Executor node in a multi-agent system. Your specific role and environment is:
 

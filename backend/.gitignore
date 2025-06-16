@@ -187,3 +187,8 @@ data/
 
 # For Config Files (Current Settings)
 .config.pkl
+
+# For Data files
+*.csv
+router_files/
+workflow_files/

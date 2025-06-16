@@ -146,14 +146,12 @@ class BaseNode:
 
         return pruned_messages
 
-    async def call_model_with_tool_retry(
+    async def call_model_with_tool(
         self, llm: BaseChatModel, messages: List[BaseMessage]
     ) -> AIMessage:
         """
-        Call the model with the tool retry logic
-
-        Since vLLM does not support tool_choice="required" (https://docs.vllm.ai/en/stable/features/tool_calling.html),
-        we need to implement some retry logic to ensure that the model responds with the correct tool calls.
+        Makes a single attempt to get a response from the model and validates
+        any tool calls against the available tools in the tool collection.
         """
 
         # Simple path - no tool collection means no validation needed
@@ -163,54 +161,37 @@ class BaseNode:
             )
             return await llm.ainvoke(messages)
 
-        # Tool validation path
+        # Tool validation path - log available tools
         logger.debug(
             f"{self.name} node validating tools. Available: {self.tool_collection.list_tools()}"
         )
 
-        MAX_ATTEMPTS = 5
-        attempt = 0
+        try:
+            # Make a single attempt to get a response
+            response: AIMessage = await llm.ainvoke(messages)
 
-        while attempt < MAX_ATTEMPTS:
-            # Add retry prompt if needed
-            if attempt > 0:
-                logger.info(f"{self.name} node retrying, attempt {attempt}")
-                available_tools = "\n".join(
-                    f"- {tool} (available to {self.name} node)"
-                    for tool in self.tool_collection.list_tools()
+            # Check if the response contains valid tool calls
+            workable_tool_calls = self.get_workable_tool_calls(response)
+
+            if len(workable_tool_calls) > 0:
+                tool_names = [tc.name for tc in workable_tool_calls]
+                logger.info(
+                    f"{self.name} node got valid response with tools: {tool_names}"
                 )
-                messages.append(
-                    AIMessage(
-                        content=get_tool_call_retry_prompt(tools_str=available_tools)
-                    )
+            elif response.content.strip():
+                # Log if we got content without valid tools
+                logger.warning(
+                    f"{self.name} node got response without valid tools: {response.content}"
                 )
 
-            # Try to get valid tool calls
-            attempt += 1
-            try:
-                response: AIMessage = await llm.ainvoke(messages)
-                workable_tool_calls = self.get_workable_tool_calls(response)
+            # Return the response regardless of tool call validity
+            return response
 
-                if len(workable_tool_calls) > 0:
-                    tool_names = [tc.name for tc in workable_tool_calls]
-                    logger.info(
-                        f"{self.name} node got valid response with tools: {tool_names}"
-                    )
-                    return response
-
-                # Only log non-empty invalid responses
-                if response.content.strip():
-                    logger.warning(
-                        f"{self.name} node got response without valid tools: {response.content}"
-                    )
-
-            except Exception as e:
-                logger.error(
-                    f"Error in {self.name} node calling model with tool calls: {str(e)}"
-                )
-                continue
-
-        return None
+        except Exception as e:
+            logger.error(
+                f"Error in {self.name} node calling model with tool calls: {str(e)}"
+            )
+            return None
 
     def get_workable_tool_calls(self, message: AIMessage) -> List[WorkableToolCall]:
         """

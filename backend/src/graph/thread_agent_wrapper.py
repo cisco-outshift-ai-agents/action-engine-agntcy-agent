@@ -30,6 +30,7 @@ from agent_workflow_server.storage.models import Run
 
 from src.graph.environments.manager import environment_manager
 from src.utils.utils import get_llm_model
+from src.utils.default_config_settings import default_config
 
 
 @dataclass
@@ -75,6 +76,7 @@ class ThreadAgentWrapper(CompiledGraph):
         self._env_store = environment_store
         self._thread_configs: Dict[str, EnvironmentConfig] = {}
         self._thread_llms: Dict[str, Any] = {}
+        self.default_config = default_config()
 
     def _parse_config(
         self, config: Optional[Dict[str, Any]] = None
@@ -141,6 +143,7 @@ class ThreadAgentWrapper(CompiledGraph):
                     "dom_service": envs.browser_manager.dom_service,
                     "terminal_manager": envs.terminal_manager,
                     "planning_environment": envs.planning_manager,
+                    "default_config": self.default_config,
                 },
             )
 

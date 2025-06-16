@@ -6,12 +6,13 @@ pydantic==2.10.6
 python-dotenv==1.0.1
 
 # LLM and Agent Framework
-langchain==0.3.14
-langchain-core==0.3.35
-langgraph==0.3.32
+langchain==0.3.25
+langchain-core==0.3.63
+langgraph==0.4.8
 langgraph-checkpoint-postgres==2.0.21
 psycopg==3.2.0
 openai==1.61.1
+semantic-router[local]==0.1.8
 
 # Browser control
 browser-use==0.1.39
