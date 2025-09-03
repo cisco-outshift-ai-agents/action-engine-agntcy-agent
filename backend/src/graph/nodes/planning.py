@@ -21,12 +21,15 @@ from langchain.chat_models.base import BaseChatModel
 
 from src.graph.environments.planning import PlanningEnvironment
 from src.graph.nodes.base_node import BaseNode
-from src.graph.prompts import get_planner_prompt
+from src.graph.prompts import get_planner_prompt, get_hints_prompt
 from src.graph.types import AgentState
 from src.tools.planning import planning_tool
 from src.tools.terminate import terminate_tool
 from src.tools.tool_collection import ActionEngineToolCollection
 from src.tools.utils import hydrate_messages, serialize_messages
+from src.semantic_routing_induction.semantic_router_utils import (
+    get_hints_for_query_with_loaded_routers,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +40,8 @@ class PlanningNode(BaseNode):
     def __init__(self):
         self.name = "planning"
         self.tool_collection = ActionEngineToolCollection([planning_tool])
+        self.planner_prompt = get_planner_prompt()
+        self.hints_prompt = get_hints_prompt()
 
     async def ainvoke(self, state: AgentState, config: Dict = None) -> AgentState:
         logger.info("PlanningNode invoked")
@@ -56,13 +61,28 @@ class PlanningNode(BaseNode):
         llm: BaseChatModel = config.get("configurable", {}).get("llm")
 
         bound_llm = llm.bind_tools(
-            self.tool_collection.get_tools(), tool_choice="auto"
+            self.tool_collection.get_tools(),
+            tool_choice="planning",
+            parallel_tool_calls=False,
         ).with_config(config=config)
+
+        # Add hints to the planner
+        if config["configurable"]["default_config"]["enable_workflow_memory"]:
+            domain, subdomain, website, hints = get_hints_for_query_with_loaded_routers(
+                state["task"],
+                config["configurable"]["default_config"]["routers"][0],
+                config["configurable"]["default_config"]["routers"][1],
+                config["configurable"]["default_config"]["workflow_files"],
+                ext=".txt",
+            )
+            logger.info(f"Retrieved hints: {hints}")
+
+            if hints is not None:
+                self.planner_prompt += f"\n\n{self.hints_prompt}:\n{hints}"
 
         # Add system message first
         local_messages = []
-        planner_prompt = get_planner_prompt()
-        system_message = SystemMessage(content=planner_prompt)
+        system_message = SystemMessage(content=self.planner_prompt)
         local_messages.append(system_message)
 
         # Hydrate existing messages
@@ -76,10 +96,11 @@ class PlanningNode(BaseNode):
 
         # Add the current plan message
         plan_msg = planning_env.get_message_for_current_plan()
-        local_messages.append(plan_msg)
+        if plan_msg.content != "No plan available":
+            local_messages.append(plan_msg)
 
         # Get LLM response with tool calls
-        raw_response: AIMessage = await self.call_model_with_tool_retry(
+        raw_response: AIMessage = await self.call_model_with_tool(
             llm=bound_llm, messages=local_messages
         )
         if not raw_response:
